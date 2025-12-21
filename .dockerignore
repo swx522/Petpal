@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Build outputs
+bin/
+obj/
+publish/
+
+# User-specific files
+*.user
+
+# Test results
+TestResults/
+*.trx
+
+# NuGet
+packages/
+*.nupkg
+
+# Local database
+*.mdf
+*.ldf
+
+# Environment files
+.env
+.env.local
+
+# Documentation drafts
+*.tmp

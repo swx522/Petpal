@@ -1,0 +1,130 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using petpal.API.Data;
+using petpal.API.Services;
+using Pomelo.EntityFrameworkCore.MySql;
+using Serilog;
+using System.Text;
+using System;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// 配置Serilog日志记录器
+// Serilog提供结构化日志记录，便于追踪和调试应用程序行为
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .CreateLogger();
+builder.Host.UseSerilog();
+
+// 添加数据库上下文配置
+// 使用MySQL作为数据库，支持实体框架Core进行数据访问
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"),
+                     new MySqlServerVersion(new Version(8, 0, 33))));
+
+// 配置JWT身份认证
+// JWT用于无状态的API身份验证，提供安全的token-based认证机制
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,           // 验证令牌发行者
+            ValidateAudience = true,         // 验证令牌受众
+            ValidateLifetime = true,         // 验证令牌生命周期
+            ValidateIssuerSigningKey = true, // 验证签名密钥
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+    });
+
+// 添加Redis缓存服务
+// Redis用于缓存热点数据，提高应用程序性能
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+});
+
+// 注册应用程序服务
+// 使用依赖注入容器管理服务生命周期
+builder.Services.AddScoped<IUserService, UserService>();           // 用户服务
+builder.Services.AddScoped<IJwtService, JwtService>();             // JWT令牌服务
+builder.Services.AddScoped<IReputationService, ReputationService>(); // 信誉评价服务
+builder.Services.AddScoped<IGeolocationService, GeolocationService>(); // 地理位置服务
+
+// 添加控制器服务
+builder.Services.AddControllers();
+
+// 配置Swagger API文档
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "petpal API",
+        Version = "v1",
+        Description = "宠物互助平台API，提供用户管理、互助订单等功能"
+    });
+
+    // 添加JWT认证到Swagger UI
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
+// 构建应用程序
+var app = builder.Build();
+
+// 配置HTTP请求管道中间件
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+// 应用程序启动时执行数据库迁移
+// 确保数据库结构与代码模型同步
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        db.Database.Migrate();
+        Log.Information("数据库迁移完成");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "数据库迁移失败");
+    }
+}
+
+// 启动应用程序
+Log.Information("宠物互助平台API服务启动");
+app.Run();

@@ -93,6 +93,28 @@ namespace petpal.API.Services
         }
 
         /// <summary>
+        /// 记录用户信誉分数变化
+        /// </summary>
+        /// <param name="userId">用户ID</param>
+        /// <param name="oldScore">变化前的分数</param>
+        /// <param name="newScore">变化后的分数</param>
+        /// <param name="reason">变化原因</param>
+        /// <returns>异步任务</returns>
+        public async Task LogReputationChangeAsync(string userId, int oldScore, int newScore, string reason)
+        {
+            var log = new ReputationLog
+            {
+                UserId = userId,
+                OldScore = oldScore,
+                NewScore = newScore,
+                Reason = reason
+            };
+
+            _context.ReputationLogs.Add(log);
+            await _context.SaveChangesAsync();
+        }
+
+        /// <summary>
         /// 异步更新用户的信誉分数
         /// 更新分数后自动重新计算并更新信誉等级
         /// </summary>

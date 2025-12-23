@@ -131,8 +131,7 @@ namespace petpal.API.Services
                 .FirstOrDefaultAsync(u => u.Latitude == (decimal)userLat && u.Longitude == (decimal)userLng);
 
             var services = await _context.MutualOrders
-                .Include(o => o.Requester)
-                .Include(o => o.Pet)
+                .Include(o => o.Owner)
                 .Include(o => o.Community)
                 .Where(o => o.Status == OrderStatus.Pending &&
                            o.CommunityId == communityId)
@@ -141,13 +140,21 @@ namespace petpal.API.Services
             // 排除自己的订单
             if (currentUser != null)
             {
-                services = services.Where(o => o.RequesterId != currentUser.Id).ToList();
+                services = services.Where(o => o.OwnerId != currentUser.Id).ToList();
             }
 
-            // 计算距离并排序
+            // 计算距离并排序（基于社区中心点）
             foreach (var service in services)
             {
-                service.Distance = CalculateDistance(userLat, userLng, (double)service.Latitude, (double)service.Longitude);
+                if (service.Community != null)
+                {
+                    var center = service.Community.GetCenter();
+                    service.Distance = CalculateDistance(userLat, userLng, (double)center.CenterLat, (double)center.CenterLng);
+                }
+                else
+                {
+                    service.Distance = 0; // 如果没有社区，距离设为0
+                }
             }
 
             return services.OrderBy(s => s.Distance).ToList();
@@ -165,8 +172,7 @@ namespace petpal.API.Services
         {
             // 首先获取所有待接单的服务（排除指定社区）
             var query = _context.MutualOrders
-                .Include(o => o.Requester)
-                .Include(o => o.Pet)
+                .Include(o => o.Owner)
                 .Include(o => o.Community)
                 .Where(o => o.Status == OrderStatus.Pending);
 
@@ -177,15 +183,19 @@ namespace petpal.API.Services
 
             var services = await query.ToListAsync();
 
-            // 过滤出在距离范围内的服务
+            // 过滤出在距离范围内的服务（基于社区中心点）
             var nearbyServices = new List<MutualOrder>();
             foreach (var service in services)
             {
-                var distance = CalculateDistance(userLat, userLng, service.Latitude, service.Longitude);
-                if (distance <= radiusKm)
+                if (service.Community != null)
                 {
-                    service.Distance = distance;
-                    nearbyServices.Add(service);
+                    var center = service.Community.GetCenter();
+                    var distance = CalculateDistance(userLat, userLng, (double)center.CenterLat, (double)center.CenterLng);
+                    if (distance <= radiusKm)
+                    {
+                        service.Distance = distance;
+                        nearbyServices.Add(service);
+                    }
                 }
             }
 

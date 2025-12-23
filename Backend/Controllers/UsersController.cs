@@ -589,12 +589,8 @@ namespace petpal.API.Controllers
                 }
 
                 // 获取用户的订单统计
-                var completedOrdersAsRequester = await _context.MutualOrders
-                    .Where(o => o.RequesterId == userId && o.Status == OrderStatus.Completed)
-                    .CountAsync();
-
-                var completedOrdersAsHelper = await _context.MutualOrders
-                    .Where(o => o.HelperId == userId && o.Status == OrderStatus.Completed)
+                var completedOrdersAsOwner = await _context.MutualOrders
+                    .Where(o => o.OwnerId == userId && o.Status == OrderStatus.Completed)
                     .CountAsync();
 
                 // 获取用户收到的评价
@@ -616,9 +612,8 @@ namespace petpal.API.Controllers
                     username = user.Username,
                     reputationScore = user.ReputationScore,
                     reputationLevel = user.ReputationLevel,
-                    totalCompletedOrders = completedOrdersAsRequester + completedOrdersAsHelper,
-                    ordersAsRequester = completedOrdersAsRequester,
-                    ordersAsHelper = completedOrdersAsHelper,
+                    totalCompletedOrders = completedOrdersAsOwner,
+                    ordersAsOwner = completedOrdersAsOwner,
                     totalEvaluations = totalEvaluations,
                     positiveEvaluations = positiveEvaluations,
                     positiveRate = Math.Round(positiveRate, 1),
@@ -807,8 +802,8 @@ namespace petpal.API.Controllers
                     createdAt = e.CreatedAt,
                     orderInfo = new
                     {
-                        helpType = e.Order.HelpType.ToString(),
-                        completedAt = e.Order.CompletedAt
+                        service_type = e.Order.ServiceType,
+                        completed_at = e.CreatedAt // 使用评价时间作为完成时间
                     }
                 });
 
@@ -1050,6 +1045,93 @@ namespace petpal.API.Controllers
         {
             public double Longitude { get; set; }
             public double Latitude { get; set; }
+        }
+
+        /// <summary>
+        /// 获取用户信誉变化日志接口
+        /// </summary>
+        /// <param name="userId">用户ID</param>
+        /// <param name="page">页码</param>
+        /// <param name="pageSize">每页数量</param>
+        /// <returns>信誉变化日志列表</returns>
+        [HttpGet("{userId}/reputation/logs")]
+        [Authorize]
+        public async Task<IActionResult> GetUserReputationLogs(string userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                // 从JWT令牌中获取当前用户ID
+                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(currentUserId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                // 验证用户只能查看自己的信誉日志
+                if (currentUserId != userId)
+                {
+                    return Forbid(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "只能查看自己的信誉日志"
+                    }.ToString());
+                }
+
+                // 获取信誉日志总数
+                var totalCount = await _context.ReputationLogs
+                    .Where(r => r.UserId == userId)
+                    .CountAsync();
+
+                // 获取分页的信誉日志
+                var logs = await _context.ReputationLogs
+                    .Where(r => r.UserId == userId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // 构建响应数据
+                var logList = logs.Select(log => new
+                {
+                    id = log.Id,
+                    user_id = log.UserId,
+                    old_score = log.OldScore,
+                    new_score = log.NewScore,
+                    reason = log.Reason,
+                    created_at = log.CreatedAt
+                });
+
+                var responseData = new
+                {
+                    logs = logList,
+                    pagination = new
+                    {
+                        page = page,
+                        pageSize = pageSize,
+                        totalCount = totalCount,
+                        totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                    }
+                };
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Data = responseData,
+                    Message = "获取信誉日志成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = $"获取信誉日志失败: {ex.Message}"
+                });
+            }
         }
     }
 }

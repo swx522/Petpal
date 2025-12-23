@@ -58,6 +58,12 @@ namespace petpal.API.Data
         public DbSet<Community> Communities { get; set; }
 
         /// <summary>
+        /// 信誉日志表DbSet
+        /// 提供对信誉日志实体的CRUD操作
+        /// </summary>
+        public DbSet<ReputationLog> ReputationLogs { get; set; }
+
+        /// <summary>
         /// 配置实体模型
         /// 在这里定义实体间的关系、约束和索引
         /// </summary>
@@ -86,10 +92,6 @@ namespace petpal.API.Data
             modelBuilder.Entity<MutualOrder>()
                 .HasIndex(o => new { o.Status, o.CreatedAt });
 
-            // 地理位置索引：经度+纬度，用于地理位置查询
-            // 注意：这里使用的是基础索引，生产环境中可能需要空间索引
-            modelBuilder.Entity<MutualOrder>()
-                .HasIndex(o => new { o.Longitude, o.Latitude });
 
             // 配置外键关系
             // 虽然使用了[ForeignKey]特性，但这里可以添加额外的约束配置
@@ -102,18 +104,12 @@ namespace petpal.API.Data
                 .HasForeignKey(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // 配置订单与用户的多对多关系（通过Requester和Helper）
+            // 配置订单与用户的关系
             modelBuilder.Entity<MutualOrder>()
-                .HasOne(o => o.Requester)
-                .WithMany(u => u.OrdersAsRequester)
-                .HasForeignKey(o => o.RequesterId)
+                .HasOne(o => o.Owner)
+                .WithMany(u => u.OrdersAsRequester) // 复用现有的导航属性
+                .HasForeignKey(o => o.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict); // 不级联删除，保持数据完整性
-
-            modelBuilder.Entity<MutualOrder>()
-                .HasOne(o => o.Helper)
-                .WithMany(u => u.OrdersAsHelper)
-                .HasForeignKey(o => o.HelperId)
-                .OnDelete(DeleteBehavior.SetNull); // 帮助者删除时设为null
 
             // 配置评价与订单和用户的关系
             modelBuilder.Entity<OrderEvaluation>()
@@ -159,9 +155,9 @@ namespace petpal.API.Data
                 .HasIndex(u => new { u.Longitude, u.Latitude })
                 .HasFilter("[Longitude] IS NOT NULL AND [Latitude] IS NOT NULL");
 
-            // 为订单地理位置添加索引
+            // 为订单社区添加索引
             modelBuilder.Entity<MutualOrder>()
-                .HasIndex(o => new { o.Longitude, o.Latitude });
+                .HasIndex(o => o.CommunityId);
 
             // 为订单社区添加索引
             modelBuilder.Entity<MutualOrder>()

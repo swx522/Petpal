@@ -27,5 +27,15 @@ namespace petpal.API.Services
         /// <param name="scoreChange">分数变化值</param>
         /// <returns>异步任务</returns>
         Task UpdateUserReputationAsync(string userId, int scoreChange);
+
+        /// <summary>
+        /// 记录用户信誉分数变化
+        /// </summary>
+        /// <param name="userId">用户ID</param>
+        /// <param name="oldScore">变化前的分数</param>
+        /// <param name="newScore">变化后的分数</param>
+        /// <param name="reason">变化原因</param>
+        /// <returns>异步任务</returns>
+        Task LogReputationChangeAsync(string userId, int oldScore, int newScore, string reason);
     }
 }

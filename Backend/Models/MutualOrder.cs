@@ -41,37 +41,34 @@ namespace petpal.API.Models
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
         /// <summary>
-        /// 委托人ID
+        /// 宠物主人ID
         /// 发布互助需求的用户
         /// </summary>
         [Required]
-        public string RequesterId { get; set; }
+        public string OwnerId { get; set; }
 
         /// <summary>
-        /// 帮助者ID
-        /// 可为空，表示尚未有帮助者接受订单
-        /// </summary>
-        public string? HelperId { get; set; }
-
-        /// <summary>
-        /// 宠物ID
-        /// 需要提供服务的宠物
+        /// 订单标题
         /// </summary>
         [Required]
-        public string PetId { get; set; }
+        [MaxLength(200, ErrorMessage = "标题长度不能超过200个字符")]
+        public string Title { get; set; }
 
         /// <summary>
-        /// 互助类型
-        /// 确定提供何种类型的服务
+        /// 宠物类型
+        /// 如：Dog（狗）、Cat（猫）等
         /// </summary>
         [Required]
-        public HelpType HelpType { get; set; }
+        [MaxLength(50, ErrorMessage = "宠物类型长度不能超过50个字符")]
+        public string PetType { get; set; }
 
         /// <summary>
-        /// 订单状态
-        /// 默认为待接单状态
+        /// 服务类型
+        /// 如：Foster（寄养）、Feed（喂养）、Accompany（陪伴）等
         /// </summary>
-        public OrderStatus Status { get; set; } = OrderStatus.Pending;
+        [Required]
+        [MaxLength(50, ErrorMessage = "服务类型长度不能超过50个字符")]
+        public string ServiceType { get; set; }
 
         /// <summary>
         /// 服务开始时间
@@ -88,32 +85,17 @@ namespace petpal.API.Models
         public DateTime EndTime { get; set; }
 
         /// <summary>
-        /// 服务地点经度
-        /// 用于地理位置计算和附近订单查询
+        /// 服务描述
+        /// 详细的服务需求描述
         /// </summary>
-        [Required]
-        [Range(-180, 180, ErrorMessage = "经度范围无效")]
-        public double Longitude { get; set; }
+        [MaxLength(1000, ErrorMessage = "描述长度不能超过1000个字符")]
+        public string? Description { get; set; }
 
         /// <summary>
-        /// 服务地点纬度
+        /// 订单状态
+        /// 默认为待接单状态
         /// </summary>
-        [Required]
-        [Range(-90, 90, ErrorMessage = "纬度范围无效")]
-        public double Latitude { get; set; }
-
-        /// <summary>
-        /// 订单备注
-        /// 委托人的特殊要求或说明
-        /// </summary>
-        [MaxLength(500, ErrorMessage = "备注长度不能超过500个字符")]
-        public string Remark { get; set; }
-
-        /// <summary>
-        /// 订单附加图片
-        /// 用户上传的宠物照片或其他相关图片
-        /// </summary>
-        public string? OrderImages { get; set; }
+        public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
         /// <summary>
         /// 服务所在社区ID
@@ -127,30 +109,11 @@ namespace petpal.API.Models
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         /// <summary>
-        /// 订单接单时间
-        /// 帮助者接受订单的时间
-        /// </summary>
-        public DateTime? AcceptedAt { get; set; }
-
-        /// <summary>
-        /// 订单完成时间
-        /// 服务执行完成的时间
-        /// </summary>
-        public DateTime? CompletedAt { get; set; }
-
-        /// <summary>
-        /// 委托人信息
+        /// 宠物主人信息
         /// 导航属性：关联到User实体
         /// </summary>
-        [ForeignKey("RequesterId")]
-        public virtual User Requester { get; set; }
-
-        /// <summary>
-        /// 帮助者信息
-        /// 导航属性：可为空，表示未分配帮助者
-        /// </summary>
-        [ForeignKey("HelperId")]
-        public virtual User? Helper { get; set; }
+        [ForeignKey("OwnerId")]
+        public virtual User Owner { get; set; }
 
         /// <summary>
         /// 服务所在社区
@@ -165,13 +128,6 @@ namespace petpal.API.Models
         /// </summary>
         [NotMapped]
         public double? Distance { get; set; }
-
-        /// <summary>
-        /// 宠物信息
-        /// 导航属性：关联到Pet实体
-        /// </summary>
-        [ForeignKey("PetId")]
-        public virtual Pet Pet { get; set; }
 
         /// <summary>
         /// 订单评价列表

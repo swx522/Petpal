@@ -104,13 +104,13 @@ namespace petpal.API.Controllers
                 }
 
                 // 服务类型筛选
-                if (!string.IsNullOrEmpty(type) && Enum.TryParse<HelpType>(type, true, out var helpType))
+                if (!string.IsNullOrEmpty(type))
                 {
-                    allServices = allServices.Where(o => o.HelpType == helpType).ToList();
+                    allServices = allServices.Where(o => o.ServiceType.Equals(type, StringComparison.OrdinalIgnoreCase)).ToList();
                 }
 
                 // 排除自己的订单
-                allServices = allServices.Where(o => o.RequesterId != userId).ToList();
+                allServices = allServices.Where(o => o.OwnerId != userId).ToList();
 
                 var totalCount = allServices.Count;
                 var services = allServices
@@ -121,33 +121,16 @@ namespace petpal.API.Controllers
                 // 构建响应数据
                 var serviceList = services.Select(o => new
                 {
-                    serviceId = o.Id,
-                    requester = new
-                    {
-                        userId = o.Requester.Id,
-                        username = o.Requester.Username,
-                        reputationScore = o.Requester.ReputationScore,
-                        reputationLevel = o.Requester.ReputationLevel
-                    },
-                    pet = new
-                    {
-                        petId = o.Pet.Id,
-                        name = o.Pet.Name,
-                        type = o.Pet.Type,
-                        breed = o.Pet.Breed,
-                        age = o.Pet.Age,
-                        isVaccinated = o.Pet.IsVaccinated,
-                        description = o.Pet.Description
-                    },
-                    helpType = o.HelpType.ToString(),
-                    startTime = o.StartTime,
-                    endTime = o.EndTime,
-                    duration = (o.EndTime - o.StartTime).TotalHours,
-                    longitude = o.Longitude,
-                    latitude = o.Latitude,
-                    remark = o.Remark,
-                    orderImages = ParseOrderImages(o.OrderImages),
-                    createdAt = o.CreatedAt
+                    id = o.Id,
+                    title = o.Title,
+                    pet_type = o.PetType,
+                    service_type = o.ServiceType,
+                    start_time = o.StartTime,
+                    end_time = o.EndTime,
+                    description = o.Description,
+                    distance = o.Distance,
+                    community_name = o.Community?.Name,
+                    created_at = o.CreatedAt
                 });
 
                 var responseData = new
@@ -215,8 +198,8 @@ namespace petpal.API.Controllers
 
                 // 获取服务详情
                 var service = await _context.MutualOrders
-                    .Include(o => o.Requester)
-                    .Include(o => o.Pet)
+                    .Include(o => o.Owner)
+                    .Include(o => o.Community)
                     .FirstOrDefaultAsync(o => o.Id == serviceId && o.Status == OrderStatus.Pending);
 
                 if (service == null)
@@ -231,36 +214,15 @@ namespace petpal.API.Controllers
                 // 构建响应数据
                 var responseData = new
                 {
-                    serviceId = service.Id,
-                    requester = new
-                    {
-                        userId = service.Requester.Id,
-                        username = service.Requester.Username,
-                        phone = MaskPhoneNumber(service.Requester.Phone),
-                        reputationScore = service.Requester.ReputationScore,
-                        reputationLevel = service.Requester.ReputationLevel,
-                        isRealNameCertified = service.Requester.IsRealNameCertified,
-                        isPetCertified = service.Requester.IsPetCertified
-                    },
-                    pet = new
-                    {
-                        petId = service.Pet.Id,
-                        name = service.Pet.Name,
-                        type = service.Pet.Type,
-                        breed = service.Pet.Breed,
-                        age = service.Pet.Age,
-                        isVaccinated = service.Pet.IsVaccinated,
-                        description = service.Pet.Description
-                    },
-                    helpType = service.HelpType.ToString(),
-                    startTime = service.StartTime,
-                    endTime = service.EndTime,
-                    duration = (service.EndTime - service.StartTime).TotalHours,
-                    longitude = service.Longitude,
-                    latitude = service.Latitude,
-                    remark = service.Remark,
-                    orderImages = ParseOrderImages(service.OrderImages),
-                    createdAt = service.CreatedAt
+                    id = service.Id,
+                    title = service.Title,
+                    pet_type = service.PetType,
+                    service_type = service.ServiceType,
+                    start_time = service.StartTime,
+                    end_time = service.EndTime,
+                    description = service.Description,
+                    community_name = service.Community?.Name,
+                    created_at = service.CreatedAt
                 };
 
                 return Ok(new ApiResponse
@@ -316,7 +278,7 @@ namespace petpal.API.Controllers
 
                 // 获取服务
                 var service = await _context.MutualOrders
-                    .Include(o => o.Requester)
+                    .Include(o => o.Owner)
                     .FirstOrDefaultAsync(o => o.Id == serviceId);
 
                 if (service == null)
@@ -339,7 +301,7 @@ namespace petpal.API.Controllers
                 }
 
                 // 验证不能接受自己的服务
-                if (service.RequesterId == userId)
+                if (service.OwnerId == userId)
                 {
                     return BadRequest(new ApiResponse
                     {
@@ -350,8 +312,6 @@ namespace petpal.API.Controllers
 
                 // 更新服务状态
                 service.Status = OrderStatus.Accepted;
-                service.HelperId = userId;
-                service.AcceptedAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();
 

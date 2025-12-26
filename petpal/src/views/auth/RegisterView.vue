@@ -22,7 +22,7 @@
             </div>
             <div class="benefit-item">
               <span class="benefit-icon">🏆</span>
-              <span class="benefit-text">积分奖励系统</span>
+              <span class="benefit-text">信誉评价系统</span>
             </div>
             <div class="benefit-item">
               <span class="benefit-icon">🛡️</span>
@@ -79,7 +79,7 @@
 
             <!-- 邮箱 -->
             <div class="form-group">
-              <label for="email">邮箱（可选）</label>
+              <label for="email">邮箱 *</label>
               <div class="input-with-icon">
                 <span class="input-icon">📧</span>
                 <input
@@ -123,12 +123,6 @@
                 </div>
                 <div class="strength-text">{{ strengthText }}</div>
               </div>
-              <div class="password-hints">
-                <div class="hint" :class="{ satisfied: hasUppercase }">至少一个大写字母</div>
-                <div class="hint" :class="{ satisfied: hasLowercase }">至少一个小写字母</div>
-                <div class="hint" :class="{ satisfied: hasNumber }">至少一个数字</div>
-                <div class="hint" :class="{ satisfied: hasSpecialChar }">至少一个特殊字符</div>
-              </div>
             </div>
 
             <!-- 确认密码 -->
@@ -156,21 +150,58 @@
               <div v-if="confirmPasswordError" class="error-message">{{ confirmPasswordError }}</div>
             </div>
 
-            <!-- 用户协议 -->
-            <div class="agreement">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="registerForm.agreeTerms" :class="{ 'error': termsError }">
-                <span class="checkmark"></span>
-                我已阅读并同意
-                <a href="#" class="terms-link">《用户协议》</a>
-                和
-                <a href="#" class="terms-link">《隐私政策》</a>
-              </label>
-              <div v-if="termsError" class="error-message">{{ termsError }}</div>
+            <!-- 角色选择 -->
+            <div class="form-group">
+              <label class="form-label">请选择您的角色 *</label>
+              <p class="role-hint">选择您在社区中的主要身份（注册后可申请其他角色）</p>
+              
+              <div class="role-options">
+                <div 
+                  class="role-option" 
+                  :class="{ 'selected': registerForm.role === 'owner' }"
+                  @click="selectRole('owner')"
+                >
+                  <div class="role-icon">🐶</div>
+                  <div class="role-info">
+                    <h4 class="role-title">宠物主人</h4>
+                    <p class="role-description">我有宠物，需要帮助</p>
+                    <ul class="role-features">
+                      <li>发布宠物照看需求</li>
+                      <li>寻找可靠的服务者</li>
+                      <li>管理我的宠物信息</li>
+                    </ul>
+                  </div>
+                  <div class="role-selector">
+                    <div class="selector-circle" :class="{ 'selected': registerForm.role === 'owner' }"></div>
+                  </div>
+                </div>
+                
+                <div 
+                  class="role-option" 
+                  :class="{ 'selected': registerForm.role === 'sitter' }"
+                  @click="selectRole('sitter')"
+                >
+                  <div class="role-icon">🦴</div>
+                  <div class="role-info">
+                    <h4 class="role-title">宠物服务者</h4>
+                    <p class="role-description">我喜欢宠物，提供帮助</p>
+                    <ul class="role-features">
+                      <li>接单赚取额外收入</li>
+                      <li>帮助照顾可爱宠物</li>
+                      <li>建立服务信誉</li>
+                    </ul>
+                  </div>
+                  <div class="role-selector">
+                    <div class="selector-circle" :class="{ 'selected': registerForm.role === 'sitter' }"></div>
+                  </div>
+                </div>
+              </div>
+              
+              <div v-if="roleError" class="error-message">{{ roleError }}</div>
             </div>
 
             <!-- 注册按钮 -->
-            <button type="submit" class="submit-btn" :disabled="loading">
+            <button type="submit" class="submit-btn" :disabled="loading || !isFormValid">
               <span v-if="!loading">注册账户</span>
               <span v-else class="loading-text">
                 <span class="loading-spinner"></span> 注册中...
@@ -189,16 +220,15 @@
   </div>
 </template>
 
-<!-- src/views/auth/RegisterView.vue -->
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { userAPI } from '@/utils/user.js'
 
 const router = useRouter()
 
-// 注册表单数据
+// 注册表单数据 - 添加role字段
 const registerForm = reactive({
   username: '',
   phone: '',
@@ -206,26 +236,144 @@ const registerForm = reactive({
   captcha: '',
   password: '',
   confirmPassword: '',
-  hasPet: '',
+  role: '', // 新增：用户角色
   agreeTerms: false
 })
 
-const loading = ref(false)
-const captchaCooldown = ref(0)
+// 错误信息
+const usernameError = ref('')
+const phoneError = ref('')
+const emailError = ref('')
+const passwordError = ref('')
+const confirmPasswordError = ref('')
+const roleError = ref('') // 新增：角色错误信息
 
-// 注册处理
+const loading = ref(false)
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+// 表单验证
+const isFormValid = computed(() => {
+  return (
+    registerForm.username.trim() &&
+    registerForm.phone.trim() &&
+    registerForm.password.trim() &&
+    registerForm.confirmPassword.trim() &&
+    registerForm.role && // 必须选择角色
+    registerForm.password === registerForm.confirmPassword
+  )
+})
+
+// 密码强度计算
+const passwordStrength = computed(() => {
+  const password = registerForm.password
+  if (!password) return 0
+  
+  let score = 0
+  if (password.length >= 6) score += 20
+  if (password.length >= 8) score += 20
+  if (/[A-Z]/.test(password)) score += 20
+  if (/[0-9]/.test(password)) score += 20
+  if (/[^A-Za-z0-9]/.test(password)) score += 20
+  
+  return Math.min(100, score)
+})
+
+const strengthClass = computed(() => {
+  const strength = passwordStrength.value
+  if (strength <= 40) return 'weak'
+  if (strength <= 60) return 'fair'
+  if (strength <= 80) return 'good'
+  return 'strong'
+})
+
+const strengthText = computed(() => {
+  const strength = passwordStrength.value
+  if (strength <= 40) return '密码强度：弱'
+  if (strength <= 60) return '密码强度：一般'
+  if (strength <= 80) return '密码强度：良好'
+  return '密码强度：强'
+})
+
+// 选择角色
+const selectRole = (role) => {
+  registerForm.role = role
+  roleError.value = ''
+}
+
+// 清除错误信息
+const clearError = (field) => {
+  switch(field) {
+    case 'username':
+      usernameError.value = ''
+      break
+    case 'phone':
+      phoneError.value = ''
+      break
+    case 'email':
+      emailError.value = ''
+      break
+    case 'password':
+      passwordError.value = ''
+      break
+    case 'confirmPassword':
+      confirmPasswordError.value = ''
+      break
+  }
+}
+
+// 注册处理 - 添加角色信息
 const handleRegister = async () => {
-  // 验证表单
+  // 表单验证
+  let isValid = true
+  
+  if (!registerForm.username.trim()) {
+    usernameError.value = '请输入用户名'
+    isValid = false
+  }
+  
+  if (!registerForm.phone.trim()) {
+    phoneError.value = '请输入手机号'
+    isValid = false
+  } else if (!/^1[3-9]\d{9}$/.test(registerForm.phone)) {
+    phoneError.value = '请输入正确的手机号'
+    isValid = false
+  }
+  
+  if (!registerForm.password) {
+    passwordError.value = '请输入密码'
+    isValid = false
+  } else if (registerForm.password.length < 6) {
+    passwordError.value = '密码长度至少6位'
+    isValid = false
+  }
+  
+  if (registerForm.password !== registerForm.confirmPassword) {
+    confirmPasswordError.value = '两次输入的密码不一致'
+    isValid = false
+  }
+  
+  if (!registerForm.role) {
+    roleError.value = '请选择您的角色'
+    isValid = false
+  }
+  
+  if (!isValid) {
+    ElMessage.warning('请完善注册信息')
+    return
+  }
+
   loading.value = true
 
   try {
-    // 调用注册API
+    // 调用注册API - 添加角色信息
     const response = await userAPI.register({
       username: registerForm.username,
       password: registerForm.password,
       phone: registerForm.phone,
       email: registerForm.email || undefined,
-      captcha: registerForm.captcha
+      captcha: registerForm.captcha,
+      role: registerForm.role // 新增：传递角色信息
     })
 
     if (response.success) {
@@ -233,30 +381,33 @@ const handleRegister = async () => {
       localStorage.setItem('auth_token', response.data.token)
       localStorage.setItem('user_id', response.data.userId)
       
-      // 保存基本的用户信息
+      // 保存用户信息，包括角色
       userAPI.saveUserInfo({
         name: registerForm.username,
         level: 1,
-        role: 'member'
+        role: registerForm.role, // 保存角色
+        phone: registerForm.phone,
+        email: registerForm.email
       })
       
-      ElMessage.success('注册成功！欢迎加入宠物互助平台')
+      // 保存角色到本地存储，供Layout.vue使用
+      localStorage.setItem('petpal_userRole', registerForm.role)
+      
+      ElMessage.success(`注册成功！欢迎加入宠物互助平台，您已注册为${registerForm.role === 'owner' ? '宠物主人' : '宠物服务者'}`)
       
       // 跳转到首页
       router.push('/init')
     } else {
-      // 处理错误信息
       ElMessage.error(response.message || '注册失败')
     }
   } catch (error) {
     console.error('注册错误:', error)
     
-    // 处理不同类型的错误
     if (error.status === 400) {
       ElMessage.error('注册信息有误，请检查输入')
     } else if (error.status === 409) {
       ElMessage.error('用户已存在，请直接登录')
-    } else if (error.message.includes('网络连接失败')) {
+    } else if (error.message?.includes('网络连接失败')) {
       ElMessage.error('网络连接失败，请检查网络设置')
     } else {
       ElMessage.error(error.data?.message || error.message || '注册失败')
@@ -265,372 +416,126 @@ const handleRegister = async () => {
     loading.value = false
   }
 }
-
-// 发送验证码
-const sendCaptcha = async () => {
-  if (!registerForm.phone.trim()) {
-    ElMessage.warning('请输入手机号')
-    return
-  }
-
-  if (!/^1[3-9]\d{9}$/.test(registerForm.phone)) {
-    ElMessage.warning('请输入正确的手机号')
-    return
-  }
-
-  captchaCooldown.value = 60
-  
-  try {
-    const response = await userAPI.sendCaptcha(registerForm.phone)
-    
-    if (response.success) {
-      ElMessage.success('验证码已发送')
-      
-      // 启动倒计时
-      const timer = setInterval(() => {
-        captchaCooldown.value--
-        if (captchaCooldown.value <= 0) {
-          clearInterval(timer)
-        }
-      }, 1000)
-      
-      // 组件卸载时清除定时器
-      onUnmounted(() => clearInterval(timer))
-    } else {
-      ElMessage.error(response.message || '发送验证码失败')
-      captchaCooldown.value = 0
-    }
-  } catch (error) {
-    console.error('发送验证码错误:', error)
-    ElMessage.error('网络错误，请稍后重试')
-    captchaCooldown.value = 0
-  }
-}
 </script>
 
 <style scoped>
-/* 复用登录页面的基础样式 */
-.auth-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
+/* 复用已有的基础样式，只添加新组件的样式 */
 
-.auth-container {
-  width: 100%;
-  max-width: 1200px;
-  min-height: 700px;
-  background: white;
-  border-radius: 24px;
-  overflow: hidden;
-  display: flex;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-}
-
-/* 左侧欢迎区域 */
-.welcome-section {
-  flex: 1;
-  background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
-  color: white;
-  padding: 60px 50px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.welcome-content {
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 40px;
-}
-
-.logo-icon {
-  font-size: 36px;
-}
-
-.logo-text {
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -1px;
-}
-
-.welcome-title {
-  font-size: 40px;
-  font-weight: 800;
-  margin-bottom: 20px;
-  line-height: 1.2;
-}
-
-.welcome-subtitle {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  margin-bottom: 50px;
-  line-height: 1.6;
-}
-
-.benefits {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.benefit-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.benefit-icon {
-  font-size: 24px;
-  width: 40px;
-  text-align: center;
-}
-
-.benefit-text {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-/* 右侧表单区域 */
-.form-section {
-  flex: 1;
-  padding: 60px 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow-y: auto;
-}
-
-.form-container {
-  width: 100%;
-  max-width: 420px;
-}
-
-.form-header {
-  margin-bottom: 40px;
-  text-align: center;
-}
-
-.form-header h2 {
-  font-size: 32px;
-  font-weight: 800;
+/* 角色选择样式 */
+.form-label {
+  display: block;
+  font-weight: 600;
   color: #1e293b;
   margin-bottom: 8px;
+  font-size: 14px;
 }
 
-.form-header p {
-  color: #64748b;
-  font-size: 16px;
-}
-
-/* 注册表单样式 */
-.register-form {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-}
-
-/* 验证码输入样式 */
-.captcha-input {
-  display: flex;
-  gap: 10px;
-}
-
-.captcha-input .input-with-icon {
-  flex: 1;
-}
-
-.captcha-btn {
-  padding: 0 20px;
-  background: #f0fdf4;
-  color: #166534;
-  border: 2px solid #d1fae5;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  white-space: nowrap;
-  min-width: 120px;
-}
-
-.captcha-btn:hover:not(:disabled) {
-  background: #d1fae5;
-}
-
-.captcha-btn:disabled {
-  background: #f1f5f9;
-  color: #94a3b8;
-  border-color: #e2e8f0;
-  cursor: not-allowed;
-}
-
-/* 密码强度指示器 */
-.password-strength {
-  margin-top: 10px;
-}
-
-.strength-meter {
-  height: 6px;
-  background: #f1f5f9;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 6px;
-}
-
-.strength-fill {
-  height: 100%;
-  transition: width 0.3s;
-}
-
-.strength-fill.weak {
-  background: #ef4444;
-}
-
-.strength-fill.fair {
-  background: #f59e0b;
-}
-
-.strength-fill.good {
-  background: #3b82f6;
-}
-
-.strength-fill.strong {
-  background: #22c55e;
-}
-
-.strength-text {
+.role-hint {
   font-size: 12px;
   color: #64748b;
-  text-align: right;
+  margin-bottom: 16px;
 }
 
-/* 密码提示 */
-.password-hints {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.hint {
-  font-size: 12px;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hint:before {
-  content: "○";
-  font-size: 8px;
-}
-
-.hint.satisfied {
-  color: #22c55e;
-}
-
-.hint.satisfied:before {
-  content: "✓";
-  color: #22c55e;
-  font-weight: bold;
-}
-
-/* 宠物选项 */
-.pet-options {
-  display: flex;
-  gap: 15px;
-}
-
-.option-label {
-  flex: 1;
-  position: relative;
-}
-
-.option-label input[type="radio"] {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.option-content {
+.role-options {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.role-option {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 20px;
+  gap: 16px;
+  padding: 16px;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s;
-  text-align: center;
+  position: relative;
 }
 
-.option-label:hover .option-content {
+.role-option:hover {
   border-color: #cbd5e1;
   background: #f8fafc;
 }
 
-.option-label.selected .option-content {
+.role-option.selected {
   border-color: #22c55e;
   background: #f0fdf4;
-  color: #166534;
 }
 
-.option-icon {
-  font-size: 28px;
-}
-
-.option-text {
-  font-weight: 500;
-  font-size: 14px;
-}
-
-/* 用户协议 */
-.agreement {
-  margin: 10px 0;
-}
-
-.checkbox-label {
+.role-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #475569;
-  line-height: 1.5;
-}
-
-.checkbox-label input[type="checkbox"] {
-  display: none;
-}
-
-.checkmark {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #cbd5e1;
-  border-radius: 4px;
-  position: relative;
-  transition: all 0.3s;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
-.checkbox-label input[type="checkbox"]:checked + .checkmark {
-  background: #22c55e;
+.role-info {
+  flex: 1;
+}
+
+.role-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.role-description {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 8px 0;
+}
+
+.role-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.role-features li {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.role-features li:before {
+  content: "•";
+  color: #22c55e;
+  margin-right: 6px;
+  font-weight: bold;
+}
+
+.role-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.selector-circle {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.selector-circle.selected {
   border-color: #22c55e;
+  background: #22c55e;
 }
 
-.checkbox-label input[type="checkbox"]:checked + .checkmark:after {
+.selector-circle.selected:after {
   content: "✓";
   position: absolute;
   top: 50%;
@@ -641,148 +546,49 @@ const sendCaptcha = async () => {
   font-weight: bold;
 }
 
-.checkbox-label input[type="checkbox"].error + .checkmark {
-  border-color: #ef4444;
+/* 错误信息样式 */
+.error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 6px;
 }
 
-.terms-link {
-  color: #166534;
-  text-decoration: none;
-  font-weight: 500;
+/* 输入框错误状态 */
+.input-with-icon input.error {
+  border-color: #ef4444 !important;
 }
 
-.terms-link:hover {
-  text-decoration: underline;
+.input-with-icon input.error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-/* 注册按钮 */
-.submit-btn {
-  background: #166534;
-  color: white;
-  border: none;
-  padding: 16px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  margin-top: 10px;
-}
-
-.submit-btn:hover:not(:disabled) {
-  background: #14532d;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(22, 101, 52, 0.3);
-}
-
-.submit-btn:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.loading-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.loading-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 登录链接 */
-.login-link {
-  text-align: center;
-  margin-top: 30px;
-  color: #64748b;
-  font-size: 15px;
-}
-
-.login-link .link {
-  color: #166534;
-  font-weight: 600;
-  text-decoration: none;
-  margin-left: 8px;
-  transition: color 0.3s;
-}
-
-.login-link .link:hover {
-  color: #14532d;
-  text-decoration: underline;
-}
-
-/* 响应式设计 */
-@media (max-width: 900px) {
-  .auth-container {
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .role-option {
     flex-direction: column;
-    min-height: auto;
+    text-align: center;
+    gap: 12px;
   }
   
-  .welcome-section {
-    padding: 40px 30px;
+  .role-info {
+    text-align: center;
   }
   
-  .form-section {
-    padding: 40px 30px;
-  }
-  
-  .welcome-title {
-    font-size: 32px;
-  }
-  
-  .welcome-subtitle {
-    font-size: 16px;
-  }
-  
-  .password-hints {
-    grid-template-columns: 1fr;
+  .role-features li {
+    justify-content: center;
   }
 }
 
 @media (max-width: 480px) {
-  .auth-page {
-    padding: 10px;
-  }
-  
-  .auth-container {
-    border-radius: 16px;
-  }
-  
-  .welcome-section {
-    padding: 30px 20px;
-  }
-  
-  .form-section {
-    padding: 30px 20px;
-  }
-  
-  .form-header h2 {
-    font-size: 28px;
-  }
-  
-  .pet-options {
-    flex-direction: column;
-  }
-  
-  .captcha-input {
-    flex-direction: column;
-  }
-  
-  .captcha-btn {
-    width: 100%;
+  .role-option {
     padding: 12px;
+  }
+  
+  .role-icon {
+    font-size: 28px;
+    width: 40px;
+    height: 40px;
   }
 }
 </style>

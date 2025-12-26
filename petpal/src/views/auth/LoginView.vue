@@ -31,14 +31,14 @@
           <form @submit.prevent="handleLogin" class="login-form">
             <!-- 账号输入 -->
             <div class="form-group">
-              <label for="account">手机号/用户名</label>
+              <label for="account">手机号</label>
               <div class="input-with-icon">
                 <span class="input-icon">📱</span>
                 <input
                   id="account"
                   v-model="loginForm.account"
                   type="text"
-                  placeholder="请输入手机号或用户名"
+                  placeholder="请输入手机号"
                   required
                   :class="{ 'error': accountError }"
                   @input="clearError('account')"
@@ -64,22 +64,12 @@
                 <button
                   type="button"
                   class="password-toggle"
-                  @click="showPassword = !showPassword"
+                  @click="togglePasswordVisibility"
                 >
                   {{ showPassword ? '👁️' : '👁️‍🗨️' }}
                 </button>
               </div>
               <div v-if="passwordError" class="error-message">{{ passwordError }}</div>
-            </div>
-
-            <!-- 记住我 -->
-            <div class="remember-forgot">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="loginForm.rememberMe">
-                <span class="checkmark"></span>
-                记住我
-              </label>
-              <a href="#" class="forgot-link" @click.prevent="showForgotPassword">忘记密码？</a>
             </div>
 
             <!-- 登录按钮 -->
@@ -121,6 +111,21 @@ const loginForm = reactive({
 const loading = ref(false)
 const accountError = ref('')
 const passwordError = ref('')
+const showPassword = ref(false) // 确保这个变量被定义
+
+// 切换密码显示状态
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
+  // 强制更新DOM，确保立即生效
+  const passwordInput = document.getElementById('password')
+  if (passwordInput) {
+    passwordInput.type = showPassword.value ? 'text' : 'password'
+    // 触发一个小延迟确保焦点和状态更新
+    setTimeout(() => {
+      passwordInput.focus()
+    }, 10)
+  }
+}
 
 // 登录处理
 const handleLogin = async () => {

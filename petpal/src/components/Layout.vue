@@ -9,43 +9,66 @@
 
       <nav class="pet-nav">
         <div class="nav-group-label">社交互助</div>
+        
+        <!-- 发布需求 - 仅宠物主人可见 -->
         <div 
           class="nav-item" 
-          :class="{ active: activeNav === '/publish' }"
-          @click="goToPublish"
+          :class="{
+            active: activeNav === '/publish',
+            unavailable: !isLoggedIn || userRole !== 'owner'
+          }"
+          @click="handleNavClick('/publish', 'owner')"
         >
-          <i class="icon">📈</i> <span>发布需求</span>
+          <i class="icon">📈</i> 
+          <span>发布需求</span>
+          <span v-if="!isLoggedIn || userRole !== 'owner'" class="nav-lock">🔒</span>
         </div>
+        
+        <!-- 接单需求 - 仅服务者可见 -->
         <div 
           class="nav-item" 
-          :class="{ active: activeNav === '/accept' }"
-          @click="goToAccept"
+          :class="{
+            active: activeNav === '/accept',
+            unavailable: !isLoggedIn || userRole !== 'sitter'
+          }"
+          @click="handleNavClick('/accept', 'sitter')"
         >
-          <i class="icon">🦴</i> <span>接单需求</span>
+          <i class="icon">🦴</i> 
+          <span>接单需求</span>
+          <span v-if="!isLoggedIn || userRole !== 'sitter'" class="nav-lock">🔒</span>
         </div>
+        
+        <!-- 管理社区 - 仅管理者可见 -->
         <div 
           class="nav-item" 
-          :class="{ active: activeNav === '/manage' }"
-          @click="goToManageCommunity"
+          :class="{
+            active: activeNav === '/manage',
+            unavailable: !isLoggedIn || userRole !== 'moderator'
+          }"
+          @click="handleNavClick('/manage', 'moderator')"
         >
-          <i class="icon">🍱</i> <span>管理社区</span>
+          <i class="icon">🍱</i> 
+          <span>管理社区</span>
+          <span v-if="!isLoggedIn || userRole !== 'moderator'" class="nav-lock">🔒</span>
         </div>
       </nav>
 
       <div class="sidebar-footer">
-        <div class="user-pill" @click="toggleUserMenu">
+        <!-- 简化：未登录时点击登录，登录后加锁显示状态 -->
+        <div 
+          class="user-pill" 
+          :class="{ 'logged-in': isLoggedIn, 'logged-out': !isLoggedIn }"
+          @click="handleUserPillClick"
+        >
           <div class="user-avatar">{{ userInitials }}</div>
           <div class="user-info">
-            <span class="user-name">{{ userName }}</span>
-            <span class="user-level">Lv.{{ userLevel }}</span>
+            <span class="user-name">{{ isLoggedIn ? userName : '点击登录' }}</span>
+            <span v-if="isLoggedIn" class="user-level">{{ roleText }} Lv.{{ userLevel }}</span>
+            <span v-else class="user-level">快速登录</span>
           </div>
-          <div class="user-menu-dropdown" v-if="showUserMenu">
-            <div class="dropdown-item" @click="goToProfile">
-              <i class="dropdown-icon">👤</i> 个人中心
-            </div>
-            <div class="dropdown-item" @click="handleLogout">
-              <i class="dropdown-icon">🚪</i> 退出登录
-            </div>
+          <div class="user-action-icon">
+            <span v-if="isLoggedIn" class="locked-icon">🔒</span>
+            <span v-else class="unlocked-icon">🔑</span>
           </div>
         </div>
       </div>
@@ -57,7 +80,21 @@
           Dashboard / <span class="current">{{ currentPageName }}</span>
         </div>
         <div class="header-actions">
+          <!-- 个人主页按钮 -->
+          <button 
+            @click="handleProfileClick" 
+            class="action-btn profile-btn"
+            :class="{ 'unavailable': !isLoggedIn }"
+          >
+            <span class="btn-icon">👤</span>
+            个人主页
+            <span v-if="!isLoggedIn" class="btn-lock">🔒</span>
+          </button>
+          
+          <!-- 广场按钮 -->
           <button @click="goToSquare" class="action-btn">广场</button>
+          
+          <!-- 联系我们按钮 -->
           <button @click="showContactDialog" class="action-btn primary">联系我们</button>
         </div>
       </header>
@@ -115,7 +152,6 @@
   </div>
 </template>
 
-<!-- src/components/Layout.vue -->
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -124,8 +160,17 @@ const router = useRouter()
 const route = useRoute()
 
 // 添加这些响应式数据
-const showUserMenu = ref(false)
 const showContactModal = ref(false)
+
+// 模拟用户数据 - 实际项目中应该从 store 或 API 获取
+const isLoggedIn = ref(true) // 登录状态，默认未登录
+const userRole = ref('moderator') // 用户角色，未登录时为''
+const userName = ref('张三')
+const userInitials = computed(() => {
+  if (!isLoggedIn.value) return '登'
+  return userName.value.substring(0, 2)
+})
+const userLevel = ref(5)
 
 // 计算当前激活的导航
 const activeNav = computed(() => route.path)
@@ -140,20 +185,96 @@ const currentPageName = computed(() => {
   return pageMap[route.path] || 'Dashboard'
 })
 
+// 角色文本显示
+const roleText = computed(() => {
+  const roleMap = {
+    'owner': '宠物主人',
+    'sitter': '服务者',
+    'moderator': '管理者'
+  }
+  return roleMap[userRole.value] || ''
+})
+
+// 导航点击处理
+const handleNavClick = (path, requiredRole) => {
+  // 未登录时点击导航项
+  if (!isLoggedIn.value) {
+    if (confirm('该功能需要登录后才能使用，是否前往登录页面？')) {
+      goToLogin()
+    }
+    return
+  }
+  
+  // 已登录但角色不匹配
+  if (userRole.value !== requiredRole) {
+    const roleNameMap = {
+      'owner': '宠物主人',
+      'sitter': '服务者',
+      'moderator': '管理者'
+    }
+    const requiredRoleName = roleNameMap[requiredRole] || requiredRole
+    const currentRoleName = roleText.value || '未分配角色'
+    alert(`当前角色"${currentRoleName}"无法访问此功能，仅限"${requiredRoleName}"使用。`)
+    return
+  }
+  
+  // 角色匹配，跳转到对应页面
+  router.push(path)
+}
+
+// 个人主页按钮点击处理
+const handleProfileClick = () => {
+  if (!isLoggedIn.value) {
+    if (confirm('个人主页需要登录后才能查看，是否前往登录页面？')) {
+      goToLogin()
+    }
+    return
+  }
+  
+  // 已登录，跳转到个人主页
+  goToProfile()
+}
+
+// 左下角用户按钮点击处理
+const handleUserPillClick = () => {
+  if (isLoggedIn.value) {
+    // 已登录状态下，按钮已加锁，点击显示提示信息
+    showLoggedInMessage()
+  } else {
+    // 未登录，跳转到登录页面
+    goToLogin()
+  }
+}
+
+// 显示已登录提示信息
+const showLoggedInMessage = () => {
+  // 可以显示一个简短的提示，或者什么都不做
+  console.log('您已登录，无需再次登录')
+  // 或者可以显示一个轻量级的提示
+  alert(`您已登录为 ${userName.value} (${roleText.value})\n\n如需退出登录，请通过其他方式操作。`)
+}
+
 // 导航函数
 const goToHome = () => router.push('/')
-const goToPublish = () => router.push('/publish')
-const goToAccept = () => router.push('/accept')
-const goToManageCommunity = () => router.push('/manage')
-const goToReviewRequirements = () => router.push('/review-requirements')
-const goToReviewOrders = () => router.push('/review-orders')
-const goToReviewCommunity = () => router.push('/review-community')
+const goToPublish = () => handleNavClick('/publish', 'owner')
+const goToAccept = () => handleNavClick('/accept', 'sitter')
+const goToManageCommunity = () => handleNavClick('/manage', 'moderator')
 const goToSquare = () => router.push('/init')
-const goToProfile = () => router.push('/login')
+const goToProfile = () => {
+  router.push('/profile') // 假设个人主页路由为/profile
+}
+const goToLogin = () => {
+  router.push('/login')
+}
+const goToRegister = () => {
+  router.push('/register') // 假设有注册页面
+}
 
-// 用户菜单切换
-const toggleUserMenu = () => {
-  showUserMenu.value = !showUserMenu.value
+// 登出处理
+const handleLogout = () => {
+  isLoggedIn.value = false
+  userRole.value = ''
+  router.push('/')
 }
 
 // 显示联系我们对话框
@@ -161,7 +282,58 @@ const showContactDialog = () => {
   showContactModal.value = true
 }
 
-// 其他已有代码保持不变...
+// 测试函数 - 可以在控制台调用切换登录状态和角色
+window.login = (role = 'owner') => {
+  if (['owner', 'sitter', 'moderator'].includes(role)) {
+    isLoggedIn.value = true
+    userRole.value = role
+    console.log(`已登录，角色: ${roleText.value}`)
+  } else {
+    console.error('无效的角色，请使用: owner, sitter, moderator')
+  }
+}
+
+window.logout = () => {
+  isLoggedIn.value = false
+  userRole.value = ''
+  console.log('已退出登录')
+}
+
+window.changeRole = (role) => {
+  if (!isLoggedIn.value) {
+    console.error('请先登录')
+    return
+  }
+  if (['owner', 'sitter', 'moderator'].includes(role)) {
+    userRole.value = role
+    console.log(`角色已切换为: ${roleText.value}`)
+  } else {
+    console.error('无效的角色，请使用: owner, sitter, moderator')
+  }
+}
+
+// 页面加载时检查登录状态（模拟）
+onMounted(() => {
+  // 模拟从本地存储检查登录状态
+  const savedLoginState = localStorage.getItem('petpal_isLoggedIn')
+  const savedRole = localStorage.getItem('petpal_userRole')
+  
+  if (savedLoginState === 'true' && savedRole) {
+    isLoggedIn.value = true
+    userRole.value = savedRole
+  }
+  
+  // 监听登录状态变化，模拟保存到本地存储
+  watch([isLoggedIn, userRole], ([newIsLoggedIn, newUserRole]) => {
+    if (newIsLoggedIn) {
+      localStorage.setItem('petpal_isLoggedIn', 'true')
+      localStorage.setItem('petpal_userRole', newUserRole)
+    } else {
+      localStorage.removeItem('petpal_isLoggedIn')
+      localStorage.removeItem('petpal_userRole')
+    }
+  })
+})
 </script>
 
 <style scoped>
@@ -246,17 +418,50 @@ const showContactDialog = () => {
   cursor: pointer;
   margin-bottom: 4px;
   transition: all 0.3s;
+  position: relative;
 }
 
-.nav-item:hover {
+.nav-item:hover:not(.unavailable) {
   background-color: #f1f5f9;
   transform: translateX(5px);
 }
 
-.nav-item.active {
+.nav-item.active:not(.unavailable) {
   background-color: #22c55e;
   color: #ffffff;
   box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+/* 被锁定的导航项样式 */
+.nav-item.unavailable {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nav-item.unavailable:hover {
+  background-color: transparent;
+  transform: none;
+}
+
+.nav-item.unavailable .icon {
+  filter: grayscale(100%);
+}
+
+.nav-lock {
+  margin-left: auto;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+/* 用户等级显示角色 */
+.user-level {
+  font-size: 11px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 10px;
+  display: inline-block;
+  width: fit-content;
 }
 
 /* 侧边栏底部用户信息 */
@@ -265,6 +470,7 @@ const showContactDialog = () => {
   border-top: 1px solid #f1f5f9; 
 }
 
+/* 简化的用户按钮样式 */
 .user-pill {
   display: flex;
   align-items: center;
@@ -273,20 +479,44 @@ const showContactDialog = () => {
   padding: 12px;
   border-radius: 16px;
   box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-  cursor: pointer;
-  position: relative;
   transition: all 0.3s;
+  border: 2px solid transparent;
 }
 
-.user-pill:hover {
+/* 未登录状态样式 - 可点击 */
+.user-pill.logged-out {
+  cursor: pointer;
+  border-color: #e2e8f0;
+}
+
+.user-pill.logged-out:hover {
   box-shadow: 0 6px 12px rgba(0,0,0,0.1);
   transform: translateY(-2px);
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.user-pill.logged-out:active {
+  transform: translateY(0);
+}
+
+/* 已登录状态样式 - 加锁不可点击 */
+.user-pill.logged-in {
+  cursor: not-allowed;
+  opacity: 0.8;
+  border-color: #f1f5f9;
+  background: #f8fafc;
+}
+
+.user-pill.logged-in:hover {
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  transform: none;
+  cursor: not-allowed;
 }
 
 .user-avatar { 
   width: 40px; 
   height: 40px; 
-  background: linear-gradient(135deg, #22c55e, #16a34a);
   color: white; 
   border-radius: 10px; 
   display: flex; 
@@ -294,6 +524,16 @@ const showContactDialog = () => {
   justify-content: center; 
   font-size: 14px;
   font-weight: 600;
+}
+
+/* 未登录时的登录按钮样式 */
+.user-pill.logged-out .user-avatar {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+}
+
+/* 已登录时的锁定样式 */
+.user-pill.logged-in .user-avatar {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
 .user-info {
@@ -309,62 +549,54 @@ const showContactDialog = () => {
   color: #1e293b;
 }
 
-.user-level {
-  font-size: 11px;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 2px 6px;
-  border-radius: 10px;
-  display: inline-block;
-  width: fit-content;
+/* 未登录时的用户名样式 */
+.user-pill.logged-out .user-name {
+  color: #4f46e5;
+  font-weight: 700;
 }
 
-/* 用户菜单下拉 */
-.user-menu-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #f1f5f9;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-  margin-top: 10px;
-  z-index: 1000;
-  overflow: hidden;
-  animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dropdown-item {
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #475569;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.dropdown-item:hover {
-  background: #f8fafc;
+/* 已登录时的用户名样式 */
+.user-pill.logged-in .user-name {
   color: #166534;
 }
 
-.dropdown-icon {
+/* 用户等级样式调整 */
+.user-pill.logged-out .user-level {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.user-pill.logged-in .user-level {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+/* 用户操作图标 */
+.user-action-icon {
   font-size: 16px;
+  transition: all 0.3s;
+}
+
+/* 未登录时的解锁图标 */
+.user-pill.logged-out .unlocked-icon {
+  color: #4f46e5;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* 已登录时的锁定图标 */
+.user-pill.logged-in .locked-icon {
+  color: #22c55e;
 }
 
 /* 右侧主体：无限宽阔 */
@@ -398,6 +630,7 @@ const showContactDialog = () => {
 .header-actions { 
   display: flex; 
   gap: 15px; 
+  align-items: center;
 }
 
 .action-btn {
@@ -409,9 +642,13 @@ const showContactDialog = () => {
   cursor: pointer;
   transition: all 0.3s;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(.unavailable) {
   background: #f8fafc;
   border-color: #cbd5e1;
   transform: translateY(-1px);
@@ -426,6 +663,38 @@ const showContactDialog = () => {
 .action-btn.primary:hover {
   background: #14532d;
   box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
+}
+
+/* 个人主页按钮样式 */
+.action-btn.profile-btn {
+  position: relative;
+}
+
+/* 被锁定的按钮样式 */
+.action-btn.unavailable {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.action-btn.unavailable:hover {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  transform: none;
+}
+
+.action-btn.unavailable .btn-icon {
+  filter: grayscale(100%);
+}
+
+.btn-lock {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.btn-icon {
+  font-size: 16px;
 }
 
 /* 核心内容区：这里是决定"大气"的关键 */
@@ -609,9 +878,14 @@ const showContactDialog = () => {
   .user-pill {
     box-shadow: none;
     padding: 8px;
+    min-width: auto;
   }
   
   .user-info {
+    display: none;
+  }
+  
+  .user-action-icon {
     display: none;
   }
   
@@ -629,8 +903,12 @@ const showContactDialog = () => {
   }
   
   .action-btn {
-    padding: 8px 16px;
+    padding: 8px 12px;
     font-size: 13px;
+  }
+  
+  .btn-icon, .btn-lock {
+    font-size: 12px;
   }
 }
 
@@ -659,6 +937,15 @@ const showContactDialog = () => {
     width: 36px;
     height: 36px;
     font-size: 20px;
+  }
+  
+  /* 小屏幕下简化按钮文字 */
+  .action-btn {
+    padding: 8px 10px;
+  }
+  
+  .action-btn span:not(.btn-icon):not(.btn-lock) {
+    display: none;
   }
 }
 </style>

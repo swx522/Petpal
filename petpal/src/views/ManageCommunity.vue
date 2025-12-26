@@ -13,12 +13,16 @@
           <div class="stat-label">社区成员</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ communityStats.active }}</div>
-          <div class="stat-label">活跃用户</div>
+          <div class="stat-value">{{ communityStats.petOwners }}</div>
+          <div class="stat-label">宠物主人</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ communityStats.posts }}</div>
-          <div class="stat-label">今日动态</div>
+          <div class="stat-value">{{ communityStats.serviceProviders }}</div>
+          <div class="stat-label">服务提供者</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ communityStats.pendingReview }}</div>
+          <div class="stat-label">待审核需求</div>
         </div>
       </div>
     </div>
@@ -38,7 +42,7 @@
           :class="{ active: activeTab === 'content' }"
           @click="activeTab = 'content'"
         >
-          📝 内容审核
+          📝 需求审核
         </button>
         <button 
           class="tab-btn" 
@@ -59,16 +63,18 @@
           <input 
             type="text" 
             v-model="searchQuery" 
-            placeholder="搜索成员姓名或宠物..."
+            placeholder="搜索成员姓名..."
             class="search-input"
           >
         </div>
         <div class="filter-options">
           <select v-model="memberFilter" class="filter-select">
             <option value="all">所有成员</option>
-            <option value="active">活跃成员</option>
-            <option value="new">新加入</option>
-            <option value="verified">已验证</option>
+            <option value="petOwner">宠物主人</option>
+            <option value="serviceProvider">服务提供者</option>
+            <option value="pendingReview">待审核</option>
+            <option value="approved">已认证</option>
+            <option value="rejected">未通过</option>
           </select>
         </div>
       </div>
@@ -76,48 +82,42 @@
       <!-- 成员列表 -->
       <div class="members-grid">
         <div class="member-card" v-for="member in filteredMembers" :key="member.id">
-          <!-- 管理员徽章 -->
-          <div class="admin-badge" v-if="member.role === 'admin'">
-            👑 管理员
-          </div>
-          
-          <!-- 会员等级 -->
-          <div class="level-badge" :class="getLevelClass(member.level)">
-            Lv.{{ member.level }}
+          <!-- 用户类型标签 -->
+          <div class="user-type-badge" :class="member.userType">
+            {{ member.userType === 'petOwner' ? '🐾 宠物主人' : '🛠️ 服务提供者' }}
           </div>
 
           <div class="member-avatar">
             <div class="avatar-img">{{ member.avatar }}</div>
-            <div class="online-status" :class="{ online: member.online }"></div>
           </div>
           
           <div class="member-info">
             <h3>{{ member.name }}</h3>
-            <p class="member-pet">🐶 {{ member.pet }}</p>
             <p class="member-location">📍 {{ member.location }}</p>
             
-            <div class="member-stats">
-              <div class="stat">
-                <span class="stat-number">{{ member.helped }}</span>
-                <span class="stat-label">帮助</span>
-              </div>
-              <div class="stat">
-                <span class="stat-number">{{ member.received }}</span>
-                <span class="stat-label">接受</span>
-              </div>
-              <div class="stat">
-                <span class="stat-number">{{ member.points }}</span>
-                <span class="stat-label">积分</span>
+            <!-- 宠物信息（宠物主人显示） -->
+            <div v-if="member.userType === 'petOwner' && member.pets" class="pets-info">
+              <div class="pets-label">宠物：</div>
+              <div class="pets-list">
+                <span class="pet-tag" v-for="(pet, index) in member.pets" :key="index">
+                  {{ pet.icon }} {{ pet.name }}
+                </span>
               </div>
             </div>
           </div>
 
-          <div class="member-actions">
-            <button class="action-btn chat-btn" @click="messageMember(member)">
-              💬 电话联系
-            </button>
+          <div class="member-actions"> 
+            <!-- 用户类型切换按钮（管理员可以调整） -->
+            <div class="user-type-actions">
+              <select v-model="member.userType" class="role-dropdown" @change="updateUserType(member)">
+                <option value="petOwner">宠物主人</option>
+                <option value="serviceProvider">服务提供者</option>
+              </select>
+            </div>
+            
+            <!-- 移除成员按钮 -->
             <button class="action-btn remove-btn" @click="showRemoveDialog(member)">
-              移除
+              移除成员
             </button>
           </div>
         </div>
@@ -158,72 +158,290 @@
       </div>
     </div>
 
-    <!-- 内容审核页面 -->
+    <!-- ===== 需求审核页面（重写） ===== -->
     <div class="tab-content" v-if="activeTab === 'content'">
       <div class="content-review">
-        <!-- 审核筛选 -->
-        <div class="review-filters">
-          <div class="filter-group">
-            <button 
-              class="filter-btn" 
-              :class="{ active: reviewFilter === 'pending' }"
-              @click="reviewFilter = 'pending'"
-            >
-              待审核 ({{ pendingCount }})
-            </button>
-            <button 
-              class="filter-btn" 
-              :class="{ active: reviewFilter === 'approved' }"
-              @click="reviewFilter = 'approved'"
-            >
-              已通过
-            </button>
-            <button 
-              class="filter-btn" 
-              :class="{ active: reviewFilter === 'rejected' }"
-              @click="reviewFilter = 'rejected'"
-            >
-              已拒绝
-            </button>
+        <!-- 审核统计和筛选 -->
+        <div class="review-header">
+          <div class="review-stats-cards">
+            <div class="review-stat-card total">
+              <div class="stat-icon">📋</div>
+              <div class="stat-info">
+                <h3>{{ pendingRequirements.length }}</h3>
+                <p>待审核需求</p>
+              </div>
+            </div>
+            <div class="review-stat-card approved">
+              <div class="stat-icon">✅</div>
+              <div class="stat-info">
+                <h3>{{ approvedRequirements.length }}</h3>
+                <p>已通过</p>
+              </div>
+            </div>
+            <div class="review-stat-card rejected">
+              <div class="stat-icon">❌</div>
+              <div class="stat-info">
+                <h3>{{ rejectedRequirements.length }}</h3>
+                <p>已拒绝</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="review-filters">
+            <div class="filter-group">
+              <button 
+                class="filter-btn" 
+                :class="{ active: reviewFilter === 'pending' }"
+                @click="reviewFilter = 'pending'"
+              >
+                待审核 ({{ pendingRequirements.length }})
+              </button>
+              <button 
+                class="filter-btn" 
+                :class="{ active: reviewFilter === 'approved' }"
+                @click="reviewFilter = 'approved'"
+              >
+                已通过
+              </button>
+              <button 
+                class="filter-btn" 
+                :class="{ active: reviewFilter === 'rejected' }"
+                @click="reviewFilter = 'rejected'"
+              >
+                已拒绝
+              </button>
+            </div>
+            
+            <div class="filter-select-group">
+              <select v-model="typeFilter" class="filter-select">
+                <option value="all">所有类型</option>
+                <option value="walk">遛狗服务</option>
+                <option value="feed">喂食照顾</option>
+                <option value="medical">就医陪伴</option>
+                <option value="groom">美容护理</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
           </div>
         </div>
 
         <!-- 审核列表 -->
         <div class="review-list">
-          <div class="review-item" v-for="item in filteredReviews" :key="item.id">
-            <div class="review-content">
-              <div class="content-type">{{ item.type }}</div>
-              <div class="content-title">{{ item.title }}</div>
-              <div class="content-author">
-                <span class="author-avatar">{{ item.authorAvatar }}</span>
-                <span class="author-name">{{ item.author }}</span>
-                <span class="post-time">{{ item.time }}</span>
-              </div>
-              <p class="content-text">{{ item.content }}</p>
-              
-              <div class="content-attachments" v-if="item.attachments">
-                <div class="attachment" v-for="attachment in item.attachments" :key="attachment">
-                  📎 {{ attachment }}
+          <!-- 待审核需求 -->
+          <div v-if="reviewFilter === 'pending' && filteredRequirements.length > 0" class="pending-reviews">
+            <div class="requirements-list">
+              <div 
+                v-for="requirement in filteredRequirements" 
+                :key="requirement.id"
+                class="requirement-review-item"
+              >
+                <div class="requirement-header">
+                  <div class="requirement-type-badge" :style="{ backgroundColor: getTypeColor(requirement.type) }">
+                    {{ getTypeName(requirement.type) }}
+                    <span v-if="requirement.urgent" class="urgent-indicator">❗</span>
+                  </div>
+                  
+                  <div class="requirement-status pending">
+                    ⏳ 待审核
+                  </div>
+                </div>
+                
+                <div class="requirement-content">
+                  <!-- 宠物信息 -->
+                  <div class="pet-info-section">
+                    <div class="pet-avatar-large">{{ getPetEmoji(requirement.petType) }}</div>
+                    <div class="pet-details">
+                      <h4>{{ requirement.petName || '未命名宠物' }}</h4>
+                      <p class="pet-type">{{ getPetTypeName(requirement.petType) }}</p>
+                    </div>
+                  </div>
+                  
+                  <!-- 需求详情 -->
+                  <div class="requirement-details">
+                    <p class="description">{{ requirement.description }}</p>
+                    
+                    <div class="detail-row">
+                      <div class="detail-item">
+                        <span class="detail-icon">⏰</span>
+                        <span class="detail-label">服务时间：</span>
+                        <span class="detail-value">{{ formatTime(requirement.startTime) }} - {{ formatTime(requirement.endTime) }}</span>
+                      </div>
+                      
+                      <div class="detail-item">
+                        <span class="detail-icon">📍</span>
+                        <span class="detail-label">服务地点：</span>
+                        <span class="detail-value">{{ requirement.location || '未提供详细地址' }}</span>
+                      </div>
+                      
+                      <div class="detail-item">
+                        <span class="detail-icon">👤</span>
+                        <span class="detail-label">发布者：</span>
+                        <span class="detail-value">{{ requirement.publisher }}</span>
+                      </div>
+                      
+                      <div class="detail-item">
+                        <span class="detail-icon">📞</span>
+                        <span class="detail-label">联系方式：</span>
+                        <span class="detail-value">{{ requirement.contact || '未提供联系方式' }}</span>
+                      </div>
+                      
+                      <div class="detail-item">
+                        <span class="detail-icon">📅</span>
+                        <span class="detail-label">发布时间：</span>
+                        <span class="detail-value">{{ formatDate(requirement.postTime) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- 审核操作 -->
+                <div class="review-actions-section">
+                  <div class="rejection-reason-input" v-if="showRejectionInput === requirement.id">
+                    <textarea 
+                      v-model="rejectionReason" 
+                      placeholder="请输入拒绝原因（必填），如：内容违规、联系方式无效、地址不详细等..."
+                      class="reason-textarea"
+                      rows="3"
+                    ></textarea>
+                  </div>
+                  
+                  <div class="action-buttons">
+                    <button 
+                      @click="approveRequirement(requirement)"
+                      class="action-btn approve-btn"
+                    >
+                      ✅ 通过审核
+                    </button>
+                    
+                    <button 
+                      @click="toggleRejectionInput(requirement)"
+                      class="action-btn reject-btn"
+                    >
+                      {{ showRejectionInput === requirement.id ? '取消拒绝' : '❌ 拒绝发布' }}
+                    </button>
+                    
+                    <button 
+                      v-if="showRejectionInput === requirement.id"
+                      @click="rejectRequirement(requirement)"
+                      class="action-btn confirm-reject-btn"
+                      :disabled="!rejectionReason.trim()"
+                    >
+                      确认拒绝
+                    </button>
+                    
+                    <button 
+                      @click="viewPublisherProfile(requirement)"
+                      class="action-btn view-btn"
+                    >
+                      👤 查看发布者
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            <div class="review-actions">
-              <div class="review-buttons">
-                <button class="approve-btn" @click="approveContent(item)">
-                  ✅ 通过
-                </button>
-                <button class="reject-btn" @click="rejectContent(item)">
-                  ❌ 拒绝
-                </button>
-                <button class="edit-btn" @click="editContent(item)">
-                  ✏️ 编辑
-                </button>
+          </div>
+
+          <!-- 已审核需求（已通过和已拒绝） -->
+          <div v-if="reviewFilter !== 'pending' && filteredRequirements.length > 0" class="reviewed-requirements">
+            <div class="requirements-list">
+              <div 
+                v-for="requirement in filteredRequirements" 
+                :key="requirement.id"
+                class="requirement-review-item reviewed"
+                :class="requirement.status"
+              >
+                <div class="requirement-header">
+                  <div class="requirement-type-badge" :style="{ backgroundColor: getTypeColor(requirement.type) }">
+                    {{ getTypeName(requirement.type) }}
+                  </div>
+                  
+                  <div class="requirement-status" :class="requirement.status">
+                    {{ requirement.status === 'approved' ? '✅ 已通过' : '❌ 已拒绝' }}
+                  </div>
+                </div>
+                
+                <div class="requirement-content">
+                  <div class="pet-info-section">
+                    <div class="pet-avatar-small">{{ getPetEmoji(requirement.petType) }}</div>
+                    <div class="pet-details">
+                      <h4>{{ requirement.petName || '未命名宠物' }}</h4>
+                      <p class="pet-type">{{ getPetTypeName(requirement.petType) }}</p>
+                    </div>
+                  </div>
+                  
+                  <div class="requirement-details">
+                    <p class="description">{{ requirement.description }}</p>
+                    
+                    <div class="detail-row compact">
+                      <div class="detail-item">
+                        <span class="detail-icon">⏰</span>
+                        <span>{{ formatTime(requirement.startTime) }}</span>
+                      </div>
+                      
+                      <div class="detail-item">
+                        <span class="detail-icon">📍</span>
+                        <span>{{ requirement.location || '未提供地址' }}</span>
+                      </div>
+                      
+                      <div class="detail-item">
+                        <span class="detail-icon">👤</span>
+                        <span>{{ requirement.publisher }}</span>
+                      </div>
+                    </div>
+                    
+                    <!-- 审核信息 -->
+                    <div class="review-info" v-if="requirement.reviewer">
+                      <div class="reviewer-info">
+                        <span class="reviewer-label">审核人：</span>
+                        <span class="reviewer-name">{{ requirement.reviewer }}</span>
+                        <span class="review-time">{{ formatDate(requirement.reviewedTime) }}</span>
+                      </div>
+                      
+                      <div class="rejection-reason" v-if="requirement.rejectionReason && requirement.status === 'rejected'">
+                        <span class="reason-label">拒绝原因：</span>
+                        <span class="reason-text">{{ requirement.rejectionReason }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="review-actions-section">
+                  <div class="action-buttons">
+                    <button 
+                      v-if="requirement.status === 'rejected'"
+                      @click="reApproveRequirement(requirement)"
+                      class="action-btn approve-btn"
+                    >
+                      🔄 重新审核
+                    </button>
+                    
+                    <button 
+                      @click="viewRequirementDetails(requirement)"
+                      class="action-btn view-btn"
+                    >
+                      👁️ 查看详情
+                    </button>
+                    
+                    <button 
+                      @click="deleteReviewRecord(requirement)"
+                      class="action-btn delete-btn"
+                    >
+                      🗑️ 删除记录
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div class="review-reason" v-if="item.reviewer">
-                <span class="reviewer">审核人：{{ item.reviewer }}</span>
-                <span class="reason" v-if="item.reason">原因：{{ item.reason }}</span>
-              </div>
+            </div>
+          </div>
+
+          <!-- 空状态 -->
+          <div v-if="filteredRequirements.length === 0" class="no-reviews">
+            <div class="empty-state">
+              <div class="empty-icon" v-if="reviewFilter === 'pending'">🎉</div>
+              <div class="empty-icon" v-if="reviewFilter === 'approved'">📄</div>
+              <div class="empty-icon" v-if="reviewFilter === 'rejected'">📝</div>
+              <h3>{{ getEmptyStateTitle() }}</h3>
+              <p>{{ getEmptyStateMessage() }}</p>
             </div>
           </div>
         </div>
@@ -246,17 +464,12 @@
               <label>社区描述</label>
               <textarea v-model="communitySettings.description" rows="3" class="form-textarea"></textarea>
             </div>
-          </div>
-          
-          <div class="setting-actions">
-            <button class="btn-secondary">恢复默认</button>
-            <button class="btn-primary" @click="saveSettings">保存设置</button>
-          </div>
+          </div>   
         </div>
       </div>
-    </div>
+    </div>>
 
-    <!-- 创建活动对话框 -->
+    <!-- 模态框 -->
     <div class="modal-overlay" v-if="showModal" @click="closeModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
@@ -264,10 +477,32 @@
           <button class="close-btn" @click="closeModal">×</button>
         </div>
         <div class="modal-body">
-          <!-- 根据不同的modalType显示不同的内容 -->
-          <p v-if="modalType === 'create'">创建活动表单将在这里显示...</p>
           <p v-if="modalType === 'remove'">确定要移除成员吗？</p>
-          <p v-if="modalType === 'delete'">确定要解散社区吗？此操作不可撤销！</p>
+          <p v-if="modalType === 'deleteRequirement'">确定要删除这条审核记录吗？此操作不可撤销！</p>
+          <p v-if="modalType === 'rejectReview'">请输入拒绝审核的原因。</p>
+          <p v-if="modalType === 'reReview'">确定要进行重新审核吗？</p>
+          
+          <!-- 编辑需求表单 -->
+          <div v-if="modalType === 'editRequirement' && selectedRequirement" class="edit-requirement-form">
+            <div class="form-group">
+              <label>需求描述</label>
+              <textarea v-model="editingRequirement.description" rows="4" class="form-textarea"></textarea>
+            </div>
+            <div class="form-group">
+              <label>服务地点</label>
+              <input v-model="editingRequirement.location" type="text" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>联系方式（仅管理员可见）</label>
+              <input v-model="editingRequirement.contact" type="text" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>
+                <input v-model="editingRequirement.urgent" type="checkbox">
+                标记为紧急需求
+              </label>
+            </div>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" @click="closeModal">取消</button>
@@ -281,7 +516,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 
 // 激活的标签页
 const activeTab = ref('members')
@@ -289,103 +524,171 @@ const activeTab = ref('members')
 // 社区统计
 const communityStats = ref({
   members: 156,
-  active: 48,
-  posts: 23
+  petOwners: 85,
+  serviceProviders: 71,
+  pendingReview: 5
 })
 
 // 搜索和筛选
 const searchQuery = ref('')
 const memberFilter = ref('all')
 
-// 成员数据
+// 成员数据（保持不变）
 const members = ref([
-  { id: 1, name: '张三', avatar: '😊', pet: '多多', location: '北京朝阳', helped: 12, received: 8, points: 1560, level: 3, role: 'member', online: true },
-  { id: 2, name: '李四', avatar: '🐶', pet: '旺财', location: '上海浦东', helped: 8, received: 5, points: 980, level: 2, role: 'moderator', online: true },
-  { id: 3, name: '王五', avatar: '🐱', pet: '花花', location: '广州天河', helped: 15, received: 10, points: 2100, level: 4, role: 'admin', online: false },
-  { id: 4, name: '赵六', avatar: '🐰', pet: '小白', location: '深圳南山', helped: 5, received: 3, points: 650, level: 1, role: 'member', online: true },
-  { id: 5, name: '钱七', avatar: '🦊', pet: '豆豆', location: '杭州西湖', helped: 20, received: 15, points: 2800, level: 5, role: 'member', online: true },
-  { id: 6, name: '孙八', avatar: '🐻', pet: '胖胖', location: '成都锦江', helped: 7, received: 4, points: 890, level: 2, role: 'member', online: false }
-])
-
-// 成员分布
-const memberDistribution = ref([
-  { type: '活跃成员', count: 48, percentage: 30 },
-  { type: '普通成员', count: 85, percentage: 54 },
-  { type: '新成员', count: 23, percentage: 15 }
-])
-
-// 活跃度数据
-const activityData = ref([80, 65, 75, 90, 85, 70, 95])
-
-// 活动数据
-const activeActivities = ref([
   { 
     id: 1, 
-    title: '周末遛狗聚会', 
-    type: 'walk', 
-    description: '周末在公园组织的大型遛狗社交活动', 
-    date: '2024-01-20 14:00', 
-    location: '中央公园', 
-    participants: 15, 
-    maxParticipants: 30, 
-    status: 'active' 
+    name: '张三', 
+    avatar: '😊', 
+    location: '北京朝阳', 
+    helped: 12, 
+    received: 8, 
+    points: 1560, 
+    level: 3, 
+    userType: 'serviceProvider',
+    reviewStatus: 'pending',
+    qualifications: ['宠物护理证书', '宠物急救证书'],
+    reviewReason: ''
   },
-  { 
-    id: 2, 
-    title: '宠物训练基础课', 
-    type: 'training', 
-    description: '专业训犬师指导的基础训练课程', 
-    date: '2024-01-22 10:00', 
-    location: '社区活动中心', 
-    participants: 8, 
-    maxParticipants: 12, 
-    status: 'active' 
+  // ... 其他成员数据保持不变
+])
+
+// ===== 需求审核相关数据 =====
+const reviewFilter = ref('pending')
+const typeFilter = ref('all')
+const urgencyFilter = ref('all')
+
+// 待审核需求
+const pendingRequirements = ref([
+  {
+    id: 101,
+    type: 'walk',
+    petType: 'dog',
+    petName: '多多',
+    description: '需要帮忙遛狗2小时，金毛犬，性格温顺但力气较大，需要有一定力量的帮助者',
+    startTime: '2024-01-15T14:00:00',
+    endTime: '2024-01-15T16:00:00',
+    location: '北京市朝阳区三里屯SOHO',
+    publisher: '张先生',
+    publisherLevel: 3,
+    contact: '138****8000',
+    postTime: '2024-01-14T10:30:00',
+    urgent: true,
+    status: 'pending',
+    complianceChecks: [
+      { id: 1, icon: '✅', text: '联系方式合规', status: 'passed' },
+      { id: 2, icon: '⚠️', text: '地址信息一般', status: 'warning' },
+      { id: 3, icon: '✅', text: '需求描述清晰', status: 'passed' },
+      { id: 4, icon: '❌', text: '紧急程度较高', status: 'failed' }
+    ]
   },
-  { 
-    id: 3, 
-    title: '流浪猫救助活动', 
-    type: 'adoption', 
-    description: '帮助寻找流浪猫的领养家庭', 
-    date: '2024-01-25 13:00', 
-    location: '动物救助站', 
-    participants: 25, 
-    maxParticipants: 40, 
-    status: 'upcoming' 
+  {
+    id: 102,
+    type: 'feed',
+    petType: 'cat',
+    petName: '咪咪',
+    description: '出差3天，需要帮忙喂猫和清理猫砂，英短猫比较怕生，需要温柔耐心的帮助者',
+    startTime: '2024-01-16T09:00:00',
+    endTime: '2024-01-18T20:00:00',
+    location: '北京市海淀区中关村',
+    publisher: '李女士',
+    publisherLevel: 2,
+    contact: 'lily@example.com',
+    postTime: '2024-01-14T15:45:00',
+    urgent: false,
+    status: 'pending',
+    complianceChecks: [
+      { id: 1, icon: '✅', text: '联系方式合规', status: 'passed' },
+      { id: 2, icon: '✅', text: '地址信息详细', status: 'passed' },
+      { id: 3, icon: '✅', text: '需求描述清晰', status: 'passed' },
+      { id: 4, icon: '✅', text: '服务时间合理', status: 'passed' }
+    ]
+  },
+  {
+    id: 103,
+    type: 'groom',
+    petType: 'dog',
+    petName: '小白',
+    description: '需要帮忙给泰迪犬洗澡和修剪毛发，需要专业的美容服务',
+    startTime: '2024-01-17T13:00:00',
+    endTime: '2024-01-17T15:00:00',
+    location: '北京市东城区王府井',
+    publisher: '王先生',
+    publisherLevel: 1,
+    contact: 'wang@example.com',
+    postTime: '2024-01-15T09:20:00',
+    urgent: false,
+    status: 'pending',
+    complianceChecks: [
+      { id: 1, icon: '✅', text: '联系方式合规', status: 'passed' },
+      { id: 2, icon: '⚠️', text: '地址信息一般', status: 'warning' },
+      { id: 3, icon: '✅', text: '需求描述清晰', status: 'passed' }
+    ]
+  },
+  {
+    id: 104,
+    type: 'medical',
+    petType: 'dog',
+    petName: '旺财',
+    description: '需要陪狗狗去医院打疫苗，需要有人陪伴并提供交通帮助',
+    startTime: '2024-01-18T10:00:00',
+    endTime: '2024-01-18T12:00:00',
+    location: '北京市朝阳区望京',
+    publisher: '赵女士',
+    publisherLevel: 4,
+    contact: 'zhao@example.com',
+    postTime: '2024-01-15T14:30:00',
+    urgent: true,
+    status: 'pending',
+    complianceChecks: [
+      { id: 1, icon: '❌', text: '联系方式敏感', status: 'failed' },
+      { id: 2, icon: '✅', text: '地址信息详细', status: 'passed' },
+      { id: 3, icon: '✅', text: '需求描述清晰', status: 'passed' }
+    ]
   }
 ])
 
-// 活动统计
-const activityStats = ref({
-  total: 24,
-  upcoming: 8,
-  completed: 16
-})
+// 已通过的需求
+const approvedRequirements = ref([
+  {
+    id: 201,
+    type: 'walk',
+    petType: 'dog',
+    petName: '豆豆',
+    description: '每天下午需要遛狗1小时，柯基犬',
+    startTime: '2024-01-14T16:00:00',
+    endTime: '2024-01-14T17:00:00',
+    location: '北京市西城区金融街',
+    publisher: '钱先生',
+    publisherLevel: 3,
+    contact: 'qian@example.com',
+    postTime: '2024-01-13T14:20:00',
+    reviewedTime: '2024-01-13T15:30:00',
+    reviewer: '管理员A',
+    status: 'approved',
+    urgent: false
+  }
+])
 
-// 内容审核
-const reviewFilter = ref('pending')
-const pendingCount = ref(5)
-const reviews = ref([
-  { 
-    id: 1, 
-    type: '活动申请', 
-    title: '夜跑遛狗活动', 
-    author: '张三', 
-    authorAvatar: '😊', 
-    time: '2小时前', 
-    content: '想组织一个晚上的遛狗活动...', 
-    attachments: ['活动计划书.pdf'], 
-    status: 'pending' 
-  },
-  { 
-    id: 2, 
-    type: '帖子', 
-    title: '狗狗训练心得分享', 
-    author: '李四', 
-    authorAvatar: '🐶', 
-    time: '5小时前', 
-    content: '分享一些训练狗狗的小技巧...', 
-    attachments: null, 
-    status: 'pending' 
+// 已拒绝的需求
+const rejectedRequirements = ref([
+  {
+    id: 301,
+    type: 'other',
+    petType: 'other',
+    petName: '未知',
+    description: '需要特殊宠物服务，联系我详谈',
+    startTime: '2024-01-16T20:00:00',
+    endTime: '2024-01-16T22:00:00',
+    location: '未知地点',
+    publisher: '匿名用户',
+    publisherLevel: 0,
+    contact: '123456',
+    postTime: '2024-01-14T22:10:00',
+    reviewedTime: '2024-01-14T23:15:00',
+    reviewer: '管理员B',
+    rejectionReason: '内容违规，联系方式无效',
+    status: 'rejected',
+    urgent: false
   }
 ])
 
@@ -393,15 +696,11 @@ const reviews = ref([
 const communitySettings = ref({
   name: 'PetPal 北京社区',
   description: '北京地区的宠物爱好者和宠物主聚集地',
-  allowPosting: true,
-  requireApproval: false,
-  contentReview: true,
-  activityNotifications: 'all',
-  memberNotifications: 'all'
+  requireApproval: true,
+  autoFlagSensitive: true,
+  urgentReviewTime: '4',
+  rejectTemplates: `联系方式不清晰\n地址信息不完整\n需求描述不明确\n内容涉及违规\n服务时间不合理\n宠物信息不全`
 })
-
-// 邀请链接
-const inviteLink = ref('https://petpal.com/invite/abc123')
 
 // 模态框
 const showModal = ref(false)
@@ -409,6 +708,12 @@ const modalType = ref('')
 const modalTitle = ref('')
 const modalConfirmText = ref('')
 const selectedMember = ref(null)
+const selectedRequirement = ref(null)
+const editingRequirement = ref(null)
+
+// 拒绝相关
+const showRejectionInput = ref(null)
+const rejectionReason = ref('')
 
 // 计算属性
 const filteredMembers = computed(() => {
@@ -417,29 +722,63 @@ const filteredMembers = computed(() => {
   // 搜索过滤
   if (searchQuery.value) {
     result = result.filter(member => 
-      member.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      member.pet.toLowerCase().includes(searchQuery.value.toLowerCase())
+      member.name.toLowerCase().includes(searchQuery.value.toLowerCase())
     )
   }
   
   // 筛选过滤
-  if (memberFilter.value === 'active') {
-    result = result.filter(member => member.online)
-  } else if (memberFilter.value === 'new') {
-    result = result.filter(member => member.level <= 2)
-  } else if (memberFilter.value === 'verified') {
-    result = result.filter(member => member.level >= 3)
+  if (memberFilter.value === 'petOwner') {
+    result = result.filter(member => member.userType === 'petOwner')
+  } else if (memberFilter.value === 'serviceProvider') {
+    result = result.filter(member => member.userType === 'serviceProvider')
+  } else if (memberFilter.value === 'pendingReview') {
+    result = result.filter(member => member.reviewStatus === 'pending')
+  } else if (memberFilter.value === 'approved') {
+    result = result.filter(member => member.reviewStatus === 'approved')
+  } else if (memberFilter.value === 'rejected') {
+    result = result.filter(member => member.reviewStatus === 'rejected')
   }
   
   return result
 })
 
-const filteredReviews = computed(() => {
+// 过滤需求列表
+const filteredRequirements = computed(() => {
+  let requirements = []
+  
+  // 根据筛选条件选择不同的需求列表
   if (reviewFilter.value === 'pending') {
-    return reviews.value.filter(item => item.status === 'pending')
+    requirements = pendingRequirements.value
+  } else if (reviewFilter.value === 'approved') {
+    requirements = approvedRequirements.value
+  } else if (reviewFilter.value === 'rejected') {
+    requirements = rejectedRequirements.value
   }
-  return reviews.value
+  
+  // 类型过滤
+  if (typeFilter.value !== 'all') {
+    requirements = requirements.filter(req => req.type === typeFilter.value)
+  }
+  
+  // 紧急程度过滤
+  if (urgencyFilter.value !== 'all') {
+    requirements = requirements.filter(req => {
+      if (urgencyFilter.value === 'urgent') return req.urgent === true
+      if (urgencyFilter.value === 'normal') return req.urgent === false
+      return true
+    })
+  }
+  
+  return requirements
 })
+
+// 成员分布和活跃度数据（保持不变）
+const memberDistribution = ref([
+  { type: '宠物主人', count: 85, percentage: 54 },
+  { type: '服务提供者', count: 71, percentage: 46 }
+])
+
+const activityData = ref([80, 65, 75, 90, 85, 70, 95])
 
 // 方法
 const getLevelClass = (level) => {
@@ -448,142 +787,348 @@ const getLevelClass = (level) => {
   return 'level-low'
 }
 
-const getActivityColor = (type) => {
-  const colors = {
-    walk: '#3b82f6',
-    training: '#10b981',
-    adoption: '#8b5cf6',
-    other: '#6b7280'
+// 宠物相关方法
+const getPetEmoji = (petType) => {
+  const emojiMap = {
+    dog: '🐶',
+    cat: '🐱',
+    rabbit: '🐰',
+    bird: '🐦',
+    other: '🐾'
   }
-  return colors[type] || '#6b7280'
+  return emojiMap[petType] || '🐾'
 }
 
-const getActivityType = (type) => {
-  const types = {
-    walk: '遛狗聚会',
-    training: '训练课程',
-    adoption: '领养活动',
-    other: '其他活动'
+const getPetTypeName = (petType) => {
+  const typeMap = {
+    dog: '狗狗',
+    cat: '猫咪',
+    rabbit: '兔兔',
+    bird: '鸟鸟',
+    other: '其他宠物'
   }
-  return types[type] || '活动'
+  return typeMap[petType] || '宠物'
 }
 
-const getStatusText = (status) => {
-  const texts = {
-    active: '进行中',
-    upcoming: '即将开始',
-    completed: '已完成'
+const getTypeColor = (type) => {
+  const colorMap = {
+    walk: '#3b82f6',    // 蓝色
+    feed: '#10b981',    // 绿色
+    medical: '#ef4444', // 红色
+    groom: '#8b5cf6',   // 紫色
+    other: '#6b7280'    // 灰色
   }
-  return texts[status] || status
+  return colorMap[type] || '#6b7280'
 }
 
-// 成员相关方法
-const messageMember = (member) => {
-  console.log('私信成员:', member.name)
+const getTypeName = (type) => {
+  const typeMap = {
+    walk: '遛狗服务',
+    feed: '喂食照顾',
+    medical: '就医陪伴',
+    groom: '美容护理',
+    other: '其他服务'
+  }
+  return typeMap[type] || '其他服务'
 }
 
-const updateMemberRole = (member) => {
-  console.log('更新成员角色:', member.name, member.role)
+// 时间格式化
+const formatTime = (timeString) => {
+  const date = new Date(timeString)
+  return date.toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-// 活动相关方法
-const viewActivity = (activity) => {
-  console.log('查看活动:', activity.title)
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', { 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-const editActivity = (activity) => {
-  console.log('编辑活动:', activity.title)
-}
+// ===== 需求审核方法 =====
 
-const cancelActivity = (activity) => {
-  if (confirm(`确定要取消活动 "${activity.title}" 吗？`)) {
-    console.log('取消活动:', activity.title)
+// 通过审核
+const approveRequirement = (requirement) => {
+  const index = pendingRequirements.value.findIndex(r => r.id === requirement.id)
+  if (index !== -1) {
+    const approvedRequirement = {
+      ...pendingRequirements.value[index],
+      status: 'approved',
+      reviewedTime: new Date().toISOString(),
+      reviewer: '当前管理员'
+    }
+    approvedRequirements.value.unshift(approvedRequirement)
+    pendingRequirements.value.splice(index, 1)
+    communityStats.value.pendingReview--
+    
+    // 通知用户
+    console.log(`需求审核通过：${requirement.petName} - ${getTypeName(requirement.type)}`)
+    alert(`已通过需求审核：${requirement.petName} - ${getTypeName(requirement.type)}`)
   }
 }
 
-const createActivity = (type) => {
-  showCreateDialog(type)
+// 切换拒绝理由输入框
+const toggleRejectionInput = (requirement) => {
+  if (showRejectionInput.value === requirement.id) {
+    showRejectionInput.value = null
+    rejectionReason.value = ''
+  } else {
+    showRejectionInput.value = requirement.id
+    rejectionReason.value = ''
+  }
 }
 
-// 内容审核方法
-const approveContent = (item) => {
-  item.status = 'approved'
-  pendingCount.value--
-  console.log('通过内容:', item.title)
+// 拒绝需求
+const rejectRequirement = (requirement) => {
+  if (!rejectionReason.value.trim()) {
+    alert('请填写拒绝原因')
+    return
+  }
+  
+  const index = pendingRequirements.value.findIndex(r => r.id === requirement.id)
+  if (index !== -1) {
+    const rejectedRequirement = {
+      ...pendingRequirements.value[index],
+      status: 'rejected',
+      reviewedTime: new Date().toISOString(),
+      reviewer: '当前管理员',
+      rejectionReason: rejectionReason.value
+    }
+    rejectedRequirements.value.unshift(rejectedRequirement)
+    pendingRequirements.value.splice(index, 1)
+    communityStats.value.pendingReview--
+    showRejectionInput.value = null
+    rejectionReason.value = ''
+    
+    console.log(`需求审核拒绝：${requirement.petName} - ${getTypeName(requirement.type)}`)
+    alert(`已拒绝需求发布：${requirement.petName} - ${getTypeName(requirement.type)}`)
+  }
 }
 
-const rejectContent = (item) => {
-  item.status = 'rejected'
-  pendingCount.value--
-  console.log('拒绝内容:', item.title)
+// 编辑需求
+const editRequirement = (requirement) => {
+  selectedRequirement.value = requirement
+  editingRequirement.value = { ...requirement }
+  modalType.value = 'editRequirement'
+  modalTitle.value = '编辑需求内容'
+  modalConfirmText.value = '保存修改'
+  showModal.value = true
 }
 
-const editContent = (item) => {
-  console.log('编辑内容:', item.title)
+// 查看发布者资料
+const viewPublisherProfile = (requirement) => {
+  // 在实际应用中，这里应该跳转到用户资料页面
+  console.log('查看发布者资料：', requirement.publisher)
+  alert(`即将查看用户 ${requirement.publisher} 的资料`)
+}
+
+// 重新审核已拒绝的需求
+const reApproveRequirement = (requirement) => {
+  const index = rejectedRequirements.value.findIndex(r => r.id === requirement.id)
+  if (index !== -1) {
+    const rependingRequirement = {
+      ...rejectedRequirements.value[index],
+      status: 'pending',
+      reviewedTime: null,
+      reviewer: null,
+      rejectionReason: null
+    }
+    pendingRequirements.value.unshift(rependingRequirement)
+    rejectedRequirements.value.splice(index, 1)
+    communityStats.value.pendingReview++
+    
+    alert('需求已重新提交审核')
+  }
+}
+
+// 查看需求详情
+const viewRequirementDetails = (requirement) => {
+  let details = `需求详情：\n`
+  details += `类型：${getTypeName(requirement.type)}\n`
+  details += `宠物：${requirement.petName}（${getPetTypeName(requirement.petType)}）\n`
+  details += `描述：${requirement.description}\n`
+  details += `时间：${formatTime(requirement.startTime)} - ${formatTime(requirement.endTime)}\n`
+  details += `地点：${requirement.location}\n`
+  details += `发布者：${requirement.publisher}\n`
+  details += `状态：${requirement.status === 'approved' ? '已通过' : '已拒绝'}\n`
+  
+  if (requirement.reviewer) {
+    details += `审核人：${requirement.reviewer}\n`
+    details += `审核时间：${formatDate(requirement.reviewedTime)}\n`
+  }
+  
+  if (requirement.rejectionReason) {
+    details += `拒绝原因：${requirement.rejectionReason}\n`
+  }
+  
+  alert(details)
+}
+
+// 删除审核记录
+const deleteReviewRecord = (requirement) => {
+  selectedRequirement.value = requirement
+  modalType.value = 'deleteRequirement'
+  modalTitle.value = '删除审核记录'
+  modalConfirmText.value = '确认删除'
+  showModal.value = true
+}
+
+// 空状态文本
+const getEmptyStateTitle = () => {
+  switch (reviewFilter.value) {
+    case 'pending': return '暂无待审核需求'
+    case 'approved': return '暂无已通过需求'
+    case 'rejected': return '暂无已拒绝需求'
+    default: return '暂无数据'
+  }
+}
+
+const getEmptyStateMessage = () => {
+  switch (reviewFilter.value) {
+    case 'pending': return '所有发布的需求都已审核完毕'
+    case 'approved': return '还没有需求通过审核'
+    case 'rejected': return '还没有需求被拒绝'
+    default: return '暂无相关数据'
+  }
 }
 
 // 设置相关方法
+const resetSettings = () => {
+  communitySettings.value = {
+    name: 'PetPal 北京社区',
+    description: '北京地区的宠物爱好者和宠物主聚集地',
+    requireApproval: true,
+    autoFlagSensitive: true,
+    urgentReviewTime: '4',
+    rejectTemplates: `联系方式不清晰\n地址信息不完整\n需求描述不明确\n内容涉及违规\n服务时间不合理\n宠物信息不全`
+  }
+  alert('设置已恢复为默认值')
+}
+
 const saveSettings = () => {
   console.log('保存设置:', communitySettings.value)
   alert('设置已保存！')
 }
 
-const exportCommunityData = () => {
-  console.log('导出社区数据')
+// 成员相关方法（保持不变）
+const approveQualification = (member) => {
+  member.reviewStatus = 'approved'
+  communityStats.value.pendingReview--
+  console.log('通过审核:', member.name)
 }
 
-const showTransferDialog = () => {
-  console.log('显示转让对话框')
-}
-
-const copyInviteLink = () => {
-  navigator.clipboard.writeText(inviteLink.value)
-  alert('邀请链接已复制到剪贴板！')
-}
-
-const generateNewLink = () => {
-  inviteLink.value = `https://petpal.com/invite/${Math.random().toString(36).substr(2, 8)}`
-  alert('已生成新的邀请链接！')
-}
-
-// 模态框方法
-const showCreateDialog = (type = '') => {
-  modalType.value = 'create'
-  modalTitle.value = '创建新活动'
-  modalConfirmText.value = '创建'
+const showRejectDialog = (member) => {
+  selectedMember.value = member
+  modalType.value = 'rejectReview'
+  modalTitle.value = '拒绝资质审核'
+  modalConfirmText.value = '确认拒绝'
   showModal.value = true
+}
+
+const rejectQualification = (reason) => {
+  if (selectedMember.value) {
+    selectedMember.value.reviewStatus = 'rejected'
+    selectedMember.value.reviewReason = reason
+    communityStats.value.pendingReview--
+    console.log('拒绝审核:', selectedMember.value.name, '原因:', reason)
+  }
+}
+
+const viewQualification = (member) => {
+  console.log('查看资质:', member.name)
+}
+
+const showReReviewDialog = (member) => {
+  selectedMember.value = member
+  modalType.value = 'reReview'
+  modalTitle.value = '重新审核资质'
+  modalConfirmText.value = '开始重新审核'
+  showModal.value = true
+}
+
+const viewRejectReason = (member) => {
+  alert(`审核未通过原因：\n${member.reviewReason || '未提供具体原因'}`)
+}
+
+const allowResubmit = (member) => {
+  member.reviewStatus = 'pending'
+  communityStats.value.pendingReview++
+  console.log('允许重新提交:', member.name)
+}
+
+const updateUserType = (member) => {
+  console.log('更新用户类型:', member.name, '新类型:', member.userType)
 }
 
 const showRemoveDialog = (member) => {
+  selectedMember.value = member
   modalType.value = 'remove'
   modalTitle.value = '移除成员'
   modalConfirmText.value = '移除'
-  selectedMember.value = member
   showModal.value = true
 }
 
-const showDeleteDialog = () => {
-  modalType.value = 'delete'
-  modalTitle.value = '解散社区'
-  modalConfirmText.value = '解散'
-  showModal.value = true
-}
-
+// 模态框方法
 const closeModal = () => {
   showModal.value = false
   selectedMember.value = null
+  selectedRequirement.value = null
+  editingRequirement.value = null
 }
 
 const confirmModal = () => {
   switch (modalType.value) {
-    case 'create':
-      console.log('创建活动')
-      break
     case 'remove':
       console.log('移除成员:', selectedMember.value?.name)
       break
-    case 'delete':
-      console.log('解散社区')
+      
+    case 'deleteRequirement':
+      // 删除审核记录
+      if (selectedRequirement.value) {
+        if (selectedRequirement.value.status === 'approved') {
+          const index = approvedRequirements.value.findIndex(r => r.id === selectedRequirement.value.id)
+          if (index !== -1) {
+            approvedRequirements.value.splice(index, 1)
+          }
+        } else if (selectedRequirement.value.status === 'rejected') {
+          const index = rejectedRequirements.value.findIndex(r => r.id === selectedRequirement.value.id)
+          if (index !== -1) {
+            rejectedRequirements.value.splice(index, 1)
+          }
+        }
+        console.log('删除审核记录:', selectedRequirement.value.petName)
+      }
+      break
+      
+    case 'rejectReview':
+      const reason = prompt('请输入拒绝原因：', '资质不符合要求')
+      if (reason) {
+        rejectQualification(reason)
+      }
+      break
+      
+    case 'reReview':
+      if (confirm(`确定要对 ${selectedMember.value?.name} 进行重新审核吗？`)) {
+        selectedMember.value.reviewStatus = 'pending'
+        communityStats.value.pendingReview++
+      }
+      break
+      
+    case 'editRequirement':
+      if (editingRequirement.value && selectedRequirement.value) {
+        // 更新需求内容
+        Object.assign(selectedRequirement.value, editingRequirement.value)
+        console.log('需求已更新:', selectedRequirement.value.petName)
+      }
       break
   }
   closeModal()
@@ -617,6 +1162,7 @@ const confirmModal = () => {
   display: flex;
   gap: 30px;
   margin-top: 20px;
+  flex-wrap: wrap;
 }
 
 .stat-item {
@@ -625,6 +1171,7 @@ const confirmModal = () => {
   background: #f8fafc;
   border-radius: 16px;
   min-width: 120px;
+  flex: 1;
 }
 
 .stat-value {
@@ -677,25 +1224,6 @@ const confirmModal = () => {
   color: white;
 }
 
-.create-btn {
-  background: #166534;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s;
-}
-
-.create-btn:hover {
-  background: #14532d;
-  transform: translateY(-1px);
-}
-
 /* 标签页内容 */
 .tab-content {
   animation: fadeIn 0.3s ease;
@@ -706,7 +1234,515 @@ const confirmModal = () => {
   to { opacity: 1; }
 }
 
-/* 成员管理页面 */
+/* ===== 需求审核页面样式 ===== */
+.review-header {
+  margin-bottom: 30px;
+}
+
+.review-stats-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.review-stat-card {
+  padding: 25px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.review-stat-card.total {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.review-stat-card.approved {
+  background: linear-gradient(135deg, #10b981, #047857);
+  color: white;
+}
+
+.review-stat-card.rejected {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+}
+
+.review-stat-card .stat-icon {
+  font-size: 40px;
+}
+
+.review-stat-card .stat-info h3 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.review-stat-card .stat-info p {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* 审核筛选 */
+.review-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filter-group {
+  display: flex;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 6px;
+  border-radius: 12px;
+  width: fit-content;
+}
+
+.filter-btn {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.filter-btn:hover {
+  background: #e2e8f0;
+}
+
+.filter-btn.active {
+  background: #166534;
+  color: white;
+}
+
+.filter-select-group {
+  display: flex;
+  gap: 15px;
+}
+
+.filter-select {
+  padding: 10px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  color: #475569;
+  min-width: 160px;
+}
+
+/* 需求审核项 */
+.requirements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.requirement-review-item {
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.requirement-review-item:hover {
+  border-color: #d1fae5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.requirement-review-item.reviewed.approved {
+  border-left: 4px solid #10b981;
+}
+
+.requirement-review-item.reviewed.rejected {
+  border-left: 4px solid #ef4444;
+}
+
+.requirement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.requirement-type-badge {
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.urgent-indicator {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.requirement-status {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.requirement-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.requirement-status.approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.requirement-status.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.requirement-content {
+  padding: 25px;
+}
+
+/* 宠物信息 */
+.pet-info-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.pet-avatar-large {
+  width: 60px;
+  height: 60px;
+  background: #f0fdf4;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.pet-avatar-small {
+  width: 40px;
+  height: 40px;
+  background: #f0fdf4;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.pet-details h4 {
+  font-size: 18px;
+  color: #1e293b;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.pet-type {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* 需求详情 */
+.requirement-details .description {
+  color: #475569;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 25px;
+  padding: 15px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border-left: 3px solid #d1fae5;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.detail-row.compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.detail-label {
+  color: #475569;
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.detail-value {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.member-level {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* 审核信息 */
+.review-info {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.reviewer-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.reviewer-label {
+  font-weight: 500;
+}
+
+.reviewer-name {
+  color: #166534;
+  font-weight: 600;
+}
+
+.review-time {
+  color: #94a3b8;
+}
+
+.rejection-reason {
+  background: #fee2e2;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+}
+
+.reason-label {
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.reason-text {
+  color: #475569;
+  margin-left: 8px;
+}
+
+/* 审核操作区域 */
+.review-actions-section {
+  padding: 20px 25px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.rejection-reason-input {
+  margin-bottom: 20px;
+}
+
+.reason-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.reason-textarea:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.approve-btn {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.approve-btn:hover {
+  background: #a7f3d0;
+  transform: translateY(-1px);
+}
+
+.reject-btn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.reject-btn:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+.confirm-reject-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.confirm-reject-btn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.confirm-reject-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.edit-btn {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.edit-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.view-btn {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.view-btn:hover {
+  background: #e2e8f0;
+}
+
+.delete-btn {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.delete-btn:hover {
+  background: #fecaca;
+}
+
+/* 空状态 */
+.no-reviews {
+  text-align: center;
+  padding: 60px 40px;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed #e2e8f0;
+}
+
+.empty-state {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  color: #334155;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  color: #64748b;
+  font-size: 15px;
+}
+
+/* 设置页面 */
+.setting-description {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+/* 模态框中的编辑表单 */
+.edit-requirement-form .form-group {
+  margin-bottom: 20px;
+}
+
+.edit-requirement-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #475569;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* ===== 以下为原有样式（成员管理部分）保持不变 ===== */
+/* 成员管理页面样式保持不变... */
+
 .content-header {
   display: flex;
   justify-content: space-between;
@@ -741,16 +1777,6 @@ const confirmModal = () => {
   color: #94a3b8;
 }
 
-.filter-select {
-  padding: 10px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  font-size: 14px;
-  color: #475569;
-  min-width: 160px;
-}
-
 /* 成员卡片网格 */
 .members-grid {
   display: grid;
@@ -775,18 +1801,47 @@ const confirmModal = () => {
   border-color: #d1fae5;
 }
 
-.admin-badge {
+/* 用户类型徽章 */
+.user-type-badge {
   position: absolute;
   top: 16px;
   right: 16px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
+  color: white;
 }
 
+.user-type-badge.petOwner {
+  background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+}
+
+.user-type-badge.serviceProvider {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+/* 审核状态徽章 */
+.review-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.review-badge.pending {
+  background: #f59e0b;
+}
+
+.review-badge.rejected {
+  background: #ef4444;
+}
+
+/* 等级徽章 */
 .level-badge {
   position: absolute;
   top: 16px;
@@ -798,22 +1853,22 @@ const confirmModal = () => {
   font-weight: 600;
 }
 
-.level-low {
+.level-badge.level-low {
   background: #94a3b8;
 }
 
-.level-medium {
+.level-badge.level-medium {
   background: #3b82f6;
 }
 
-.level-high {
+.level-badge.level-high {
   background: #8b5cf6;
 }
 
 /* 成员头像 */
 .member-avatar {
   text-align: center;
-  margin: 20px 0 25px;
+  margin: 40px 0 25px;
   position: relative;
 }
 
@@ -831,21 +1886,6 @@ const confirmModal = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.online-status {
-  position: absolute;
-  bottom: 20px;
-  right: calc(50% - 45px);
-  width: 16px;
-  height: 16px;
-  background: #94a3b8;
-  border: 3px solid white;
-  border-radius: 50%;
-}
-
-.online-status.online {
-  background: #22c55e;
-}
-
 /* 成员信息 */
 .member-info {
   text-align: center;
@@ -859,21 +1899,51 @@ const confirmModal = () => {
   font-weight: 700;
 }
 
-.member-pet {
-  color: #64748b;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
 .member-location {
   color: #94a3b8;
   font-size: 13px;
   margin-bottom: 20px;
 }
 
+/* 资质信息样式 */
+.qualifications, .pets-info {
+  margin: 15px 0;
+}
+
+.qualification-label, .pets-label {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.qualification-list, .pets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.qualification-tag, .pet-tag {
+  background: #f0fdf4;
+  color: #166534;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pet-tag {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
 .member-stats {
   display: flex;
   justify-content: space-around;
+  margin-top: 20px;
 }
 
 .stat {
@@ -893,52 +1963,18 @@ const confirmModal = () => {
   color: #94a3b8;
 }
 
-/* 成员操作 */
+/* 审核按钮样式 */
+.review-actions, .reviewed-actions, .rejected-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .member-actions {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.action-btn {
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.chat-btn {
-  background: #3b82f6;
-  color: white;
-}
-
-.chat-btn:hover {
-  background: #2563eb;
-}
-
-.remove-btn {
-  background: #f8fafc;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.remove-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-.role-dropdown {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  font-size: 14px;
-  color: #475569;
 }
 
 /* 成员统计 */
@@ -1034,406 +2070,6 @@ const confirmModal = () => {
   font-size: 13px;
 }
 
-/* 活动管理页面 */
-.activities-container {
-  display: flex;
-  gap: 30px;
-}
-
-.upcoming-activities {
-  flex: 2;
-}
-
-.upcoming-activities h3 {
-  font-size: 20px;
-  color: #1e293b;
-  margin-bottom: 25px;
-  font-weight: 700;
-}
-
-.activities-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.activity-item {
-  background: white;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  padding: 25px;
-  transition: all 0.3s;
-}
-
-.activity-item:hover {
-  border-color: #d1fae5;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.activity-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.activity-type {
-  color: white;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.activity-status {
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.activity-status.active {
-  background: #f0fdf4;
-  color: #22c55e;
-}
-
-.activity-status.upcoming {
-  background: #eff6ff;
-  color: #3b82f6;
-}
-
-.activity-status.completed {
-  background: #f8fafc;
-  color: #64748b;
-}
-
-.activity-content h4 {
-  font-size: 18px;
-  color: #1e293b;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.activity-desc {
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 20px;
-}
-
-.activity-details {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.detail {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.detail-icon {
-  color: #94a3b8;
-  width: 20px;
-}
-
-.detail-text {
-  color: #64748b;
-  font-size: 14px;
-}
-
-.activity-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.view-btn, .edit-btn, .cancel-btn {
-  padding: 10px 20px;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.view-btn {
-  background: #3b82f6;
-  color: white;
-}
-
-.view-btn:hover {
-  background: #2563eb;
-}
-
-.edit-btn {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #d1fae5;
-}
-
-.edit-btn:hover {
-  background: #d1fae5;
-}
-
-.cancel-btn {
-  background: #f8fafc;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.cancel-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-/* 活动侧边栏 */
-.activity-sidebar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.sidebar-card {
-  background: white;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  padding: 25px;
-}
-
-.sidebar-card h4 {
-  font-size: 18px;
-  color: #1e293b;
-  margin-bottom: 20px;
-  font-weight: 600;
-}
-
-.activity-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-}
-
-.quick-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.quick-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 15px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  color: #475569;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.quick-btn:hover {
-  background: #f0fdf4;
-  border-color: #d1fae5;
-  transform: translateX(5px);
-}
-
-.quick-btn span {
-  font-size: 20px;
-}
-
-/* 内容审核页面 */
-.review-filters {
-  margin-bottom: 30px;
-}
-
-.filter-group {
-  display: flex;
-  gap: 10px;
-  background: #f8fafc;
-  padding: 6px;
-  border-radius: 12px;
-  width: fit-content;
-}
-
-.filter-btn {
-  padding: 10px 24px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.filter-btn:hover {
-  background: #e2e8f0;
-}
-
-.filter-btn.active {
-  background: #166534;
-  color: white;
-}
-
-.review-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.review-item {
-  background: white;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  padding: 25px;
-  display: flex;
-  gap: 30px;
-}
-
-.review-content {
-  flex: 2;
-}
-
-.content-type {
-  display: inline-block;
-  background: #eff6ff;
-  color: #3b82f6;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.content-title {
-  font-size: 18px;
-  color: #1e293b;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.content-author {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.author-avatar {
-  width: 28px;
-  height: 28px;
-  background: #f0fdf4;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.author-name {
-  color: #475569;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.post-time {
-  color: #94a3b8;
-  font-size: 13px;
-}
-
-.content-text {
-  color: #64748b;
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 16px;
-}
-
-.content-attachments {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.attachment {
-  color: #64748b;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.review-actions {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.review-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.approve-btn, .reject-btn, .edit-btn {
-  padding: 12px;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.approve-btn {
-  background: #f0fdf4;
-  color: #22c55e;
-  border: 1px solid #d1fae5;
-}
-
-.approve-btn:hover {
-  background: #d1fae5;
-}
-
-.reject-btn {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-}
-
-.reject-btn:hover {
-  background: #fecaca;
-}
-
-.edit-btn {
-  background: #f8fafc;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.edit-btn:hover {
-  background: #e2e8f0;
-}
-
-.review-reason {
-  font-size: 13px;
-  color: #94a3b8;
-  padding-top: 15px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.reviewer {
-  display: block;
-  margin-bottom: 4px;
-}
-
 /* 社区设置页面 */
 .settings-container {
   display: flex;
@@ -1468,14 +2104,6 @@ const confirmModal = () => {
   margin-bottom: 25px;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  color: #475569;
-  font-weight: 500;
-  font-size: 14px;
-}
-
 .form-input, .form-textarea {
   width: 100%;
   padding: 12px 16px;
@@ -1495,153 +2123,6 @@ const confirmModal = () => {
 .form-textarea {
   resize: vertical;
   min-height: 100px;
-}
-
-.logo-upload {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.logo-preview {
-  width: 80px;
-  height: 80px;
-  background: #f0fdf4;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed #d1fae5;
-}
-
-.logo-text {
-  font-size: 24px;
-  font-weight: 800;
-  color: #166534;
-}
-
-.upload-btn {
-  padding: 10px 20px;
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #d1fae5;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.upload-btn:hover {
-  background: #d1fae5;
-}
-
-.permission-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.permission-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  background: #f8fafc;
-  border-radius: 12px;
-  transition: all 0.3s;
-}
-
-.permission-item:hover {
-  background: #f1f5f9;
-}
-
-.permission-info h5 {
-  font-size: 16px;
-  color: #1e293b;
-  margin-bottom: 4px;
-  font-weight: 600;
-}
-
-.permission-info p {
-  font-size: 14px;
-  color: #64748b;
-}
-
-/* 开关 */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #e2e8f0;
-  transition: .4s;
-  border-radius: 34px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: #22c55e;
-}
-
-input:checked + .slider:before {
-  transform: translateX(26px);
-}
-
-/* 通知设置 */
-.notification-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.notification-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  background: #f8fafc;
-  border-radius: 12px;
-}
-
-.notification-item span {
-  color: #475569;
-  font-weight: 500;
-}
-
-.notification-select {
-  padding: 8px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  font-size: 14px;
-  color: #475569;
-  min-width: 180px;
 }
 
 /* 设置操作按钮 */
@@ -1683,102 +2164,6 @@ input:checked + .slider:before {
   background: #14532d;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
-}
-
-/* 设置侧边栏 */
-.settings-sidebar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.danger-zone {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.danger-btn {
-  padding: 15px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  color: #475569;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-}
-
-.danger-btn:hover {
-  background: #f1f5f9;
-  transform: translateX(-5px);
-}
-
-.danger-btn.delete-btn:hover {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fca5a5;
-}
-
-/* 邀请链接 */
-.invite-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.invite-link {
-  display: flex;
-  gap: 10px;
-}
-
-.link-input {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.copy-btn {
-  padding: 12px 20px;
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #d1fae5;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s;
-}
-
-.copy-btn:hover {
-  background: #d1fae5;
-}
-
-.invite-btn {
-  width: 100%;
-  padding: 15px;
-  background: #166534;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.invite-btn:hover {
-  background: #14532d;
 }
 
 /* 模态框 */
@@ -1868,12 +2253,12 @@ input:checked + .slider:before {
 
 /* 响应式设计 */
 @media (max-width: 1200px) {
-  .members-stats {
-    grid-template-columns: 1fr;
+  .review-stats-cards {
+    grid-template-columns: repeat(3, 1fr);
   }
   
-  .activities-container {
-    flex-direction: column;
+  .members-stats {
+    grid-template-columns: 1fr;
   }
   
   .settings-container {
@@ -1894,7 +2279,7 @@ input:checked + .slider:before {
     padding-bottom: 10px;
   }
   
-  .review-item {
+  .filter-select-group {
     flex-direction: column;
   }
 }
@@ -1905,8 +2290,12 @@ input:checked + .slider:before {
   }
   
   .stat-item {
-    flex: 1;
+    flex: 1 1 calc(50% - 15px);
     min-width: auto;
+  }
+  
+  .review-stats-cards {
+    grid-template-columns: 1fr;
   }
   
   .members-grid {
@@ -1923,14 +2312,23 @@ input:checked + .slider:before {
     width: 100%;
   }
   
-  .activity-stats {
-    grid-template-columns: repeat(3, 1fr);
+  .filter-group {
+    width: 100%;
+    flex-direction: column;
   }
   
-  .notification-item {
+  .filter-btn {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .action-buttons {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+  }
+  
+  .action-btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .modal-content {
@@ -1940,12 +2338,19 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 480px) {
-  .activity-actions {
+  .requirement-header {
     flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
   }
   
-  .view-btn, .edit-btn, .cancel-btn {
-    width: 100%;
+  .pet-info-section {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .review-actions, .reviewed-actions, .rejected-actions {
+    flex-direction: column;
   }
   
   .member-stats {
@@ -1959,6 +2364,10 @@ input:checked + .slider:before {
   
   .btn-secondary, .btn-primary {
     width: 100%;
+  }
+  
+  .stat-item {
+    flex: 1 1 100%;
   }
 }
 </style>

@@ -58,25 +58,31 @@ const router = createRouter({
           component: () => import('@/views/auth/RegisterView.vue'),
           meta: { requiresGuest: true }
         },
+        {
+        path: '/profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { requiresAuth: true } // 需要登录
+       },
       ]
     },
     
   ],
 })
 
-// 路由守卫
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('auth_token')
+// // 路由守卫
+// router.beforeEach((to, from, next) => {
+//   const isAuthenticated = !!localStorage.getItem('auth_token')
   
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    // 需要登录但未登录，跳转到登录页
-    next('/login')
-  } else if (to.meta.requiresGuest && isAuthenticated) {
-    // 需要未登录但已登录，跳转到首页
-    next('/init')
-  } else {
-    next()
-  }
-})
+//   if (to.meta.requiresAuth && !isAuthenticated) {
+//     // 需要登录但未登录，跳转到登录页
+//     next('/login')
+//   } else if (to.meta.requiresGuest && isAuthenticated) {
+//     // 需要未登录但已登录，跳转到首页
+//     next('/init')
+//   } else {
+//     next()
+//   }
+// })
 
 export default router

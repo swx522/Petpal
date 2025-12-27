@@ -153,7 +153,7 @@
             <!-- 角色选择（下拉框） -->
             <div class="form-group">
               <label for="role">请选择您的角色 *</label>
-              <p class="role-hint">选择您在社区中的主要身份（注册后可申请其他角色）</p>
+              <p class="role-hint">选择您在社区中的主要身份</p>
               <div class="input-with-icon">
                 <span class="input-icon">👥</span>
                 <select

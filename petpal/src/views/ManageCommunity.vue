@@ -219,7 +219,6 @@
                 <option value="feed">喂食照顾</option>
                 <option value="medical">就医陪伴</option>
                 <option value="groom">美容护理</option>
-                <option value="other">其他</option>
               </select>
             </div>
           </div>
@@ -827,7 +826,6 @@ const getTypeName = (type) => {
     feed: '喂食照顾',
     medical: '就医陪伴',
     groom: '美容护理',
-    other: '其他服务'
   }
   return typeMap[type] || '其他服务'
 }

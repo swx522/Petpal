@@ -39,10 +39,6 @@
               <span class="community-label">成员数量</span>
               <span class="community-value">{{ communityInfo.memberCount }}人</span>
             </div>
-            <div class="community-item">
-              <span class="community-label">社区评分</span>
-              <span class="community-value">{{ communityInfo.rating }}/5.0</span>
-            </div>
           </div>
           <button class="view-community-btn" @click="viewCommunity">
             查看社区详情
@@ -308,7 +304,6 @@ const userInfo = ref({
 const userStats = ref({
   posts: 12,
   orders: 8,
-  rating: 4.8
 })
 
 // 社区信息
@@ -316,7 +311,6 @@ const communityInfo = ref({
   name: '同济嘉定宠物社区',
   address: '上海市嘉定区曹安公路4800号',
   memberCount: 156,
-  rating: 4.5
 })
 
 // 编辑状态

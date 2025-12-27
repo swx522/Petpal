@@ -150,53 +150,24 @@
               <div v-if="confirmPasswordError" class="error-message">{{ confirmPasswordError }}</div>
             </div>
 
-            <!-- 角色选择 -->
+            <!-- 角色选择（下拉框） -->
             <div class="form-group">
-              <label class="form-label">请选择您的角色 *</label>
+              <label for="role">请选择您的角色 *</label>
               <p class="role-hint">选择您在社区中的主要身份（注册后可申请其他角色）</p>
-              
-              <div class="role-options">
-                <div 
-                  class="role-option" 
-                  :class="{ 'selected': registerForm.role === 'owner' }"
-                  @click="selectRole('owner')"
+              <div class="input-with-icon">
+                <span class="input-icon">👥</span>
+                <select
+                  id="role"
+                  v-model="registerForm.role"
+                  :class="{ 'error': roleError }"
+                  @change="clearError('role')"
+                  required
                 >
-                  <div class="role-icon">🐶</div>
-                  <div class="role-info">
-                    <h4 class="role-title">宠物主人</h4>
-                    <p class="role-description">我有宠物，需要帮助</p>
-                    <ul class="role-features">
-                      <li>发布宠物照看需求</li>
-                      <li>寻找可靠的服务者</li>
-                      <li>管理我的宠物信息</li>
-                    </ul>
-                  </div>
-                  <div class="role-selector">
-                    <div class="selector-circle" :class="{ 'selected': registerForm.role === 'owner' }"></div>
-                  </div>
-                </div>
-                
-                <div 
-                  class="role-option" 
-                  :class="{ 'selected': registerForm.role === 'sitter' }"
-                  @click="selectRole('sitter')"
-                >
-                  <div class="role-icon">🦴</div>
-                  <div class="role-info">
-                    <h4 class="role-title">宠物服务者</h4>
-                    <p class="role-description">我喜欢宠物，提供帮助</p>
-                    <ul class="role-features">
-                      <li>接单赚取额外收入</li>
-                      <li>帮助照顾可爱宠物</li>
-                      <li>建立服务信誉</li>
-                    </ul>
-                  </div>
-                  <div class="role-selector">
-                    <div class="selector-circle" :class="{ 'selected': registerForm.role === 'sitter' }"></div>
-                  </div>
-                </div>
+                  <option value="" disabled selected>请选择角色</option>
+                  <option value="owner">宠物主人</option>
+                  <option value="sitter">宠物服务者</option>
+                </select>
               </div>
-              
               <div v-if="roleError" class="error-message">{{ roleError }}</div>
             </div>
 
@@ -295,12 +266,6 @@ const strengthText = computed(() => {
   return '密码强度：强'
 })
 
-// 选择角色
-const selectRole = (role) => {
-  registerForm.role = role
-  roleError.value = ''
-}
-
 // 清除错误信息
 const clearError = (field) => {
   switch(field) {
@@ -318,6 +283,9 @@ const clearError = (field) => {
       break
     case 'confirmPassword':
       confirmPasswordError.value = ''
+      break
+    case 'role':
+      roleError.value = ''
       break
   }
 }
@@ -419,176 +387,406 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-/* 复用已有的基础样式，只添加新组件的样式 */
+.auth-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0fdf4 0%, #d1fae5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 
-/* 角色选择样式 */
-.form-label {
-  display: block;
-  font-weight: 600;
+.auth-container {
+  width: 100%;
+  max-width: 1200px;
+  min-height: 700px;
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+}
+
+/* 左侧欢迎区域 */
+.welcome-section {
+  flex: 1;
+  background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+  color: white;
+  padding: 60px 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.welcome-content {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.logo-icon {
+  font-size: 36px;
+}
+
+.logo-text {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.welcome-title {
+  font-size: 40px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.welcome-subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 50px;
+  line-height: 1.6;
+}
+
+.benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.benefit-icon {
+  font-size: 24px;
+}
+
+.benefit-text {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* 右侧表单区域 */
+.form-section {
+  flex: 1;
+  padding: 60px 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+.form-header {
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.form-header h2 {
+  font-size: 32px;
+  font-weight: 800;
   color: #1e293b;
   margin-bottom: 8px;
+}
+
+.form-header p {
+  color: #64748b;
+  font-size: 16px;
+}
+
+/* 表单样式 */
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
   font-size: 14px;
+  color: #475569;
+  font-weight: 500;
 }
 
 .role-hint {
   font-size: 12px;
   color: #64748b;
-  margin-bottom: 16px;
+  margin-bottom: 4px;
 }
 
-.role-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.role-option {
+.input-with-icon {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+}
+
+.input-icon {
+  position: absolute;
+  left: 16px;
+  color: #94a3b8;
+  font-size: 18px;
+  z-index: 1;
+}
+
+.input-with-icon input,
+.input-with-icon select {
+  width: 100%;
+  padding: 14px 16px 14px 50px;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-}
-
-.role-option:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-}
-
-.role-option.selected {
-  border-color: #22c55e;
-  background: #f0fdf4;
-}
-
-.role-icon {
-  font-size: 32px;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.role-info {
-  flex: 1;
-}
-
-.role-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
   color: #1e293b;
-  margin: 0 0 4px 0;
-}
-
-.role-description {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0 0 8px 0;
-}
-
-.role-features {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.role-features li {
-  font-size: 12px;
-  color: #64748b;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-}
-
-.role-features li:before {
-  content: "•";
-  color: #22c55e;
-  margin-right: 6px;
-  font-weight: bold;
-}
-
-.role-selector {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-.selector-circle {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #cbd5e1;
-  border-radius: 50%;
+  background: white;
   transition: all 0.3s;
-  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
-.selector-circle.selected {
+.input-with-icon select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.input-with-icon input:focus,
+.input-with-icon select:focus {
+  outline: none;
   border-color: #22c55e;
-  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
 
-.selector-circle.selected:after {
-  content: "✓";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
+.input-with-icon input.error,
+.input-with-icon select.error {
+  border-color: #ef4444;
 }
 
-/* 错误信息样式 */
-.error-message {
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 6px;
-}
-
-/* 输入框错误状态 */
-.input-with-icon input.error {
-  border-color: #ef4444 !important;
-}
-
-.input-with-icon input.error:focus {
-  border-color: #ef4444 !important;
+.input-with-icon input.error:focus,
+.input-with-icon select.error:focus {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
-/* 响应式调整 */
-@media (max-width: 768px) {
-  .role-option {
+.password-toggle {
+  position: absolute;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.3s;
+  z-index: 1;
+}
+
+.password-toggle:hover {
+  color: #64748b;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* 密码强度指示器 */
+.password-strength {
+  margin-top: 8px;
+}
+
+.strength-meter {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: width 0.3s, background-color 0.3s;
+}
+
+.strength-fill.weak {
+  background-color: #ef4444;
+}
+
+.strength-fill.fair {
+  background-color: #f59e0b;
+}
+
+.strength-fill.good {
+  background-color: #3b82f6;
+}
+
+.strength-fill.strong {
+  background-color: #22c55e;
+}
+
+.strength-text {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* 提交按钮 */
+.submit-btn {
+  background: #166534;
+  color: white;
+  border: none;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #14532d;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(22, 101, 52, 0.3);
+}
+
+.submit-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.loading-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 登录链接 */
+.login-link {
+  text-align: center;
+  margin-top: 30px;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.login-link .link {
+  color: #166534;
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 8px;
+  transition: color 0.3s;
+}
+
+.login-link .link:hover {
+  color: #14532d;
+  text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 900px) {
+  .auth-container {
     flex-direction: column;
-    text-align: center;
+    min-height: auto;
+  }
+  
+  .welcome-section {
+    padding: 40px 30px;
+  }
+  
+  .form-section {
+    padding: 40px 30px;
+  }
+  
+  .welcome-title {
+    font-size: 32px;
+  }
+  
+  .welcome-subtitle {
+    font-size: 16px;
+  }
+  
+  .benefits {
+    gap: 15px;
+  }
+  
+  .benefit-item {
     gap: 12px;
   }
   
-  .role-info {
-    text-align: center;
+  .benefit-icon {
+    font-size: 20px;
   }
   
-  .role-features li {
-    justify-content: center;
+  .benefit-text {
+    font-size: 14px;
   }
 }
 
 @media (max-width: 480px) {
-  .role-option {
-    padding: 12px;
+  .auth-page {
+    padding: 10px;
   }
   
-  .role-icon {
+  .auth-container {
+    border-radius: 16px;
+  }
+  
+  .welcome-section {
+    padding: 30px 20px;
+  }
+  
+  .form-section {
+    padding: 30px 20px;
+  }
+  
+  .form-header h2 {
     font-size: 28px;
-    width: 40px;
-    height: 40px;
+  }
+  
+  .input-with-icon input,
+  .input-with-icon select {
+    padding: 12px 16px 12px 50px;
+    font-size: 14px;
+  }
+  
+  .submit-btn {
+    padding: 14px;
+    font-size: 15px;
   }
 }
 </style>

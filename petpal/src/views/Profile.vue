@@ -225,14 +225,6 @@
             <button class="action-btn logout-btn" @click="handleLogout">
               <span class="btn-icon">🚪</span> 退出登录
             </button>
-            <button class="action-btn delete-btn" @click="showDeleteConfirm">
-              <span class="btn-icon">🗑️</span> 注销账户
-            </button>
-          </div>
-          
-          <div class="danger-zone">
-            <h4 class="danger-title">⚠️ 危险操作</h4>
-            <p class="danger-hint">删除账户将永久清除您的所有数据，此操作不可撤销。</p>
           </div>
         </div>
       </div>

@@ -2,11 +2,11 @@
   "profiles": {
     "petpal": {
       "commandName": "Project",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
-      "applicationUrl": "https://localhost:52490;http://localhost:52491"
+      "applicationUrl": "http://127.0.0.1:5002;https://127.0.0.1:5003"
     }
   }
 }

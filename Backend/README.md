@@ -1,85 +1,410 @@
-# 宠物互助平台 - petpal API
+# 🐾 PetPal - 宠物互助平台 API
 
-## 项目概述
+**基于ASP.NET Core的现代化宠物服务共享平台**
 
-宠物互助平台是一个基于ASP.NET Core开发的Web API项目，为宠物主人提供互助服务。平台允许用户发布宠物照顾需求，其他用户可以接受并提供帮助。通过信誉评价系统确保服务质量。
+[![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-10.0-blue)](https://dotnet.microsoft.com/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0+-orange)](https://www.mysql.com/)
+[![Swagger](https://img.shields.io/badge/Swagger-UI-green)](https://swagger.io/)
+
+## 📋 目录
+
+- [项目简介](#项目简介)
+- [核心特性](#核心特性)
+- [技术架构](#技术架构)
+- [快速开始](#快速开始)
+- [API 接口文档](#api-接口文档)
+- [数据库设计](#数据库设计)
+- [部署说明](#部署说明)
+
+## 🎯 项目简介
+
+PetPal 是专为宠物主人和服务提供者打造的互助服务平台。通过角色化设计，实现宠物照顾需求的精准匹配和高效服务。平台支持地理位置定位、信誉评价体系、智能审核流程，确保服务质量和用户安全。
+
+## ✨ 核心特性
+
+- **🔐 三角色架构** - 宠物主人、服务者、管理员各司其职
+- **📍 地理位置服务** - LBS定位，社区化本地服务匹配
+- **⭐ 信誉评价体系** - 多维度评分，等级自动晋升
+- **🔍 智能审核系统** - Sitter资质审核，保障服务质量
+- **🛡️ 安全可靠** - JWT认证、数据脱敏、权限控制
 
 ## 🏗️ 技术架构
 
-### 核心技术栈
-- **框架**: ASP.NET Core 10.0 (Web API)
-- **数据库**: MySQL 8.0+
-- **身份认证**: JWT (JSON Web Token)
-- **API文档**: Swagger/OpenAPI
+### 技术栈
+- **后端框架**: ASP.NET Core 10.0 Web API
+- **数据库**: MySQL 8.0+ (EF Core + Pomelo)
+- **身份认证**: JWT Bearer Token + 角色权限
+- **API文档**: Swagger/OpenAPI 自动生成
+- **日志系统**: Serilog 结构化日志
+- **缓存服务**: Redis (可选)
 
 ### 项目结构
 ```
 petpal/
-├── Controllers/          # API控制器层
-├── Data/                # 数据访问层
-├── Models/              # 领域模型
+├── Controllers/          # API控制器（按功能分类）
+│   ├── AuthController.cs      # 🔐 认证相关
+│   ├── AdminController.cs     # 👨‍💼 管理员功能
+│   ├── UserController.cs      # 👤 用户管理
+│   ├── SitterController.cs    # 🐾 服务者功能
+│   ├── CommunityController.cs # 🏘️ 社区查询
+│   ├── RequestsController.cs  # 📋 需求发布
+│   └── OrderController.cs     # 📦 订单管理
 ├── Services/            # 业务服务层
-├── appsettings.json     # 配置文件
-├── Program.cs           # 应用程序入口
-└── petpal.csproj        # 项目文件
+├── Models/              # 数据模型
+├── Data/                # 数据访问层
+└── Properties/          # 项目配置
 ```
 
-## 📊 开发进度
-
-### ✅ 已完成阶段
-- **第一阶段**: 用户管理系统 - 注册、登录、认证、资料管理
-- **第二阶段**: 互助订单管理 - 发布需求、接受订单、状态管理、评价、地理位置服务
-- **第三阶段**: Sitter资质审核管理系统 - Sitter注册、资料提交、管理员审核、状态管理
-
----
-
-> 📖 **详细启动指南**: 请查看 [`STARTUP_GUIDE.md`](STARTUP_GUIDE.md) 获取完整的启动说明和故障排除指南。
-
-> 📋 **部署检查清单**: 请查看 [`DEPLOYMENT_CHECKLIST.md`](DEPLOYMENT_CHECKLIST.md) 确保生产环境部署完整。
+## 🚀 快速开始
 
 ### 环境要求
 - .NET 10.0.101 SDK
-- MySQL 8.0+ (服务器地址: 121.40.86.149:3306)
-- Redis (可选，用于缓存)
+- MySQL 8.0+
+- Redis (可选)
 
-### 环境检查
-
-在启动项目之前，建议运行环境检查工具：
-
-```cmd
-# 检查环境配置
-.\check-env.bat
-
-# 详细的MySQL连接诊断
-.\test-mysql-connection.bat
-```
-
-这个工具会检查：
-- .NET SDK是否已安装
-- MySQL连接是否正常
-- 项目文件是否完整
-
-### 安装步骤
+### 启动步骤
 
 1. **克隆项目**
-   ```cmd
+   ```bash
    git clone <repository-url>
    cd petpal
    ```
 
-2. **配置数据库连接**
-   ```cmd
-   # 复制配置文件模板
-   copy appsettings.template.json appsettings.json
-
-   # 编辑appsettings.json，设置MySQL密码：
-   # 将 "Password=YOUR_PASSWORD_HERE" 替换为实际密码
+2. **配置数据库**
+   ```bash
+   # 编辑 appsettings.json
+   # 设置 MySQL 连接字符串
    ```
 
-3. **环境检查**
-   ```cmd
-   .\check-env.bat
+3. **启动服务**
+   ```bash
+   dotnet run --urls "http://127.0.0.1:5002;https://127.0.0.1:5003"
    ```
+
+4. **访问接口文档**
+   - Swagger UI: http://127.0.0.1:5002/swagger
+   - API 文档: http://127.0.0.1:5002/swagger/v1/swagger.json
+
+## 📚 API 接口文档
+
+### 🔐 通用说明
+
+- **基础URL**: `http://127.0.0.1:5002/api/v1`
+- **认证方式**: `Authorization: Bearer {token}`
+- **响应格式**: JSON
+- **状态码**: 200(成功), 400(参数错误), 401(未授权), 403(权限不足), 404(未找到), 500(服务器错误)
+
+### 📤 响应格式
+
+```json
+{
+  "success": true,
+  "data": {},
+  "message": "操作成功"
+}
+```
+
+### 🔑 AuthController - 认证接口
+
+#### 用户注册
+```http
+POST /api/user/register
+```
+
+**请求体:**
+```json
+{
+  "username": "petlover123",
+  "password": "password123",
+  "phone": "13800138000",
+  "email": "user@example.com"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "user-guid-123",
+    "username": "petlover123",
+    "phone": "13800138000",
+    "email": "user@example.com",
+    "role": "User",
+    "status": "Active",
+    "createdAt": "2024-01-01T10:00:00Z"
+  },
+  "message": "注册成功"
+}
+```
+
+#### 用户登录
+```http
+POST /api/user/login
+```
+
+**请求体:**
+```json
+{
+  "account": "13800138000",
+  "password": "password123"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "userId": "user-guid-123",
+      "username": "petlover123",
+      "role": "User",
+      "reputationScore": 100
+    }
+  },
+  "message": "登录成功"
+}
+```
+
+### 👤 UserController - 用户管理接口
+
+#### 获取个人信息
+```http
+GET /api/user/profile
+Authorization: Bearer {token}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "userId": "user-guid-123",
+    "username": "petlover123",
+    "phone": "13800138000",
+    "email": "user@example.com",
+    "role": "User",
+    "status": "Active",
+    "reputationLevel": "新手",
+    "reputationScore": 100,
+    "pets": []
+  },
+  "message": "获取成功"
+}
+```
+
+### 🐾 SitterController - 服务者接口
+
+#### 获取可接单需求
+```http
+GET /api/requests/available?sitterId=user-guid-123
+Authorization: Bearer {token}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "requestId": "req-guid-456",
+      "ownerId": "owner-guid-789",
+      "title": "帮我照顾金毛犬3天",
+      "petType": "dog",
+      "serviceType": "寄养",
+      "startTime": "2024-01-15T09:00:00Z",
+      "endTime": "2024-01-18T18:00:00Z",
+      "description": "需要专业宠物护理",
+      "distance": 2.5,
+      "status": "Approved"
+    }
+  ],
+  "message": "获取成功"
+}
+```
+
+#### 接受需求
+```http
+POST /api/requests/accept/req-guid-456
+Authorization: Bearer {token}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "orderId": "order-guid-101",
+    "requestId": "req-guid-456",
+    "sitterId": "sitter-guid-123",
+    "ownerId": "owner-guid-789",
+    "status": "Accepted",
+    "acceptedAt": "2024-01-01T14:30:00Z"
+  },
+  "message": "接单成功"
+}
+```
+
+### 📋 RequestsController - 需求管理接口
+
+#### 发布宠物服务需求
+```http
+POST /api/request/create
+Authorization: Bearer {token}
+```
+
+**请求体:**
+```json
+{
+  "petInfo": {
+    "name": "旺财",
+    "type": "dog",
+    "breed": "金毛",
+    "age": 2,
+    "description": "活泼可爱"
+  },
+  "serviceType": "寄养",
+  "startTime": "2024-01-15T09:00:00Z",
+  "endTime": "2024-01-18T18:00:00Z",
+  "description": "春节期间需要专业宠物寄养服务",
+  "longitude": 116.4074,
+  "latitude": 39.9042
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "requestId": "req-guid-456",
+    "ownerId": "owner-guid-123",
+    "petId": "pet-guid-789",
+    "title": "帮我照顾金毛犬旺财3天",
+    "status": "Pending",
+    "createdAt": "2024-01-01T10:00:00Z"
+  },
+  "message": "需求发布成功，等待审核"
+}
+```
+
+### 📦 OrderController - 订单管理接口
+
+#### 获取我的订单
+```http
+GET /api/order/my?userId=user-guid-123
+Authorization: Bearer {token}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "orderId": "order-guid-101",
+      "title": "帮我照顾金毛犬旺财3天",
+      "petType": "dog",
+      "serviceType": "寄养",
+      "status": "Completed",
+      "sitterInfo": {
+        "userId": "sitter-guid-456",
+        "username": "petsitter001",
+        "reputationLevel": "靠谱"
+      },
+      "createdAt": "2024-01-01T10:00:00Z",
+      "completedAt": "2024-01-04T18:00:00Z"
+    }
+  ],
+  "message": "获取成功"
+}
+```
+
+#### 提交评价
+```http
+POST /api/evaluate/submit
+Authorization: Bearer {token}
+```
+
+**请求体:**
+```json
+{
+  "orderId": "order-guid-101",
+  "rating": 5,
+  "content": "服务非常专业，宠物照顾得很好！",
+  "images": ["image-url-1.jpg", "image-url-2.jpg"]
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "evaluationId": "eval-guid-202",
+    "orderId": "order-guid-101",
+    "evaluatorId": "owner-guid-123",
+    "evaluatedUserId": "sitter-guid-456",
+    "rating": 5,
+    "content": "服务非常专业，宠物照顾得很好！",
+    "createdAt": "2024-01-04T20:00:00Z"
+  },
+  "message": "评价提交成功"
+}
+```
+
+### 👨‍💼 AdminController - 管理员接口
+
+#### 获取社区统计
+```http
+GET /api/admin/community/stats
+Authorization: Bearer {admin-token}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalMembers": 1250,
+    "petOwners": 980,
+    "sitters": 270,
+    "pendingRequests": 15,
+    "activeOrders": 45
+  },
+  "message": "获取成功"
+}
+```
+
+#### 审核需求
+```http
+PUT /api/requests/review/pass
+Authorization: Bearer {admin-token}
+```
+
+**请求体:**
+```json
+{
+  "requestId": "req-guid-456",
+  "adminId": "admin-guid-001"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": {
+    "requestId": "req-guid-456",
+    "status": "Approved",
+    "reviewedAt": "2024-01-01T12:00:00Z",
+    "reviewedBy": "admin-guid-001"
+  },
+  "message": "审核通过"
+}
+```
 
 3. **快速启动（推荐）**
    使用提供的启动脚本自动完成所有设置：
@@ -139,871 +464,293 @@ petpal/
 
 ## 📋 API接口文档
 
-### 用户管理模块
+**接口设计说明：**
+- 所有接口统一使用 `/api` 前缀
+- 精细划分7个Controller，按功能模块组织
+- AuthController：认证相关（注册、登录、验证码等）
+- AdminController：管理员专用功能
+- UserController：普通用户个人信息管理
+- SitterController：服务者专用功能
+- CommunityController：社区查询功能
+- RequestsController：需求发布功能
+- OrderController：订单和评价管理
+- 接口格式：`请求方式 接口路径`
 
-#### 1. 用户注册
-```http
-POST /api/v1/users/register
-Content-Type: application/json
+---
 
-{
-  "username": "张三",
-  "password": "password123",
-  "phone": "13800138000",
-  "email": "zhangsan@example.com"
-}
-```
+## 🔐 AuthController - 认证相关接口
 
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "userId": "550e8400-e29b-41d4-a716-446655440000",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "message": "注册成功，欢迎加入宠物互助平台"
-}
-```
+### 用户认证
+- `POST /api/auth/register` - 用户注册
+- `POST /api/auth/login` - 用户登录
+- `POST /api/auth/logout` - 退出登录
+- `POST /api/auth/send-captcha` - 发送验证码
+- `POST /api/auth/reset-password` - 重置密码
 
-#### 2. 用户登录
-```http
-POST /api/v1/users/login
-Content-Type: application/json
+---
 
-{
-  "account": "13800138000",
-  "password": "password123"
-}
-```
+## 👨‍💼 AdminController - 管理员专用接口
 
-#### 3. 获取用户信息
-```http
-GET /api/v1/users/profile
-Authorization: Bearer {token}
-```
+### 管理员个人管理
+- `GET /api/admin/profile` - 获取管理员个人信息
+- `PUT /api/admin/profile` - 编辑管理员个人信息
+- `PUT /api/admin/password` - 修改管理员密码
 
-#### 4. 提交认证信息
-```http
-POST /api/v1/users/certification
-Authorization: Bearer {token}
-Content-Type: application/json
+### 社区管理
+- `GET /api/admin/community/my` - 获取管理员所属社区
+- `GET /api/admin/community/stats` - 获取社区统计
+- `GET /api/admin/community/distribution` - 获取成员分布
+- `GET /api/admin/community/activity` - 获取社区活跃度
+- `GET /api/admin/community/members` - 获取社区成员列表
+- `GET /api/admin/community/members/search` - 搜索社区成员
+- `PUT /api/admin/community/members/role` - 修改成员角色
+- `DELETE /api/admin/community/members/remove` - 移除社区成员
+- `GET /api/admin/community/settings` - 获取社区设置
+- `PUT /api/admin/community/settings` - 更新社区设置
 
-{
-  "certType": "user",
-  "certImages": [
-    "https://example.com/cert1.jpg",
-    "https://example.com/cert2.jpg"
-  ]
-}
-```
+### 需求审核管理
+- `GET /api/admin/requests/review/list` - 获取审核列表
+- `GET /api/admin/requests/review/detail/{id}` - 获取审核详情
+- `PUT /api/admin/requests/review/pass` - 通过审核
+- `PUT /api/admin/requests/review/reject` - 拒绝审核
+- `PUT /api/admin/requests/review/recheck` - 重新审核
 
-#### 5. 测试数据库连接
-```http
-GET /api/v1/users/test-db-connection
-```
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "connectionStatus": "Success",
-    "queryResult": 1,
-    "serverInfo": "121.40.86.149:3306",
-    "databaseName": "petpal"
-  },
-  "message": "数据库连接测试成功"
-}
-```
+---
 
-## 互助订单管理模块
+## 👤 UserController - 用户个人信息管理接口
 
-### 6. 发布互助需求
-```http
-POST /api/v1/orders
-Authorization: Bearer {token}
-Content-Type: application/json
+### 用户信息管理
+- `GET /api/user/profile` - 获取当前用户信息
+- `PUT /api/user/profile` - 更新用户信息
+- `PUT /api/user/password` - 修改密码
+- `DELETE /api/user/delete` - 注销账户
 
-{
-  "title": "需要帮我照顾猫咪三天",
-  "petType": "Cat",
-  "serviceType": "Foster",
-  "startTime": "2024-01-15T10:00:00Z",
-  "endTime": "2024-01-18T10:00:00Z",
-  "description": "需要专业宠物照顾，猫咪比较胆小，希望有经验的宠物照顾者"
-}
-```
+### 宠物管理
+- `POST /api/user/pet/profile` - 创建宠物信息
 
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "order-uuid",
-    "owner_id": "user-uuid",
-    "title": "需要帮我照顾猫咪三天",
-    "pet_type": "Cat",
-    "service_type": "Foster",
-    "start_time": "2024-01-15T10:00:00Z",
-    "end_time": "2024-01-18T10:00:00Z",
-    "description": "需要专业宠物照顾，猫咪比较胆小，希望有经验的宠物照顾者",
-    "status": "Pending",
-    "community_id": 1,
-    "created_at": "2024-01-10T09:00:00Z"
-  },
-  "message": "订单发布成功"
-}
-```
+### 信誉管理
+- `GET /api/user/reputation` - 获取用户信誉档案
+- `GET /api/user/reputation/logs` - 获取信誉日志
+- `GET /api/user/reputation/trend` - 获取信誉趋势
+- `GET /api/user/reviews` - 获取评价列表
 
-### 7. 获取订单列表
-```http
-GET /api/v1/orders?page=1&pageSize=10&status=Pending
-Authorization: Bearer {token}
-```
+### 位置服务
+- `POST /api/user/location` - 更新位置信息
+- `GET /api/user/location` - 获取当前位置信息
 
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "orders": [
-      {
-        "id": "order-uuid",
-        "owner_id": "user-uuid",
-        "title": "需要帮我照顾猫咪三天",
-        "pet_type": "Cat",
-        "service_type": "Foster",
-        "start_time": "2024-01-15T10:00:00Z",
-        "end_time": "2024-01-18T10:00:00Z",
-        "description": "需要专业宠物照顾，猫咪比较胆小，希望有经验的宠物照顾者",
-        "status": "Pending",
-        "community_id": 1,
-        "community_name": "XX小区",
-        "created_at": "2024-01-10T09:00:00Z",
-        "evaluations_count": 0
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 10,
-      "totalCount": 25,
-      "totalPages": 3
-    }
-  },
-  "message": "获取订单列表成功"
-}
-```
+---
 
-### 8. 获取订单详情
-```http
-GET /api/v1/orders/{orderId}
-Authorization: Bearer {token}
-```
+## 🐾 SitterController - 服务者专用接口
 
-### 9. 接受互助订单
-```http
-PUT /api/v1/orders/{orderId}/accept
-Authorization: Bearer {token}
-```
+### 服务者资质管理
+- `GET /api/sitter/audit/status` - 获取审核状态
+- `POST /api/sitter/audit/materials` - 提交审核资料
+- `GET /api/sitter/audit/materials` - 获取已提交资料
 
-### 10. 确认订单完成
-```http
-PUT /api/v1/orders/{orderId}/complete
-Authorization: Bearer {token}
-```
+### 接单管理
+- `GET /api/sitter/requests/available` - 获取可接单需求
+- `GET /api/sitter/requests/detail/{id}` - 查看需求详情
+- `POST /api/sitter/requests/accept/{id}` - 接受需求
+- `GET /api/sitter/location/distance` - 计算距离
 
-### 11. 评价订单
-```http
-POST /api/v1/orders/{orderId}/evaluate
-Authorization: Bearer {token}
-Content-Type: application/json
+### 订单管理
+- `GET /api/sitter/orders/finished` - 获取已完成订单
+- `GET /api/sitter/orders/feedback/{id}` - 查看评价
+- `GET /api/sitter/user/reputation/{id}` - 获取用户信誉
 
-{
-  "score": 5,
-  "content": "服务非常专业，宠物很喜欢！"
-}
-```
+### 服务者信息管理
+- `GET /api/sitter/profile` - 获取个人信息
+- `PUT /api/sitter/profile` - 更新个人信息
+- `PUT /api/sitter/password` - 修改密码
 
-### 12. 获取附近需求
-```http
-GET /api/v1/orders/nearby?longitude=116.4074&latitude=39.9042&radius=3000
-Authorization: Bearer {token}
-```
+---
 
-## Sitter资质审核管理系统
+## 🏘️ CommunityController - 社区查询接口
 
-### 13. 注册为Sitter
-```http
-POST /api/v1/users/become-sitter
-Authorization: Bearer {token}
-```
+### 社区信息查询
+- `GET /api/community/my` - 获取所属社区
+- `GET /api/community/find` - 根据位置查找社区
+- `GET /api/community/services/{communityId}` - 获取社区服务
+- `GET /api/community/services/nearby` - 获取附近服务
 
-### 14. 提交Sitter资质资料
-```http
-POST /api/v1/users/sitter/profile
-Authorization: Bearer {token}
-Content-Type: application/json
+---
 
-{
-  "careIntroduction": "我有5年宠物照顾经验，擅长猫狗寄养",
-  "serviceTypes": "寄养、喂食、陪伴、遛狗",
-  "qualificationDocuments": "[\"cert1.jpg\",\"cert2.jpg\"]"
-}
-```
+## 📋 RequestsController - 需求发布接口
 
-### 15. 获取Sitter资料
-```http
-GET /api/v1/users/sitter/profile
-Authorization: Bearer {token}
-```
+### 需求发布
+- `GET /api/requests/pet/types` - 获取宠物类型
+- `GET /api/requests/service/categories` - 获取服务类型
+- `POST /api/requests/create` - 发布宠物服务需求
 
-### 16. 获取待审核Sitter列表（管理员）
-```http
-GET /api/v1/admin/sitters/pending
-Authorization: Bearer {admin-token}
-```
+---
 
-### 17. 获取Sitter详情（管理员）
-```http
-GET /api/v1/admin/sitters/{userId}
-Authorization: Bearer {admin-token}
-```
+## 📦 OrderController - 订单管理接口
 
-### 18. 审核通过Sitter资质（管理员）
-```http
-PUT /api/v1/admin/sitters/{userId}/approve
-Authorization: Bearer {admin-token}
-Content-Type: application/json
+### 订单管理
+- `GET /api/orders/my` - 查询我的订单
+- `GET /api/orders/to-evaluate` - 获取待评价订单
 
-{
-  "comment": "资质审核通过，服务经验丰富"
-}
-```
+### 评价管理
+- `POST /api/orders/evaluate/submit` - 提交评价
+- `PUT /api/orders/evaluate/update` - 更新评价
+- `PUT /api/orders/complete` - 完成订单
 
-### 19. 审核拒绝Sitter资质（管理员）
-```http
-PUT /api/v1/admin/sitters/{userId}/reject
-Authorization: Bearer {admin-token}
-Content-Type: application/json
+---
 
-{
-  "comment": "资料审核完成",
-  "rejectionReason": "资质资料不完整，请补充相关证书"
-}
-```
+## 📝 接口通用说明
 
-### 20. 获取所有Sitter列表（管理员）
-```http
-GET /api/v1/admin/sitters?page=1&pageSize=10&status=Approved
-Authorization: Bearer {admin-token}
-```
-
-## 评价与信誉管理模块
-
-### 21. 获取用户信誉档案接口
-```http
-GET /api/v1/users/{userId}/reputation
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "userId": "user-uuid",
-    "username": "张三",
-    "reputationScore": 150,
-    "reputationLevel": "靠谱",
-    "totalCompletedOrders": 25,
-    "ordersAsRequester": 15,
-    "ordersAsHelper": 10,
-    "totalEvaluations": 20,
-    "positiveEvaluations": 18,
-    "positiveRate": 90.0,
-    "averageScore": 4.5,
-    "recentEvaluations": [...]
-  },
-  "message": "获取用户信誉档案成功"
-}
-```
-
-### 22. 获取信誉变化趋势接口
-```http
-GET /api/v1/users/{userId}/reputation/trend?days=30
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "userId": "user-uuid",
-    "currentScore": 150,
-    "currentLevel": "靠谱",
-    "trendData": [
-      {
-        "date": "2025-12-15",
-        "score": 145,
-        "change": 5,
-        "evaluationType": "requester_to_helper",
-        "scoreValue": 5
-      }
-    ],
-    "periodDays": 30
-  },
-  "message": "获取信誉变化趋势成功"
-}
-```
-
-### 23. 获取最新评价列表接口
-```http
-GET /api/v1/users/{userId}/reviews?page=1&pageSize=10
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "userId": "user-uuid",
-    "reviews": [
-      {
-        "evaluationId": "eval-uuid",
-        "orderId": "order-uuid",
-        "evaluator": {
-          "userId": "evaluator-uuid",
-          "username": "评价人"
-        },
-        "evaluationType": "requester_to_helper",
-        "score": 5,
-        "content": "服务非常专业",
-        "createdAt": "2025-12-20T10:00:00Z",
-        "orderInfo": {
-          "helpType": "Foster",
-          "completedAt": "2025-12-19T15:00:00Z"
-        }
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 10,
-      "totalCount": 25,
-      "totalPages": 3
-    }
-  },
-  "message": "获取评价列表成功"
-}
-```
-
-## Sitter审核管理模块
-
-### 24. 获取审核进度接口
-```http
-GET /api/v1/sitters/{sitterId}/audit/status
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "sitterId": "sitter-uuid",
-    "username": "张三",
-    "auditStatus": {
-      "currentStage": "资料审核中",
-      "stageDescription": "资料审核中",
-      "estimatedCompletion": "1-3个工作日",
-      "progress": 25
-    },
-    "submittedMaterialsCount": 3,
-    "reputationLevel": "新手",
-    "appliedAt": "2025-12-15T10:00:00Z",
-    "lastAuditAt": "2025-12-18T14:00:00Z"
-  },
-  "message": "获取审核进度成功"
-}
-```
-
-### 25. 提交审核资料接口
-```http
-POST /api/v1/sitters/{sitterId}/audit/materials
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "materialType": "IdCard",
-  "materialName": "身份证照片",
-  "filePath": "/uploads/idcard.jpg",
-  "fileSize": 2048576,
-  "contentType": "image/jpeg"
-}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "materialId": "material-uuid",
-    "materialType": "IdCard",
-    "materialName": "身份证照片",
-    "uploadedAt": "2025-12-20T10:00:00Z",
-    "status": "Pending"
-  },
-  "message": "审核资料提交成功，等待管理员审核"
-}
-```
-
-### 26. 获取已提交资料接口
-```http
-GET /api/v1/sitters/{sitterId}/audit/materials
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "sitterId": "sitter-uuid",
-    "materials": [
-      {
-        "materialId": "material-uuid",
-        "materialType": "IdCard",
-        "materialName": "身份证照片",
-        "filePath": "/uploads/idcard.jpg",
-        "fileSize": 2048576,
-        "contentType": "image/jpeg",
-        "status": "Approved",
-        "reviewComment": "资料审核通过",
-        "uploadedAt": "2025-12-15T10:00:00Z",
-        "reviewedAt": "2025-12-16T14:00:00Z"
-      }
-    ],
-    "totalCount": 3
-  },
-  "message": "获取审核资料成功"
-}
-```
-
-## 服务状态管理模块
-
-### 27. 获取服务列表接口
-```http
-GET /api/v1/services?type=Foster&status=Pending&page=1&pageSize=10
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "services": [
-      {
-        "serviceId": "service-uuid",
-        "requester": {
-          "userId": "requester-uuid",
-          "username": "李四",
-          "reputationScore": 120,
-          "reputationLevel": "靠谱"
-        },
-        "pet": {
-          "petId": "pet-uuid",
-          "name": "旺财",
-          "type": "Dog",
-          "breed": "金毛",
-          "age": 2,
-          "isVaccinated": true,
-          "description": "非常乖巧的金毛犬"
-        },
-        "helpType": "Foster",
-        "startTime": "2025-12-25T10:00:00Z",
-        "endTime": "2025-12-27T10:00:00Z",
-        "duration": 48.0,
-        "longitude": 116.4074,
-        "latitude": 39.9042,
-        "remark": "需要专业宠物照顾",
-        "orderImages": [
-          "/uploads/pet1.jpg",
-          "/uploads/pet2.jpg"
-        ],
-        "createdAt": "2025-12-20T09:00:00Z"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 10,
-      "totalCount": 25,
-      "totalPages": 3
-    }
-  },
-  "message": "获取服务列表成功"
-}
-```
-
-### 28. 获取服务详情接口
-```http
-GET /api/v1/services/{serviceId}
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "serviceId": "service-uuid",
-    "requester": {
-      "userId": "requester-uuid",
-      "username": "李四",
-      "phone": "138****0000",
-      "reputationScore": 120,
-      "reputationLevel": "靠谱",
-      "isRealNameCertified": true,
-      "isPetCertified": true
-    },
-    "pet": {
-      "petId": "pet-uuid",
-      "name": "旺财",
-      "type": "Dog",
-      "breed": "金毛",
-      "age": 2,
-      "isVaccinated": true,
-      "description": "非常乖巧的金毛犬"
-    },
-    "helpType": "Foster",
-    "startTime": "2025-12-25T10:00:00Z",
-    "endTime": "2025-12-27T10:00:00Z",
-    "duration": 48.0,
-    "longitude": 116.4074,
-    "latitude": 39.9042,
-    "remark": "需要专业宠物照顾",
-    "orderImages": [
-      "/uploads/pet1.jpg",
-      "/uploads/pet2.jpg"
-    ],
-    "createdAt": "2025-12-20T09:00:00Z"
-  },
-  "message": "获取服务详情成功"
-}
-```
-
-### 29. 接单操作接口
-```http
-POST /api/v1/services/{serviceId}/accept
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "message": "成功接受服务，请按约定时间提供服务"
-}
-```
-
-## 社区本地化服务模块
-
-### 30. 用户提交定位信息接口
-```http
-POST /api/v1/users/location
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "longitude": 116.4074,
-  "latitude": 39.9042
-}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "longitude": 116.4074,
-    "latitude": 39.9042,
-    "communityId": 1,
-    "communityName": "XX小区",
-    "locationUpdatedAt": "2025-12-21T10:00:00Z"
-  },
-  "message": "定位更新成功，已关联到社区：XX小区"
-}
-```
-
-### 31. 获取用户当前位置信息接口
-```http
-GET /api/v1/users/location
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "longitude": 116.4074,
-    "latitude": 39.9042,
-    "community": {
-      "communityId": 1,
-      "name": "XX小区",
-      "centerLng": 116.4074,
-      "centerLat": 39.9042
-    },
-    "locationUpdatedAt": "2025-12-21T10:00:00Z"
-  },
-  "message": "获取位置信息成功"
-}
-```
-
-### 32. 获取用户信誉变化日志接口
-```http
-GET /api/v1/users/{userId}/reputation/logs?page=1&pageSize=10
-Authorization: Bearer {token}
-```
-
-**响应示例:**
-```json
-{
-  "success": true,
-  "data": {
-    "logs": [
-      {
-        "id": "log-uuid",
-        "user_id": "user-uuid",
-        "old_score": 95,
-        "new_score": 105,
-        "reason": "完成订单获得好评",
-        "created_at": "2025-12-21T10:00:00Z"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 10,
-      "totalCount": 25,
-      "totalPages": 3
-    }
-  },
-  "message": "获取信誉日志成功"
-}
-```
+1. **路径参数**: `{id}` 为路径参数，需替换为实际的ID值
+2. **请求体**: POST/PUT请求需携带JSON格式的请求体
+3. **身份认证**: 所有接口需在请求头中携带JWT Token：`Authorization: Bearer {token}`
+4. **响应格式**: 统一JSON格式 `{ success: bool, data: any, message: string }`
+5. **角色权限**: 不同接口有对应的角色访问权限限制
 
 ## 🗄️ 数据库设计
 
-### 核心数据表
+### 📋 数据表概览
+
+| 表名 | 说明 | 核心字段 |
+|------|------|----------|
+| **Users** | 用户主表 | 用户信息、角色、信誉、地理位置 |
+| **Pets** | 宠物信息 | 宠物详情、疫苗记录 |
+| **MutualOrders** | 互助订单 | 订单状态、服务时间、地理位置 |
+| **OrderEvaluations** | 订单评价 | 评分内容、图片附件 |
+| **AuditMaterials** | 审核材料 | Sitter资质文件 |
+| **Communities** | 社区信息 | 社区范围、成员统计 |
+| **ReputationLogs** | 信誉日志 | 分数变化记录 |
+
+### 🔗 核心关系图
+
+```mermaid
+graph TD
+    A[Users] --> B[Pets]
+    A --> C[MutualOrders]
+    A --> D[OrderEvaluations]
+    A --> E[AuditMaterials]
+    A --> F[ReputationLogs]
+    A --> G[Communities]
+
+    C --> D[OrderEvaluations]
+    G --> C[MutualOrders]
+    G --> A[Users]
+```
+
+### 📊 核心字段说明
 
 #### Users（用户表）
-| 字段名 | MySQL类型 | C#类型 | 说明 |
-|--------|-----------|---------|------|
-| Id | VARCHAR(255) | string | 主键，用户ID |
-| Username | nvarchar(50) | 用户名 |
-| PasswordHash | nvarchar(100) | 密码哈希 |
-| Phone | nvarchar(20) | 手机号码 |
-| Email | nvarchar(100) | 邮箱 |
-| Role | int | 用户角色 |
-| Status | int | 用户状态 |
-| ReputationScore | int | 信誉分数 |
-| ReputationLevel | nvarchar(max) | 信誉等级 |
-| IsRealNameCertified | bit | 实名认证状态 |
-| IsPetCertified | bit | 宠物认证状态 |
-| CreatedAt | datetime2 | 创建时间 |
-| LastLoginAt | datetime2 | 最后登录时间 |
-| CommunityId | INT | 所在社区ID |
-| Longitude | decimal(9,6) | 当前位置经度 |
-| Latitude | decimal(8,6) | 当前位置纬度 |
-| LocationUpdatedAt | datetime2 | 位置更新时间 |
+- **基本信息**: `Id`, `Username`, `Phone`, `Email`, `Role`, `Status`
+- **信誉系统**: `ReputationScore`, `ReputationLevel`
+- **地理位置**: `Longitude`, `Latitude`, `CommunityId`
+- **Sitter资料**: `CareIntroduction`, `ServiceTypes`, `QualificationDocuments`
 
-#### MutualOrders（互助订单表）
-| 字段名 | MySQL类型 | C#类型 | 说明 |
-|--------|-----------|---------|------|
-| Id | VARCHAR(255) | string | 主键，订单ID |
-| OwnerId | nvarchar(450) | 宠物主人ID |
-| Title | nvarchar(200) | 订单标题 |
-| PetType | nvarchar(50) | 宠物类型 |
-| ServiceType | nvarchar(50) | 服务类型 |
-| StartTime | datetime2 | 开始时间 |
-| EndTime | datetime2 | 结束时间 |
-| Description | nvarchar(1000) | 服务描述 |
-| Status | int | 订单状态 |
-| CommunityId | INT | 服务所在社区ID |
-| CreatedAt | datetime2 | 创建时间 |
+#### MutualOrders（订单表）
+- **订单信息**: `OwnerId`, `Title`, `Status`, `CreatedAt`
+- **服务详情**: `PetType`, `ServiceType`, `StartTime`, `EndTime`
+- **地理位置**: `Longitude`, `Latitude`, `CommunityId`
 
-#### Pets（宠物表）
-| 字段名 | MySQL类型 | C#类型 | 说明 |
-|--------|-----------|---------|------|
-| Id | VARCHAR(255) | string | 主键，宠物ID |
-| UserId | nvarchar(450) | 主人ID |
-| Name | nvarchar(50) | 宠物姓名 |
-| Type | nvarchar(max) | 宠物类型 |
-| Breed | nvarchar(50) | 宠物品种 |
-| Age | int | 宠物年龄 |
-| IsVaccinated | bit | 是否接种疫苗 |
-| Description | nvarchar(500) | 宠物描述 |
-| CreatedAt | datetime2 | 创建时间 |
+#### OrderEvaluations（评价表）
+- **评价关系**: `OrderId`, `EvaluatorId`, `EvaluatedUserId`
+- **评价内容**: `Rating`, `Content`, `Images`
 
-#### AuditMaterials（审核材料表）
-| 字段名 | MySQL类型 | C#类型 | 说明 |
-|--------|-----------|---------|------|
-| Id | VARCHAR(255) | string | 主键，材料ID |
-| SitterId | nvarchar(450) | Sitter用户ID |
-| MaterialType | int | 材料类型（身份证/宠物证明/环境照片等） |
-| MaterialName | nvarchar(100) | 材料名称 |
-| FilePath | nvarchar(max) | 文件路径或URL |
-| FileSize | bigint | 文件大小（字节） |
-| ContentType | nvarchar(50) | 文件类型（如：image/jpeg） |
-| Status | int | 审核状态（待审核/已通过/已拒绝） |
-| ReviewComment | nvarchar(500) | 审核意见 |
-| UploadedAt | datetime2 | 上传时间 |
-| ReviewedAt | datetime2 | 审核时间 |
+### 🔢 枚举类型
+
+| 枚举类型 | 值 | 说明 |
+|----------|----|------|
+| **UserRole** | User/Sitter/Admin | 用户角色 |
+| **UserStatus** | Active/Inactive/Banned | 用户状态 |
+| **OrderStatus** | Pending/Approved/Accepted/Completed | 订单状态 |
+| **SitterAuditStatus** | NotApplied/Pending/Approved/Rejected | 审核状态 |
 
 #### Communities（社区表）
 | 字段名 | MySQL类型 | C#类型 | 说明 |
 |--------|-----------|---------|------|
-| Id | INT | int | 主键，社区ID |
-| Name | nvarchar(100) | 社区名称 |
-| MinLng | decimal(9,6) | 社区范围最小经度 |
-| MaxLng | decimal(9,6) | 社区范围最大经度 |
-| MinLat | decimal(8,6) | 社区范围最小纬度 |
-| MaxLat | decimal(8,6) | 社区范围最大纬度 |
-| Description | nvarchar(500) | 社区描述 |
-| CreatedAt | datetime2 | 创建时间 |
-| IsActive | bit | 是否激活 |
+| Id | INT | int | 主键，社区ID（自增） |
+| Name | nvarchar(100) | string | 社区名称（必填） |
+| MinLng | decimal(9,6) | decimal | 社区范围最小经度 |
+| MaxLng | decimal(9,6) | decimal | 社区范围最大经度 |
+| MinLat | decimal(8,6) | decimal | 社区范围最小纬度 |
+| MaxLat | decimal(8,6) | decimal | 社区范围最大纬度 |
+| Description | nvarchar(500) | string | 社区描述 |
+| CreatedAt | datetime | DateTime | 创建时间 |
+| IsActive | bit | bool | 是否激活 |
 
 #### ReputationLogs（信誉日志表）
 | 字段名 | MySQL类型 | C#类型 | 说明 |
 |--------|-----------|---------|------|
-| Id | VARCHAR(255) | string | 主键，日志ID |
-| UserId | nvarchar(450) | 用户ID |
-| OldScore | int | 变化前的信誉分数 |
-| NewScore | int | 变化后的信誉分数 |
-| Reason | nvarchar(200) | 变化原因 |
-| CreatedAt | datetime2 | 创建时间 |
+| Id | VARCHAR(255) | string | 主键，日志ID（GUID） |
+| UserId | nvarchar(255) | string | 用户ID（外键→Users.Id） |
+| OldScore | int | int | 变化前的信誉分数 |
+| NewScore | int | int | 变化后的信誉分数 |
+| Reason | nvarchar(200) | string | 变化原因 |
+| CreatedAt | datetime | DateTime | 创建时间 |
 
-## 🔐 安全特性
+### 枚举类型定义
 
-### JWT身份认证
-- 使用HMAC-SHA256算法签名
-- Token有效期7天
-- 支持用户角色和权限控制
+#### UserRole（用户角色）
+- 0 = User（普通用户/宠物主人）
+- 1 = Sitter（服务提供者）
+- 2 = Moderator（社区管理员）
+- 3 = Admin（系统管理员）
 
-### 数据保护
-- 密码使用SHA256哈希存储
-- 敏感信息（如手机号）在API响应中脱敏
-- 请求频率限制（待实现）
+#### UserStatus（用户状态）
+- 0 = Active（活跃）
+- 1 = Inactive（非活跃）
+- 2 = Banned（被封禁）
 
-### 业务安全
-- 用户必须完成双重认证（实名+宠物）才能发布需求
-- 信誉评价系统防止恶意行为
-- 地理位置限制确保互助在合理范围内
+## 🚀 部署说明
 
-## 📊 信誉评价系统
+### 📋 环境要求
+- **.NET**: 10.0.101 SDK
+- **数据库**: MySQL 8.0+
+- **缓存**: Redis (可选)
 
-### 等级体系
-- **新手**: 0-199分
-- **靠谱**: 200-499分
-- **爱心达人**: 500分以上
+### ⚙️ 配置说明
 
-### 评分规则
-- 5星评价: +10分
-- 4星评价: +5分
-- 3星评价: 0分
-- 2星评价: -5分
-- 1星评价: -10分
-- 附加评价内容: +2分
+1. **数据库连接** (`appsettings.json`):
+   ```json
+   {
+     "ConnectionStrings": {
+       "DefaultConnection": "Server=127.0.0.1;Database=petpal;User=root;Password=your_password;"
+     }
+   }
+   ```
 
-## 🌐 第三方服务集成
+2. **JWT配置**:
+   ```json
+   {
+     "Jwt": {
+       "SecretKey": "your-secret-key-here",
+       "Issuer": "petpal-api",
+       "Audience": "petpal-client"
+     }
+   }
+   ```
 
-### 高德地图API
-- 计算两点地理距离
-- 验证互助服务范围（1-3公里）
+### 🏃‍♂️ 启动命令
 
-### 阿里云OSS
-- 上传认证图片和宠物照片
-- CDN加速图片访问
+```bash
+# 开发环境
+dotnet run --urls "http://127.0.0.1:5002;https://127.0.0.1:5003"
 
-### 阿里云短信
-- 发送验证码（预留功能）
-- 发送订单提醒通知
-
-## 🧪 测试
-
-### 单元测试
-```cmd
-dotnet test
+# 生产环境
+dotnet publish -c Release
+dotnet petpal.dll --urls "http://0.0.0.0:80"
 ```
 
-### API测试
-使用Postman或Swagger UI进行接口测试
+### 📊 监控检查
 
-### 数据库迁移测试
-```cmd
-dotnet ef database update
-```
-
-## 🚀 部署
-
-### 开发环境
-```cmd
-dotnet run --environment Development
-```
-
-### 生产环境
-```cmd
-dotnet publish -c Release -o ./publish
-dotnet ./publish/petpal.dll --urls "http://0.0.0.0:5000;https://0.0.0.0:5001"
-```
-
-**MySQL生产环境配置：**
-- 确保MySQL服务器安全配置（强密码、限制IP访问）
-- 考虑使用连接池配置
-- 定期备份数据库
-- 监控数据库性能
-
-### Windows IIS部署
-推荐在Windows Server上使用IIS部署：
-1. 安装IIS和.NET Core Hosting Bundle
-2. 发布应用程序：`dotnet publish -c Release -o ./publish`
-3. 在IIS中创建网站，指向publish目录
-4. 配置应用程序池为"No Managed Code"
-
-## 📝 开发规范
-
-### 代码风格
-- 使用C# 10.0语言特性
-- 遵循RESTful API设计规范
-- 统一响应格式：`{ success: bool, data: any, message: string }`
-
-## 🤝 贡献指南
-
-1. Fork项目
-2. 创建功能分支：`git checkout -b feature/new-feature`
-3. 提交更改：`git commit -m 'Add new feature'`
-4. 推送分支：`git push origin feature/new-feature`
-5. 创建Pull Request
-
-## 🔄 后续开发计划
-
-### 第二阶段（互助订单管理）
-- [ ] 发布互助需求接口
-- [ ] 接受互助订单接口
-- [ ] 订单状态管理
-- [ ] 订单评价功能
-
-### 第三阶段（社区功能）
-- [ ] 本地化服务查询
-- [ ] 地理位置服务
-- [ ] 第三方服务集成
-
-### 第四阶段（优化和扩展）
-- [ ] 缓存优化
-- [ ] 性能监控
-- [ ] 移动端适配
+- **健康检查**: `GET /health`
+- **Swagger文档**: `http://127.0.0.1:5002/swagger`
+- **数据库连接**: 检查EF Core迁移状态
 
 ---
 
-**最后更新**: 2025年12月21日 (重构订单系统为发布互助需求、优化社区本地化服务、经纬度管理、图片上传、信誉评价、审核管理、服务状态管理功能，新增信誉日志)
+## 📞 联系我们
+
+- **项目主页**: [GitHub Repository]
+- **问题反馈**: [Issues]
+- **技术支持**: [Discussions]
+
+---
+
+**🎉 感谢使用 PetPal - 让宠物照顾变得更简单！**

@@ -57,8 +57,8 @@ namespace petpal.API.Services
                 Username = username,
                 PasswordHash = HashPassword(password), // 对密码进行哈希处理
                 Phone = phone,
-                Email = email,
-                ReputationLevel = _reputationService.GetReputationLevel(100) // 初始化信誉等级
+                Email = email
+                // ReputationLevel 使用模型中的默认值"新手"
             };
 
             // 将新用户添加到数据库

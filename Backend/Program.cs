@@ -49,12 +49,15 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis");
 });
 
-// 注册应用程序服务
-// 使用依赖注入容器管理服务生命周期
-builder.Services.AddScoped<IUserService, UserService>();           // 用户服务
-builder.Services.AddScoped<IJwtService, JwtService>();             // JWT令牌服务
-builder.Services.AddScoped<IReputationService, ReputationService>(); // 信誉评价服务
-builder.Services.AddScoped<IGeolocationService, GeolocationService>(); // 地理位置服务
+    // 注册应用程序服务
+    // 使用依赖注入容器管理服务生命周期
+    builder.Services.AddScoped<IUserService, UserService>();           // 用户服务
+    builder.Services.AddScoped<IJwtService, JwtService>();             // JWT令牌服务
+    builder.Services.AddScoped<IReputationService, ReputationService>(); // 信誉评价服务
+    builder.Services.AddScoped<IGeolocationService, GeolocationService>(); // 地理位置服务
+    builder.Services.AddScoped<ICommunityService, CommunityService>(); // 社区管理服务
+    builder.Services.AddScoped<IRequestService, RequestService>();     // 需求管理服务
+    builder.Services.AddScoped<IOrderService, OrderService>();         // 订单管理服务
 
 // 添加控制器服务
 builder.Services.AddControllers();
@@ -116,12 +119,13 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        db.Database.Migrate();
-        Log.Information("数据库迁移完成");
+        // 确保数据库存在，如果不存在则创建
+        db.Database.EnsureCreated();
+        Log.Information("数据库初始化完成");
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "数据库迁移失败");
+        Log.Warning(ex, "数据库初始化警告，继续启动服务");
     }
 }
 

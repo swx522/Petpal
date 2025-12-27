@@ -21,7 +21,9 @@ namespace petpal.API.Models
     /// </summary>
     public enum OrderStatus
     {
-        Pending,    // 待接单：订单已发布，等待帮助者接受
+        Pending,    // 待审核/待接单：订单已发布，等待审核或帮助者接受
+        Approved,   // 已审核通过：管理员审核通过
+        Rejected,   // 已审核拒绝：管理员审核拒绝
         Accepted,   // 已接单：有帮助者接受了订单
         InProgress, // 进行中：服务正在执行
         Completed,  // 已完成：服务已完成，等待评价
@@ -104,9 +106,31 @@ namespace petpal.API.Models
         public int? CommunityId { get; set; }
 
         /// <summary>
+        /// 服务经度
+        /// 用于地理位置定位和距离计算
+        /// </summary>
+        public decimal? Longitude { get; set; }
+
+        /// <summary>
+        /// 服务纬度
+        /// 用于地理位置定位和距离计算
+        /// </summary>
+        public decimal? Latitude { get; set; }
+
+        /// <summary>
         /// 订单创建时间
         /// </summary>
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// 接单时间
+        /// </summary>
+        public DateTime? AcceptedAt { get; set; }
+
+        /// <summary>
+        /// 完成时间
+        /// </summary>
+        public DateTime? CompletedAt { get; set; }
 
         /// <summary>
         /// 宠物主人信息

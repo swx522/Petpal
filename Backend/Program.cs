@@ -53,7 +53,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
     // 使用依赖注入容器管理服务生命周期
     builder.Services.AddScoped<IUserService, UserService>();           // 用户服务
     builder.Services.AddScoped<IJwtService, JwtService>();             // JWT令牌服务
-    builder.Services.AddScoped<IReputationService, ReputationService>(); // 信誉评价服务
+    builder.Services.AddScoped<IOrderRatingService, OrderRatingService>(); // 订单评分服务（新）
     builder.Services.AddScoped<IGeolocationService, GeolocationService>(); // 地理位置服务
     builder.Services.AddScoped<ICommunityService, CommunityService>(); // 社区管理服务
     builder.Services.AddScoped<IRequestService, RequestService>();     // 需求管理服务

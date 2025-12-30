@@ -132,26 +132,25 @@ namespace petpal.API.Controllers
 
         /// <summary>
         /// 重置密码接口
-        /// 通过手机号和旧密码重置密码
+        /// 通过手机号验证重置密码（覆盖原密码）
         /// </summary>
-        [HttpPost("reset-password")]
+        [HttpPut("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(request.Phone) ||
-                    string.IsNullOrWhiteSpace(request.OldPassword) ||
-                    string.IsNullOrWhiteSpace(request.NewPassword))
+                    string.IsNullOrWhiteSpace(request.Password))
                 {
                     return BadRequest(new ApiResponse
                     {
                         Success = false,
-                        Message = "手机号、旧密码和新密码不能为空"
+                        Message = "手机号和密码不能为空"
                     });
                 }
 
-                // 通过手机号和旧密码重置密码
-                await _userService.ResetPasswordAsync(request.Phone, request.OldPassword, request.NewPassword);
+                // 通过手机号重置密码（覆盖原密码，无需验证旧密码）
+                await _userService.ResetPasswordAsync(request.Phone, request.Password);
 
                 return Ok(new ApiResponse
                 {

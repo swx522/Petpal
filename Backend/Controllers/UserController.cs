@@ -18,13 +18,11 @@ namespace petpal.API.Controllers
         private readonly IUserService _userService;
         private readonly IOrderService _orderService;
         private readonly IRequestService _requestService;
-        private readonly IReputationService _reputationService;
 
         public UserController(
             IUserService userService,
             IOrderService orderService,
-            IRequestService requestService,
-            IReputationService reputationService)
+            IRequestService requestService)
         {
             _userService = userService;
             _orderService = orderService;
@@ -36,141 +34,61 @@ namespace petpal.API.Controllers
         // ===============================
 
         /// <summary>
-        /// 获取当前用户信息
+        /// 获取当前用户的通用资料（用户名 / 手机 / 邮箱 等）
         /// </summary>
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
-            try
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                var user = await _userService.GetUserByIdAsync(userId);
-                if (user == null)
-                {
-                    return NotFound(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户不存在"
-                    });
-                }
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = new
-                    {
-                        user.Id,
-                        user.Username,
-                        user.Phone,
-                        user.Email,
-                        user.Role,
-                        user.ReputationScore,
-                        reputationLevel = _reputationService.GetReputationLevel(user.ReputationScore),
-                        user.IsRealNameCertified,
-                        user.IsPetCertified,
-                        user.CreatedAt,
-                        user.LastLoginAt
-                    }
-                });
+                return Unauthorized(new ApiResponse { Success = false, Message = "用户未认证" });
             }
-            catch (Exception ex)
+
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null)
             {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
+                return NotFound(new ApiResponse { Success = false, Message = "用户不存在" });
             }
+
+            return Ok(new ApiResponse
+            {
+                Success = true,
+                Data = new
+                {
+                    user.Id,
+                    user.Username,
+                    user.Phone,
+                    user.Email,
+                    user.Role,
+                    user.IsRealNameCertified,
+                    user.IsPetCertified,
+                    user.CreatedAt,
+                    user.LastLoginAt
+                }
+            });
         }
 
         /// <summary>
-        /// 更新用户信息
+        /// 更新当前用户的通用资料（部分更新）
         /// </summary>
         [HttpPut("profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileRequest request)
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateCommonProfileRequest request)
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new ApiResponse { Success = false, Message = "用户未认证" });
+            }
+
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                // 这里需要扩展IUserService来支持更新用户信息
-                // 暂时返回成功
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Message = "用户信息更新成功"
-                });
+                await _userService.UpdateCommonProfileAsync(userId, request.Username, request.Phone, request.Email);
+                return Ok(new ApiResponse { Success = true, Message = "更新成功" });
             }
             catch (Exception ex)
             {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// 修改密码
-        /// </summary>
-        [HttpPut("password")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                if (string.IsNullOrWhiteSpace(request.OldPassword) ||
-                    string.IsNullOrWhiteSpace(request.NewPassword))
-                {
-                    return BadRequest(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "旧密码和新密码不能为空"
-                    });
-                }
-
-                // 这里需要扩展IUserService来支持密码修改
-                // 暂时返回成功
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Message = "密码修改成功"
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
+                return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
             }
         }
 
@@ -251,122 +169,7 @@ namespace petpal.API.Controllers
             }
         }
 
-        // ===============================
-        // 信誉管理接口
-        // ===============================
-
-        /// <summary>
-        /// 获取用户信誉档案
-        /// </summary>
-        [HttpGet("reputation")]
-        public async Task<IActionResult> GetReputation()
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                var reputation = await _orderService.GetUserReputationAsync(userId);
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = reputation
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// 获取信誉变化日志
-        /// </summary>
-        [HttpGet("reputation/logs")]
-        public async Task<IActionResult> GetReputationLogs([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                var logs = await _orderService.GetReputationLogsAsync(userId, page, pageSize);
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = new
-                    {
-                        logs,
-                        page,
-                        pageSize
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// 获取信誉变化趋势
-        /// </summary>
-        [HttpGet("reputation/trend")]
-        public async Task<IActionResult> GetReputationTrend([FromQuery] int days = 30)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                var trend = await _orderService.GetReputationTrendAsync(userId, days);
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = trend
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
+        // 信誉接口已移除；请使用订单评价接口（/api/orders/*）获取评价统计或明细。
 
         /// <summary>
         /// 获取用户的评价列表

@@ -13,18 +13,55 @@ namespace petpal.API.Services
     public class UserService : IUserService
     {
         private readonly ApplicationDbContext _context;
-        private readonly IReputationService _reputationService;
-
         /// <summary>
         /// 构造函数
         /// 通过依赖注入获取所需的服务
         /// </summary>
         /// <param name="context">数据库上下文</param>
-        /// <param name="reputationService">信誉评价服务</param>
-        public UserService(ApplicationDbContext context, IReputationService reputationService)
+        public UserService(ApplicationDbContext context)
         {
             _context = context;
-            _reputationService = reputationService;
+        }
+
+        /// <summary>
+        /// 更新通用个人资料（用户名 / 手机 / 邮箱）
+        /// 仅会更新非null字段；用户名/手机号唯一性会被验证
+        /// </summary>
+        public async Task UpdateCommonProfileAsync(string userId, string? username, string? phone, string? email)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new Exception("用户不存在");
+            }
+
+            // 验证用户名唯一性（如果有变更）
+            if (!string.IsNullOrEmpty(username) && username != user.Username)
+            {
+                if (await _context.Users.AnyAsync(u => u.Username == username && u.Id != userId))
+                {
+                    throw new Exception("用户名已存在");
+                }
+                user.Username = username;
+            }
+
+            // 验证手机号唯一性（如果有变更）
+            if (!string.IsNullOrEmpty(phone) && phone != user.Phone)
+            {
+                if (await _context.Users.AnyAsync(u => u.Phone == phone && u.Id != userId))
+                {
+                    throw new Exception("手机号已被注册");
+                }
+                user.Phone = phone;
+            }
+
+            // 邮箱无需严格唯一性校验（保留现有行为），但仍可更新
+            if (email != null)
+            {
+                user.Email = email;
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         /// <summary>~
@@ -186,13 +223,12 @@ namespace petpal.API.Services
 
         /// <summary>
         /// 重置密码实现
-        /// 通过手机号和旧密码验证身份后重置新密码
+        /// 通过手机号验证身份后重置密码
         /// </summary>
         /// <param name="phone">手机号码</param>
-        /// <param name="oldPassword">旧密码</param>
-        /// <param name="newPassword">新密码</param>
-        /// <exception cref="Exception">用户不存在或密码错误时抛出异常</exception>
-        public async Task ResetPasswordAsync(string phone, string oldPassword, string newPassword)
+        /// <param name="password">新密码</param>
+        /// <exception cref="Exception">用户不存在时抛出异常</exception>
+        public async Task ResetPasswordAsync(string phone, string password)
         {
             // 根据手机号查找用户
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Phone == phone);
@@ -203,14 +239,8 @@ namespace petpal.API.Services
                 throw new Exception("用户不存在");
             }
 
-            // 验证旧密码
-            if (!VerifyPassword(oldPassword, user.PasswordHash))
-            {
-                throw new Exception("旧密码错误");
-            }
-
             // 更新密码
-            user.PasswordHash = HashPassword(newPassword);
+            user.PasswordHash = HashPassword(password);
             await _context.SaveChangesAsync();
         }
     }

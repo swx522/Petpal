@@ -72,11 +72,16 @@ namespace petpal.API.Services
 
         /// <summary>
         /// 重置密码
-        /// 通过手机号和旧密码重置新密码
+        /// 通过手机号验证身份后重置密码
         /// </summary>
         /// <param name="phone">手机号码</param>
-        /// <param name="oldPassword">旧密码</param>
-        /// <param name="newPassword">新密码</param>
-        Task ResetPasswordAsync(string phone, string oldPassword, string newPassword);
+        /// <param name="password">新密码</param>
+        Task ResetPasswordAsync(string phone, string password);
+
+        /// <summary>
+        /// 更新通用个人资料（用户名 / 手机 / 邮箱）
+        /// 只更新非空的字段，验证唯一性（用户名、手机号）
+        /// </summary>
+        Task UpdateCommonProfileAsync(string userId, string? username, string? phone, string? email);
     }
 }

@@ -23,8 +23,7 @@ namespace petpal.API.Models
     public class ResetPasswordRequest
     {
         public string Phone { get; set; } = "";
-        public string OldPassword { get; set; } = "";
-        public string NewPassword { get; set; } = "";
+        public string Password { get; set; } = "";
     }
 
     // ===============================
@@ -36,12 +35,6 @@ namespace petpal.API.Models
         public string? Username { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
-    }
-
-    public class ChangePasswordRequest
-    {
-        public string OldPassword { get; set; } = "";
-        public string NewPassword { get; set; } = "";
     }
 
     public class ChangeRoleRequest
@@ -75,6 +68,16 @@ namespace petpal.API.Models
         public string? Email { get; set; }
     }
 
+    /// <summary>
+    /// 通用个人资料更新请求（用于统一的 profile 接口）
+    /// </summary>
+    public class UpdateCommonProfileRequest
+    {
+        public string? Username { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+    }
+
     public class DeleteAccountRequest
     {
         public string Password { get; set; } = ""; // 确认密码
@@ -105,5 +108,16 @@ namespace petpal.API.Models
         public string? CareIntroduction { get; set; }
         public string? ServiceTypes { get; set; }
         public string? QualificationDocuments { get; set; }
+    }
+
+    /// <summary>
+    /// 订单评分请求模型
+    /// </summary>
+    public class RateOrderRequest
+    {
+        public string EvaluatedUserId { get; set; } = "";
+        public string? EvaluationType { get; set; } // 如 "requester_to_helper" 或 "helper_to_requester"
+        public int Score { get; set; } = 5; // 1-5
+        public string? Content { get; set; }
     }
 }

@@ -15,16 +15,13 @@ namespace petpal.API.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IUserService _userService;
-        private readonly IReputationService _reputationService;
 
         public OrderController(
             ApplicationDbContext context,
-            IUserService userService,
-            IReputationService reputationService)
+            IUserService userService)
         {
             _context = context;
             _userService = userService;
-            _reputationService = reputationService;
         }
 
         // ===============================
@@ -448,19 +445,7 @@ namespace petpal.API.Controllers
 
                 _context.OrderEvaluations.Add(evaluation);
 
-                // 更新被评价者的信誉分数
-                var evaluatedUser = await _context.Users.FindAsync(evaluatedUserId);
-                if (evaluatedUser != null)
-                {
-                    var tempEvaluation = new OrderEvaluation
-                    {
-                        Score = request.Score,
-                        Content = request.Content
-                    };
-                    var reputationChange = _reputationService.CalculateReputationChange(tempEvaluation);
-                    evaluatedUser.ReputationScore += reputationChange;
-                    evaluatedUser.ReputationLevel = _reputationService.GetReputationLevel(evaluatedUser.ReputationScore);
-                }
+                // 评价已记录到 OrderEvaluations，历史信誉分由评价统计代替，不在此处直接修改用户信誉字段。
 
                 await _context.SaveChangesAsync();
 
@@ -534,19 +519,7 @@ namespace petpal.API.Controllers
                         Score = evaluation.Score,
                         Content = evaluation.Content
                     };
-                    var oldReputationChange = _reputationService.CalculateReputationChange(oldTempEvaluation);
-                    evaluatedUser.ReputationScore -= oldReputationChange;
-
-                    // 应用新的信誉变化
-                    var newTempEvaluation = new OrderEvaluation
-                    {
-                        Score = request.Score,
-                        Content = request.Content
-                    };
-                    var newReputationChange = _reputationService.CalculateReputationChange(newTempEvaluation);
-                    evaluatedUser.ReputationScore += newReputationChange;
-
-                    evaluatedUser.ReputationLevel = _reputationService.GetReputationLevel(evaluatedUser.ReputationScore);
+                    // 不再在此处维护用户信誉字段，评价修改仅影响 OrderEvaluations 表
                 }
 
                 // 更新评价

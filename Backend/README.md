@@ -18,13 +18,21 @@
 
 ## 🎯 项目简介
 
-PetPal 是专为宠物主人和服务提供者打造的互助服务平台。通过角色化设计，实现宠物照顾需求的精准匹配和高效服务。平台支持地理位置定位、信誉评价体系、智能审核流程，确保服务质量和用户安全。
+PetPal 是专为宠物主人和服务提供者打造的互助服务平台。通过角色化设计，实现宠物照顾需求的精准匹配和高效服务。平台支持地理位置定位、订单评价体系、智能审核流程，确保服务质量和用户安全。
+
+## 📈 最新更新
+
+**v2.0.0 - 代码重构优化**
+- ✅ **移除信誉系统**：完全移除基于积分的信誉评价，改为订单评分体系
+- ✅ **简化密码管理**：统一使用手机号验证的重置密码接口
+- ✅ **优化接口设计**：移除冗余接口，简化API结构
+- ✅ **代码清理**：移除不再使用的模型和服务类
 
 ## ✨ 核心特性
 
 - **🔐 三角色架构** - 宠物主人、服务者、管理员各司其职
 - **📍 地理位置服务** - LBS定位，社区化本地服务匹配
-- **⭐ 信誉评价体系** - 多维度评分，等级自动晋升
+- **⭐ 订单评价体系** - 1-5星评分，服务质量透明化
 - **🔍 智能审核系统** - Sitter资质审核，保障服务质量
 - **🛡️ 安全可靠** - JWT认证、数据脱敏、权限控制
 
@@ -48,7 +56,7 @@ petpal/
 │   ├── SitterController.cs    # 🐾 服务者功能
 │   ├── CommunityController.cs # 🏘️ 社区查询
 │   ├── RequestsController.cs  # 📋 需求发布
-│   └── OrderController.cs     # 📦 订单管理
+│   └── OrderRatingController.cs # 📦 订单评分
 ├── Services/            # 业务服务层
 ├── Models/              # 数据模型
 ├── Data/                # 数据访问层
@@ -166,11 +174,31 @@ POST /api/auth/login
     "user": {
       "userId": "user-guid-123",
       "username": "petlover123",
-      "role": "User",
-      "reputationScore": 100
+      "role": "User"
     }
   },
   "message": "登录成功"
+}
+```
+
+#### 重置密码（通过手机号验证）
+```http
+PUT /api/auth/reset-password
+```
+
+**请求体:**
+```json
+{
+  "phone": "13800138000",
+  "password": "newpassword123"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "message": "密码重置成功，请使用新密码登录"
 }
 ```
 
@@ -193,11 +221,35 @@ Authorization: Bearer {token}
     "email": "user@example.com",
     "role": "User",
     "status": "Active",
-    "reputationLevel": "新手",
-    "reputationScore": 100,
-    "pets": []
+    "isRealNameCertified": true,
+    "isPetCertified": false,
+    "createdAt": "2024-01-01T10:00:00Z",
+    "lastLoginAt": "2024-01-01T14:30:00Z"
   },
   "message": "获取成功"
+}
+```
+
+#### 更新个人信息
+```http
+PUT /api/user/profile
+Authorization: Bearer {token}
+```
+
+**请求体:**
+```json
+{
+  "username": "newusername",
+  "phone": "13800138000",
+  "email": "newemail@example.com"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "message": "更新成功"
 }
 ```
 
@@ -296,7 +348,7 @@ Authorization: Bearer {token}
 }
 ```
 
-### 📦 OrderController - 订单管理接口
+### 📦 OrderRatingController - 订单评分接口
 
 #### 获取我的订单
 ```http
@@ -328,19 +380,19 @@ Authorization: Bearer {token}
 }
 ```
 
-#### 提交评价
+#### 提交订单评分
 ```http
-POST /api/evaluate/submit
+POST /api/orders/{orderId}/rating
 Authorization: Bearer {token}
 ```
 
 **请求体:**
 ```json
 {
-  "orderId": "order-guid-101",
-  "rating": 5,
-  "content": "服务非常专业，宠物照顾得很好！",
-  "images": ["image-url-1.jpg", "image-url-2.jpg"]
+  "evaluatedUserId": "sitter-guid-456",
+  "evaluationType": "service_quality",
+  "score": 5,
+  "content": "服务非常专业，宠物照顾得很好！"
 }
 ```
 
@@ -349,15 +401,39 @@ Authorization: Bearer {token}
 {
   "success": true,
   "data": {
-    "evaluationId": "eval-guid-202",
     "orderId": "order-guid-101",
     "evaluatorId": "owner-guid-123",
     "evaluatedUserId": "sitter-guid-456",
-    "rating": 5,
+    "evaluationType": "service_quality",
+    "score": 5,
     "content": "服务非常专业，宠物照顾得很好！",
     "createdAt": "2024-01-04T20:00:00Z"
   },
-  "message": "评价提交成功"
+  "message": "评分提交成功"
+}
+```
+
+#### 获取订单评分
+```http
+GET /api/orders/{orderId}/ratings
+Authorization: Bearer {token}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "orderId": "order-guid-101",
+      "evaluatorId": "owner-guid-123",
+      "evaluatedUserId": "sitter-guid-456",
+      "evaluationType": "service_quality",
+      "score": 5,
+      "content": "服务非常专业，宠物照顾得很好！",
+      "createdAt": "2024-01-04T20:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -384,17 +460,16 @@ Authorization: Bearer {admin-token}
 }
 ```
 
-#### 审核需求
+#### 审核需求通过
 ```http
-PUT /api/requests/review/pass
+PUT /api/admin/requests/review/pass
 Authorization: Bearer {admin-token}
 ```
 
 **请求体:**
 ```json
 {
-  "requestId": "req-guid-456",
-  "adminId": "admin-guid-001"
+  "requestId": "req-guid-456"
 }
 ```
 
@@ -409,6 +484,28 @@ Authorization: Bearer {admin-token}
     "reviewedBy": "admin-guid-001"
   },
   "message": "审核通过"
+}
+```
+
+#### 审核需求拒绝
+```http
+PUT /api/admin/requests/review/reject
+Authorization: Bearer {admin-token}
+```
+
+**请求体:**
+```json
+{
+  "requestId": "req-guid-456",
+  "reason": "资料不符合要求"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "message": "需求已拒绝"
 }
 ```
 
@@ -479,7 +576,7 @@ Authorization: Bearer {admin-token}
 - SitterController：服务者专用功能
 - CommunityController：社区查询功能
 - RequestsController：需求发布功能
-- OrderController：订单和评价管理
+- OrderRatingController：订单评分管理
 - 接口格式：`请求方式 接口路径`
 
 ---
@@ -491,17 +588,11 @@ Authorization: Bearer {admin-token}
 - `POST /api/auth/login` - 用户登录
 - `POST /api/auth/logout` - 退出登录
 - `POST /api/auth/send-captcha` - 发送验证码
-- `POST /api/auth/reset-password` - 重置密码
+- `PUT /api/auth/reset-password` - 重置密码（通过手机号验证）
 
 ---
 
 ## 👨‍💼 AdminController - 管理员专用接口
-
-### 管理员个人管理
-- `GET /api/admin/profile` - 获取管理员个人信息
-- `PUT /api/admin/profile` - 编辑管理员个人信息
-- `PUT /api/admin/password` - 修改管理员密码
-
 ### 社区管理
 - `GET /api/admin/community/my` - 获取管理员所属社区
 - `GET /api/admin/community/stats` - 获取社区统计
@@ -528,16 +619,12 @@ Authorization: Bearer {admin-token}
 ### 用户信息管理
 - `GET /api/user/profile` - 获取当前用户信息
 - `PUT /api/user/profile` - 更新用户信息
-- `PUT /api/user/password` - 修改密码
 - `DELETE /api/user/delete` - 注销账户
 
 ### 宠物管理
 - `POST /api/user/pet/profile` - 创建宠物信息
 
-### 信誉管理
-- `GET /api/user/reputation` - 获取用户信誉档案
-- `GET /api/user/reputation/logs` - 获取信誉日志
-- `GET /api/user/reputation/trend` - 获取信誉趋势
+### 评价管理
 - `GET /api/user/reviews` - 获取评价列表
 
 ### 位置服务
@@ -567,7 +654,6 @@ Authorization: Bearer {admin-token}
 ### 服务者信息管理
 - `GET /api/sitter/profile` - 获取个人信息
 - `PUT /api/sitter/profile` - 更新个人信息
-- `PUT /api/sitter/password` - 修改密码
 
 ---
 
@@ -590,16 +676,11 @@ Authorization: Bearer {admin-token}
 
 ---
 
-## 📦 OrderController - 订单管理接口
+## 📦 OrderRatingController - 订单评分接口
 
-### 订单管理
-- `GET /api/orders/my` - 查询我的订单
-- `GET /api/orders/to-evaluate` - 获取待评价订单
-
-### 评价管理
-- `POST /api/orders/evaluate/submit` - 提交评价
-- `PUT /api/orders/evaluate/update` - 更新评价
-- `PUT /api/orders/complete` - 完成订单
+### 订单评分管理
+- `POST /api/orders/{orderId}/rating` - 提交订单评分
+- `GET /api/orders/{orderId}/ratings` - 获取订单评分列表
 
 ---
 
@@ -617,13 +698,12 @@ Authorization: Bearer {admin-token}
 
 | 表名 | 说明 | 核心字段 |
 |------|------|----------|
-| **Users** | 用户主表 | 用户信息、角色、信誉、地理位置 |
+| **Users** | 用户主表 | 用户信息、角色、地理位置 |
 | **Pets** | 宠物信息 | 宠物详情、疫苗记录 |
 | **MutualOrders** | 互助订单 | 订单状态、服务时间、地理位置 |
-| **OrderEvaluations** | 订单评价 | 评分内容、图片附件 |
+| **OrderEvaluations** | 订单评价 | 评分内容、评价类型 |
 | **AuditMaterials** | 审核材料 | Sitter资质文件 |
 | **Communities** | 社区信息 | 社区范围、成员统计 |
-| **ReputationLogs** | 信誉日志 | 分数变化记录 |
 
 ### 🔗 核心关系图
 
@@ -633,19 +713,18 @@ graph TD
     A --> C[MutualOrders]
     A --> D[OrderEvaluations]
     A --> E[AuditMaterials]
-    A --> F[ReputationLogs]
-    A --> G[Communities]
+    A --> F[Communities]
 
     C --> D[OrderEvaluations]
-    G --> C[MutualOrders]
-    G --> A[Users]
+    F --> C[MutualOrders]
+    F --> A[Users]
 ```
 
 ### 📊 核心字段说明
 
 #### Users（用户表）
 - **基本信息**: `Id`, `Username`, `Phone`, `Email`, `Role`, `Status`
-- **信誉系统**: `ReputationScore`, `ReputationLevel`
+- **认证状态**: `IsRealNameCertified`, `IsPetCertified`
 - **地理位置**: `Longitude`, `Latitude`, `CommunityId`
 - **Sitter资料**: `CareIntroduction`, `ServiceTypes`, `QualificationDocuments`
 
@@ -654,9 +733,9 @@ graph TD
 - **服务详情**: `PetType`, `ServiceType`, `StartTime`, `EndTime`
 - **地理位置**: `Longitude`, `Latitude`, `CommunityId`
 
-#### OrderEvaluations（评价表）
+#### OrderEvaluations（订单评价表）
 - **评价关系**: `OrderId`, `EvaluatorId`, `EvaluatedUserId`
-- **评价内容**: `Rating`, `Content`, `Images`
+- **评价内容**: `EvaluationType`, `Score`, `Content`, `CreatedAt`
 
 ### 🔢 枚举类型
 
@@ -680,15 +759,6 @@ graph TD
 | CreatedAt | datetime | DateTime | 创建时间 |
 | IsActive | bit | bool | 是否激活 |
 
-#### ReputationLogs（信誉日志表）
-| 字段名 | MySQL类型 | C#类型 | 说明 |
-|--------|-----------|---------|------|
-| Id | VARCHAR(255) | string | 主键，日志ID（GUID） |
-| UserId | nvarchar(255) | string | 用户ID（外键→Users.Id） |
-| OldScore | int | int | 变化前的信誉分数 |
-| NewScore | int | int | 变化后的信誉分数 |
-| Reason | nvarchar(200) | string | 变化原因 |
-| CreatedAt | datetime | DateTime | 创建时间 |
 
 ### 枚举类型定义
 

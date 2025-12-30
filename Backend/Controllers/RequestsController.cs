@@ -16,18 +16,15 @@ namespace petpal.API.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IUserService _userService;
         private readonly IGeolocationService _geolocationService;
-        private readonly IReputationService _reputationService;
 
         public RequestsController(
             ApplicationDbContext context,
             IUserService userService,
-            IGeolocationService geolocationService,
-            IReputationService reputationService)
+            IGeolocationService geolocationService)
         {
             _context = context;
             _userService = userService;
             _geolocationService = geolocationService;
-            _reputationService = reputationService;
         }
 
         // ===============================

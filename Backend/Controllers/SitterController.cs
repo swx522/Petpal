@@ -18,13 +18,11 @@ namespace petpal.API.Controllers
         private readonly IRequestService _requestService;
         private readonly IOrderService _orderService;
         private readonly IUserService _userService;
-        private readonly IReputationService _reputationService;
 
         public SitterController(
             IRequestService requestService,
             IOrderService orderService,
-            IUserService userService,
-            IReputationService reputationService)
+            IUserService userService)
         {
             _requestService = requestService;
             _orderService = orderService;
@@ -389,182 +387,15 @@ namespace petpal.API.Controllers
             }
         }
 
-        /// <summary>
-        /// 获取需求发布者的信誉评分
-        /// </summary>
-        [HttpGet("user/reputation/{userId}")]
-        public async Task<IActionResult> GetRequesterReputation(string userId)
-        {
-            try
-            {
-                var reputation = await _orderService.GetUserReputationAsync(userId);
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = new
-                    {
-                        reputation.UserId,
-                        reputation.Username,
-                        reputation.ReputationScore,
-                        reputation.ReputationLevel
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
+        // 已移除基于“信誉分”的接口；如需查看某用户的评价统计，请使用订单评价查询接口（/api/orders/{orderId}/ratings 或 /api/user/reviews）。
 
         // ===============================
         // 服务者个人信息管理接口
         // ===============================
 
-        /// <summary>
-        /// 获取服务者个人信息
-        /// </summary>
-        [HttpGet("profile")]
-        public async Task<IActionResult> GetProfile()
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
+        // 服务者个人 profile 已统一到 `api/profile`，此处相关路由已移除以避免重复实现。
 
-                var user = await _userService.GetUserByIdAsync(userId);
-                if (user == null)
-                {
-                    return NotFound(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户不存在"
-                    });
-                }
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = new
-                    {
-                        user.Id,
-                        user.Username,
-                        user.Phone,
-                        user.Email,
-                        user.Role,
-                        user.ReputationScore,
-                        reputationLevel = _reputationService.GetReputationLevel(user.ReputationScore),
-                        user.CareIntroduction,
-                        user.ServiceTypes,
-                        user.QualificationDocuments,
-                        user.SitterAuditStatus,
-                        user.IsRealNameCertified,
-                        user.IsPetCertified
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// 更新服务者个人信息
-        /// </summary>
-        [HttpPut("profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateSitterProfileRequest request)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                // 这里需要扩展IUserService来支持服务者资料更新
-                // 暂时返回成功
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Message = "服务者资料更新成功"
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// 修改服务者密码
-        /// </summary>
-        [HttpPut("password")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                if (string.IsNullOrWhiteSpace(request.OldPassword) ||
-                    string.IsNullOrWhiteSpace(request.NewPassword))
-                {
-                    return BadRequest(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "旧密码和新密码不能为空"
-                    });
-                }
-
-                // 这里需要扩展IUserService来支持密码修改
-                // 暂时返回成功
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Message = "密码修改成功"
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
+        // 密码修改接口已合并到 `api/user/password`，此处已移除以避免重复实现。
 
         // 辅助方法
         private string GetAuditStageDescription(SitterAuditStatus status)

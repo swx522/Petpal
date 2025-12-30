@@ -12,16 +12,13 @@ namespace petpal.API.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IUserService _userService;
-        private readonly IReputationService _reputationService;
 
         public OrderService(
             ApplicationDbContext context,
-            IUserService userService,
-            IReputationService reputationService)
+            IUserService userService)
         {
             _context = context;
             _userService = userService;
-            _reputationService = reputationService;
         }
 
         /// <summary>
@@ -111,7 +108,7 @@ namespace petpal.API.Services
                 UserId = user.Id,
                 Username = user.Username,
                 ReputationScore = user.ReputationScore,
-                ReputationLevel = _reputationService.GetReputationLevel(user.ReputationScore),
+                ReputationLevel = "",
                 TotalCompletedOrders = totalCompletedOrders,
                 OrdersAsRequester = await _context.MutualOrders.CountAsync(o => o.OwnerId == userId && o.Status == OrderStatus.Completed),
                 OrdersAsHelper = 0, // 暂时设为0，实际需要根据服务者记录计算
@@ -182,16 +179,7 @@ namespace petpal.API.Services
 
             _context.OrderEvaluations.Add(orderEvaluation);
 
-            // 更新被评价者的信誉分数
-            var reputationChange = _reputationService.CalculateReputationChange(evaluation.Score);
-            await _reputationService.UpdateUserReputationAsync(evaluatedUserId, reputationChange);
-
-            // 记录信誉变化
-            await _reputationService.LogReputationChangeAsync(
-                evaluatedUserId,
-                await GetCurrentScoreAsync(evaluatedUserId),
-                await GetCurrentScoreAsync(evaluatedUserId) + reputationChange,
-                $"收到{evaluation.Score}星评价：{evaluation.Content}");
+            // 不再维护全局信誉分，改用订单评价模块记录评分数据（OrderEvaluations）
 
             await _context.SaveChangesAsync();
 

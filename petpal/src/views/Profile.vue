@@ -161,7 +161,8 @@
                   class="form-input"
                   v-model="passwordInfo.newPassword"
                   :disabled="loading"
-                  placeholder="请输入新密码（至少8位）"
+                  placeholder="请输入新密码（至少6位）"
+                  @input="validatePassword"
                 />
                 <button 
                   class="toggle-password-btn"
@@ -172,10 +173,15 @@
                   {{ showNewPassword ? '🙈' : '👁️' }}
                 </button>
               </div>
-              <div class="password-strength">
-                <div class="strength-bar" :class="passwordStrengthClass"></div>
-                <span class="strength-text">{{ passwordStrengthText }}</span>
-              </div>
+              <!-- 移除密码强度条，改为简单提示 -->
+              <p v-if="passwordInfo.newPassword.length > 0 && passwordInfo.newPassword.length < 6" 
+                class="error-message">
+                ❌ 密码至少需要6位
+              </p>
+              <p v-else-if="passwordInfo.newPassword.length >= 6" 
+                class="success-message">
+                ✅ 密码长度符合要求
+              </p>
             </div>
             
             <div class="form-group">
@@ -198,8 +204,12 @@
                 </button>
               </div>
               <p v-if="passwordInfo.newPassword !== passwordInfo.confirmPassword && passwordInfo.confirmPassword" 
-                 class="error-message">
+                class="error-message">
                 ❌ 两次输入的密码不一致
+              </p>
+              <p v-else-if="passwordInfo.newPassword === passwordInfo.confirmPassword && passwordInfo.confirmPassword" 
+                class="success-message">
+                ✅ 密码匹配
               </p>
             </div>
             
@@ -218,7 +228,7 @@
           </div>
           <div v-else class="password-security-tips">
             <p class="security-tip">🔐 为了您的账户安全，建议定期更换密码</p>
-            <p class="security-tip">💡 密码应包含字母、数字和特殊符号，长度至少8位</p>
+            <p class="security-tip">💡 密码至少需要6位字符</p>
           </div>
         </div>
 
@@ -292,7 +302,7 @@ import { userAPI } from '@/utils/user.js'
 
 const router = useRouter()
 
-// 用户信息 - 移除模拟数据
+// 用户信息
 const userInfo = ref({
   name: '',
   email: '',
@@ -300,7 +310,7 @@ const userInfo = ref({
   joinDate: ''
 })
 
-// 社区信息 - 移除模拟数据
+// 社区信息
 const communityInfo = ref({
   name: '',
   address: '',
@@ -349,41 +359,13 @@ const roleText = computed(() => {
   return roleMap[userRole.value] || '用户'
 })
 
-const passwordStrength = computed(() => {
-  const password = passwordInfo.value.newPassword
-  if (!password) return 0
-  
-  let strength = 0
-  if (password.length >= 8) strength += 1
-  if (/[A-Z]/.test(password)) strength += 1
-  if (/[a-z]/.test(password)) strength += 1
-  if (/[0-9]/.test(password)) strength += 1
-  if (/[^A-Za-z0-9]/.test(password)) strength += 1
-  
-  return strength
-})
-
-const passwordStrengthClass = computed(() => {
-  const strength = passwordStrength.value
-  if (strength <= 2) return 'strength-weak'
-  if (strength <= 3) return 'strength-medium'
-  return 'strength-strong'
-})
-
-const passwordStrengthText = computed(() => {
-  const strength = passwordStrength.value
-  if (strength <= 2) return '密码强度：弱'
-  if (strength <= 3) return '密码强度：中'
-  return '密码强度：强'
-})
-
 const isPasswordFormValid = computed(() => {
   return (
     passwordInfo.value.oldPassword &&
     passwordInfo.value.newPassword &&
     passwordInfo.value.confirmPassword &&
     passwordInfo.value.newPassword === passwordInfo.value.confirmPassword &&
-    passwordStrength.value >= 3
+    passwordInfo.value.newPassword.length >= 6  // 改为至少6位
   )
 })
 
@@ -422,12 +404,20 @@ const savePersonalInfo = async () => {
     
     const response = await userAPI.updateUserInfo(updateData)
     
-    if (response.data?.Success) {
+    console.log('更新API响应:', response)
+    
+    // 注意：PUT请求返回的是 {success: true, data: null, message: '更新成功'}
+    // 所以我们要检查 response.success，而不是 response.data
+    if (response.success) {
       // 更新本地存储的用户信息
       userAPI.updateLocalUserInfo(updateData)
       alert('个人信息已更新')
+      
+      // 刷新页面数据
+      await loadUserData()
+      editingPersonal.value = false
     } else {
-      alert(response.data?.Message || '更新失败')
+      alert(response.message || '更新失败')
       // 恢复原始数据
       if (originalUserInfo) {
         userInfo.value = { ...originalUserInfo }
@@ -472,12 +462,13 @@ const changePassword = async () => {
       newPassword: passwordInfo.value.newPassword
     })
     
-    if (response.data?.Success) {
+    // 注意：检查 response.success
+    if (response.success) {
       alert('密码修改成功！')
       editingPassword.value = false
       resetPasswordForm()
     } else {
-      passwordError.value = response.data?.Message || '密码修改失败'
+      passwordError.value = response.message || '密码修改失败'
     }
   } catch (error) {
     console.error('修改密码失败:', error)
@@ -505,6 +496,62 @@ const viewCommunity = () => {
   // TODO: 需要社区页面路由
   // router.push('/community')
   alert('社区功能开发中...')
+}
+
+const loadUserData = async () => {
+  loading.value = true
+  try {
+    const response = await userAPI.getUserInfo()
+    
+    console.log('加载用户数据响应:', response)
+    
+    // GET请求：检查 response.success && response.data
+    if (response.success && response.data) {
+      const apiData = response.data
+      
+      // 更新用户信息
+      userInfo.value = {
+        name: apiData.username || '',
+        email: apiData.email || '',
+        phone: apiData.phone || '',
+        joinDate: apiData.createdAt || ''
+      }
+      
+      // 更新角色
+      if (apiData.role !== undefined) {
+        const roleMap = {
+          0: 'owner',    // 宠物主人
+          1: 'sitter',   // 服务者
+          2: 'moderator' // 管理者
+        }
+        userRole.value = roleMap[apiData.role] || 'owner'
+        localStorage.setItem('petpal_userRole', userRole.value)
+      }
+      
+      // 更新本地存储的用户信息
+      userAPI.updateLocalUserInfo({
+        username: userInfo.value.name,
+        email: userInfo.value.email,
+        phone: userInfo.value.phone,
+        role: userRole.value,
+        createdAt: userInfo.value.joinDate
+      })
+    }
+  } catch (error) {
+    console.error('加载用户数据失败:', error)
+    // 从本地存储获取
+    const savedUser = userAPI.getCurrentUser()
+    if (savedUser) {
+      userInfo.value = {
+        name: savedUser.username || '',
+        email: savedUser.email || '',
+        phone: savedUser.phone || '',
+        joinDate: savedUser.createdAt || ''
+      }
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleLogout = async () => {
@@ -537,16 +584,15 @@ const deleteAccount = async () => {
   
   deleting.value = true
   try {
-    // 这里应该调用删除账户API
-    // 由于API未完全实现，先模拟删除
     const response = await userAPI.deleteAccount(deleteConfirmation.value)
     
-    if (response.data?.Success) {
+    // 注意：检查 response.success
+    if (response.success) {
       alert('账户已成功删除')
       userAPI.clearLocalStorage()
       router.push('/')
     } else {
-      alert(response.data?.Message || '删除失败')
+      alert(response.message || '删除失败')
     }
   } catch (error) {
     console.error('删除账户失败:', error)
@@ -558,26 +604,40 @@ const deleteAccount = async () => {
 }
 
 // 页面加载时获取用户数据
+// 页面加载时获取用户数据
 onMounted(async () => {
   loading.value = true
   try {
     // 从API获取用户信息
     const response = await userAPI.getUserInfo()
     
-    if (response.data?.Success && response.data.Data) {
-      const apiData = response.data.Data
+    console.log('API返回的完整数据:', response)
+    console.log('API返回的Data字段:', response.data)
+    
+    // 根据你的调试信息，response.data直接就是用户数据对象
+    if (response.data) {
+      const apiData = response.data  // 直接使用response.data
+      
+      console.log('API返回的用户数据:', apiData)
+      console.log('email字段值:', apiData.email)
+      console.log('phone字段值:', apiData.phone)
       
       // 更新用户信息
       userInfo.value = {
-        name: apiData.Username || '',
-        email: apiData.Email || '',
-        phone: apiData.Phone || '',
-        joinDate: apiData.CreatedAt || ''
+        name: apiData.username || '',
+        email: apiData.email || '',
+        phone: apiData.phone || '',
+        joinDate: apiData.createdAt || ''
       }
       
       // 更新角色
-      if (apiData.Role) {
-        userRole.value = apiData.Role.toLowerCase()
+      if (apiData.role !== undefined) {
+        const roleMap = {
+          0: 'owner',    // 宠物主人
+          1: 'sitter',   // 服务者
+          2: 'moderator' // 管理者
+        }
+        userRole.value = roleMap[apiData.role] || 'owner'
         localStorage.setItem('petpal_userRole', userRole.value)
       }
       
@@ -589,12 +649,15 @@ onMounted(async () => {
         role: userRole.value,
         createdAt: userInfo.value.joinDate
       })
+      
+      console.log('更新后的用户信息:', userInfo.value)
     } else {
+      console.log('API返回数据为空')
       // 如果API获取失败，从本地存储获取
       const savedUser = userAPI.getCurrentUser()
       if (savedUser) {
         userInfo.value = {
-          name: savedUser.username || savedUser.name || '',
+          name: savedUser.username || '',
           email: savedUser.email || '',
           phone: savedUser.phone || '',
           joinDate: savedUser.createdAt || ''
@@ -611,7 +674,7 @@ onMounted(async () => {
     const savedUser = userAPI.getCurrentUser()
     if (savedUser) {
       userInfo.value = {
-        name: savedUser.username || savedUser.name || '',
+        name: savedUser.username || '',
         email: savedUser.email || '',
         phone: savedUser.phone || '',
         joinDate: savedUser.createdAt || ''

@@ -20,9 +20,7 @@ export const userAPI = {
 
   // 获取用户信息
   async getUserInfo() {
-    return http.get('/user/profile'
-      
-    )
+    return http.get('/user/profile')
   },
 
   // 更新用户信息

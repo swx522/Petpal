@@ -92,7 +92,6 @@
   </div>
 </template>
 
-<!-- src/views/auth/LoginView.vue -->
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
@@ -104,27 +103,26 @@ const router = useRouter()
 // 登录表单数据
 const loginForm = reactive({
   account: '',
-  password: '',
-  rememberMe: false
+  password: ''
 })
 
 const loading = ref(false)
 const accountError = ref('')
 const passwordError = ref('')
-const showPassword = ref(false) // 确保这个变量被定义
+const showPassword = ref(false)
+
+// 清除错误信息
+const clearError = (field) => {
+  if (field === 'account') {
+    accountError.value = ''
+  } else if (field === 'password') {
+    passwordError.value = ''
+  }
+}
 
 // 切换密码显示状态
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
-  // 强制更新DOM，确保立即生效
-  const passwordInput = document.getElementById('password')
-  if (passwordInput) {
-    passwordInput.type = showPassword.value ? 'text' : 'password'
-    // 触发一个小延迟确保焦点和状态更新
-    setTimeout(() => {
-      passwordInput.focus()
-    }, 10)
-  }
 }
 
 // 登录处理
@@ -134,13 +132,25 @@ const handleLogin = async () => {
   passwordError.value = ''
   
   // 表单验证
+  let isValid = true
+  
   if (!loginForm.account.trim()) {
-    accountError.value = '请输入手机号或用户名'
-    return
+    accountError.value = '请输入手机号'
+    isValid = false
+  } else if (!/^1[3-9]\d{9}$/.test(loginForm.account)) {
+    accountError.value = '请输入正确的手机号'
+    isValid = false
   }
   
   if (!loginForm.password.trim()) {
     passwordError.value = '请输入密码'
+    isValid = false
+  } else if (loginForm.password.length < 6) {
+    passwordError.value = '密码长度至少6位'
+    isValid = false
+  }
+  
+  if (!isValid) {
     return
   }
 
@@ -154,23 +164,24 @@ const handleLogin = async () => {
     })
 
     if (response.success) {
-      // 保存token到localStorage
-      localStorage.setItem('auth_token', response.data.token)
-      localStorage.setItem('user_id', response.data.userId)
-      
-      // 获取并保存用户信息
-      const userInfo = await userAPI.getUserInfo(response.data.userId)
-      if (userInfo.success) {
-        userAPI.saveUserInfo(userInfo.data)
-      }
+      // 保存token和用户信息
+      userAPI.saveLoginState(
+        response.data.token,
+        response.data.userId,
+        {
+          username: response.data.username,
+          role: response.data.role,
+          userId: response.data.userId
+        }
+      )
       
       ElMessage.success('登录成功！')
       
       // 跳转到首页
-      router.push('/init')
+      router.push('/')
     } else {
       // 根据错误信息设置相应的错误提示
-      if (response.message.includes('账号') || response.message.includes('用户不存在')) {
+      if (response.message.includes('账号') || response.message.includes('用户不存在') || response.message.includes('找不到')) {
         accountError.value = response.message
       } else if (response.message.includes('密码') || response.message.includes('密码错误')) {
         passwordError.value = response.message
@@ -183,12 +194,12 @@ const handleLogin = async () => {
     
     // 处理不同类型的错误
     if (error.status === 401) {
-      accountError.value = '账号或密码错误'
+      passwordError.value = '密码错误'
     } else if (error.status === 404) {
-      ElMessage.error('服务器连接失败，请检查API地址')
-    } else if (error.message.includes('网络连接失败')) {
+      accountError.value = '账号不存在'
+    } else if (error.message?.includes('网络连接失败')) {
       ElMessage.error('网络连接失败，请检查网络设置')
-    } else if (error.message.includes('请求超时')) {
+    } else if (error.message?.includes('请求超时')) {
       ElMessage.error('请求超时，请稍后重试')
     } else {
       ElMessage.error(error.data?.message || error.message || '登录失败')
@@ -409,64 +420,6 @@ const handleLogin = async () => {
   margin-top: 4px;
 }
 
-/* 记住我和忘记密码 */
-.remember-forgot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #475569;
-}
-
-.checkbox-label input[type="checkbox"] {
-  display: none;
-}
-
-.checkmark {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #cbd5e1;
-  border-radius: 4px;
-  position: relative;
-  transition: all 0.3s;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkmark {
-  background: #22c55e;
-  border-color: #22c55e;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkmark:after {
-  content: "✓";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.forgot-link {
-  color: #166534;
-  font-size: 14px;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.3s;
-}
-
-.forgot-link:hover {
-  color: #14532d;
-  text-decoration: underline;
-}
-
 /* 提交按钮 */
 .submit-btn {
   background: #166534;
@@ -514,68 +467,6 @@ const handleLogin = async () => {
   to { transform: rotate(360deg); }
 }
 
-/* 第三方登录 */
-.divider {
-  color: #94a3b8;
-  font-size: 14px;
-  position: relative;
-  margin: 25px 0;
-}
-
-.divider:before,
-.divider:after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  width: 45%;
-  height: 1px;
-  background: #e2e8f0;
-}
-
-.divider:before {
-  left: 0;
-}
-
-.divider:after {
-  right: 0;
-}
-
-.social-buttons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-}
-
-.social-btn {
-  flex: 1;
-  padding: 14px;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  background: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.social-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.social-btn.wechat:hover {
-  border-color: #07C160;
-  background: #f0fdf0;
-}
-
-.social-btn.weibo:hover {
-  border-color: #E6162D;
-  background: #fff0f0;
-}
-
 /* 注册链接 */
 .register-link {
   text-align: center;
@@ -595,198 +486,6 @@ const handleLogin = async () => {
 .register-link .link:hover {
   color: #14532d;
   text-decoration: underline;
-}
-
-/* 模态框 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: modalSlideIn 0.3s ease;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 30px 30px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.modal-header h3 {
-  font-size: 24px;
-  color: #1e293b;
-  font-weight: 700;
-}
-
-.modal-header .close-btn {
-  background: none;
-  border: none;
-  font-size: 28px;
-  color: #94a3b8;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s;
-}
-
-.modal-header .close-btn:hover {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.modal-body {
-  padding: 30px;
-}
-
-.forgot-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.forgot-form .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.forgot-form label {
-  font-size: 14px;
-  color: #475569;
-  font-weight: 500;
-}
-
-.form-input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 14px;
-  color: #1e293b;
-  background: white;
-  transition: all 0.3s;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-}
-
-.captcha-input {
-  display: flex;
-  gap: 10px;
-}
-
-.captcha-input .form-input {
-  flex: 1;
-}
-
-.captcha-btn {
-  padding: 0 20px;
-  background: #f0fdf4;
-  color: #166534;
-  border: 2px solid #d1fae5;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  white-space: nowrap;
-  min-width: 120px;
-}
-
-.captcha-btn:hover:not(:disabled) {
-  background: #d1fae5;
-}
-
-.captcha-btn:disabled {
-  background: #f1f5f9;
-  color: #94a3b8;
-  border-color: #e2e8f0;
-  cursor: not-allowed;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 15px;
-  justify-content: flex-end;
-  padding: 20px 30px 30px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.btn-secondary,
-.btn-primary {
-  padding: 12px 32px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-secondary {
-  background: white;
-  color: #64748b;
-  border: 2px solid #e2e8f0;
-}
-
-.btn-secondary:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-}
-
-.btn-primary {
-  background: #166534;
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover {
-  background: #14532d;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
-}
-
-.btn-primary:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 /* 响应式设计 */
@@ -836,23 +535,6 @@ const handleLogin = async () => {
   
   .form-header h2 {
     font-size: 28px;
-  }
-  
-  .social-buttons {
-    flex-direction: column;
-  }
-  
-  .modal-content {
-    margin: 10px;
-  }
-  
-  .modal-actions {
-    flex-direction: column;
-  }
-  
-  .btn-secondary,
-  .btn-primary {
-    width: 100%;
   }
 }
 </style>

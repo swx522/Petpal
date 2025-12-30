@@ -79,14 +79,14 @@
 
             <!-- 邮箱 -->
             <div class="form-group">
-              <label for="email">邮箱 *</label>
+              <label for="email">邮箱</label>
               <div class="input-with-icon">
                 <span class="input-icon">📧</span>
                 <input
                   id="email"
                   v-model="registerForm.email"
                   type="email"
-                  placeholder="请输入邮箱地址"
+                  placeholder="请输入邮箱地址（选填）"
                   :class="{ 'error': emailError }"
                   @input="clearError('email')"
                 >
@@ -199,16 +199,14 @@ import { userAPI } from '@/utils/user.js'
 
 const router = useRouter()
 
-// 注册表单数据 - 添加role字段
+// 注册表单数据
 const registerForm = reactive({
   username: '',
   phone: '',
   email: '',
-  captcha: '',
   password: '',
   confirmPassword: '',
-  role: '', // 新增：用户角色
-  agreeTerms: false
+  role: '', // 用户角色
 })
 
 // 错误信息
@@ -217,7 +215,7 @@ const phoneError = ref('')
 const emailError = ref('')
 const passwordError = ref('')
 const confirmPasswordError = ref('')
-const roleError = ref('') // 新增：角色错误信息
+const roleError = ref('')
 
 const loading = ref(false)
 const showPassword = ref(false)
@@ -230,7 +228,7 @@ const isFormValid = computed(() => {
     registerForm.phone.trim() &&
     registerForm.password.trim() &&
     registerForm.confirmPassword.trim() &&
-    registerForm.role && // 必须选择角色
+    registerForm.role &&
     registerForm.password === registerForm.confirmPassword
   )
 })
@@ -290,13 +288,24 @@ const clearError = (field) => {
   }
 }
 
-// 注册处理 - 添加角色信息
+// 注册处理
 const handleRegister = async () => {
+  // 清除之前的错误
+  usernameError.value = ''
+  phoneError.value = ''
+  emailError.value = ''
+  passwordError.value = ''
+  confirmPasswordError.value = ''
+  roleError.value = ''
+  
   // 表单验证
   let isValid = true
   
   if (!registerForm.username.trim()) {
     usernameError.value = '请输入用户名'
+    isValid = false
+  } else if (registerForm.username.length < 2 || registerForm.username.length > 20) {
+    usernameError.value = '用户名长度应为2-20位字符'
     isValid = false
   }
   
@@ -334,49 +343,57 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
-    // 调用注册API - 添加角色信息
+    // 调用注册API
     const response = await userAPI.register({
       username: registerForm.username,
       password: registerForm.password,
       phone: registerForm.phone,
       email: registerForm.email || undefined,
-      captcha: registerForm.captcha,
-      role: registerForm.role // 新增：传递角色信息
+      role: registerForm.role === 'owner' ? 0 : 1  // 数字类型：0-owner, 1-sitter
     })
 
     if (response.success) {
       // 保存token到localStorage
-      localStorage.setItem('auth_token', response.data.token)
-      localStorage.setItem('user_id', response.data.userId)
+      userAPI.saveLoginState(
+        response.data.token,
+        response.data.userId,
+        {
+          username: registerForm.username,
+          role: registerForm.role,
+          phone: registerForm.phone,
+          email: registerForm.email
+        }
+      )
       
-      // 保存用户信息，包括角色
-      userAPI.saveUserInfo({
-        name: registerForm.username,
-        level: 1,
-        role: registerForm.role, // 保存角色
-        phone: registerForm.phone,
-        email: registerForm.email
-      })
-      
-      // 保存角色到本地存储，供Layout.vue使用
-      localStorage.setItem('petpal_userRole', registerForm.role)
-      
-      ElMessage.success(`注册成功！欢迎加入宠物互助平台，您已注册为${registerForm.role === 'owner' ? '宠物主人' : '宠物服务者'}`)
+      const roleText = registerForm.role === 'owner' ? '宠物主人' : '宠物服务者'
+      ElMessage.success(`注册成功！欢迎加入宠物互助平台，您已注册为${roleText}`)
       
       // 跳转到首页
-      router.push('/init')
+      router.push('/')
     } else {
-      ElMessage.error(response.message || '注册失败')
+      // 处理API返回的错误信息
+      if (response.message.includes('用户名') || response.message.includes('Username')) {
+        usernameError.value = response.message
+      } else if (response.message.includes('手机号') || response.message.includes('Phone')) {
+        phoneError.value = response.message
+      } else if (response.message.includes('邮箱') || response.message.includes('Email')) {
+        emailError.value = response.message
+      } else {
+        ElMessage.error(response.message || '注册失败')
+      }
     }
   } catch (error) {
     console.error('注册错误:', error)
     
+    // 处理HTTP错误
     if (error.status === 400) {
       ElMessage.error('注册信息有误，请检查输入')
     } else if (error.status === 409) {
       ElMessage.error('用户已存在，请直接登录')
     } else if (error.message?.includes('网络连接失败')) {
       ElMessage.error('网络连接失败，请检查网络设置')
+    } else if (error.message?.includes('请求超时')) {
+      ElMessage.error('请求超时，请稍后重试')
     } else {
       ElMessage.error(error.data?.message || error.message || '注册失败')
     }

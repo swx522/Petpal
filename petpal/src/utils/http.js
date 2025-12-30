@@ -7,9 +7,20 @@ class HttpRequest {
     this.timeout = API_CONFIG.TIMEOUT
   }
 
-  // 获取完整URL
+  // 获取完整URL - 处理代理情况
   getFullUrl(url) {
-    return url.startsWith('http') ? url : `${this.baseURL}${url}`
+    // 如果url已经是完整URL，直接返回
+    if (url.startsWith('http')) {
+      return url
+    }
+    
+    // 如果baseURL是相对路径（如/api），直接拼接
+    if (this.baseURL.startsWith('/')) {
+      return `${this.baseURL}${url}`
+    }
+    
+    // 否则拼接完整URL
+    return `${this.baseURL}${url}`
   }
 
   // 获取请求头
@@ -38,11 +49,18 @@ class HttpRequest {
       
       // 如果响应不成功，抛出错误
       if (!response.ok) {
-        throw {
+        const error = {
           status: response.status,
           statusText: response.statusText,
           data
         }
+        
+        // 特殊处理CORS相关错误
+        if (response.status === 0 && response.type === 'opaque') {
+          console.error('CORS错误: 请检查后端CORS配置或代理设置')
+        }
+        
+        throw error
       }
       
       return data
@@ -70,7 +88,9 @@ class HttpRequest {
     const options = {
       method,
       headers: this.getHeaders(),
-      signal: controller.signal
+      signal: controller.signal,
+      mode: 'cors', // 明确指定cors模式
+      credentials: 'same-origin' // 对于同域请求
     }
 
     if (data) {
@@ -80,35 +100,92 @@ class HttpRequest {
     try {
       const fullUrl = this.getFullUrl(url)
       
+      // 开发环境调试信息
       if (API_CONFIG.DEBUG) {
-        console.log(`[API Request] ${method} ${fullUrl}`, data)
+        console.group(`[API ${method}] ${fullUrl}`)
+        console.log('请求URL:', fullUrl)
+        if (data) console.log('请求数据:', data)
+        console.log('请求头:', options.headers)
+        console.groupEnd()
       }
 
       const response = await fetch(fullUrl, options)
+      
+      // 检查网络错误
+      if (!response) {
+        throw new Error('网络请求失败，请检查网络连接')
+      }
+      
+      // 检查CORS相关错误
+      if (response.type === 'opaque' || response.type === 'opaqueredirect') {
+        console.warn('CORS警告: 响应类型为', response.type)
+      }
+      
       const result = await this.handleResponse(response)
 
       if (API_CONFIG.DEBUG) {
-        console.log(`[API Response] ${method} ${fullUrl}`, result)
+        console.group(`[API Response] ${method} ${fullUrl}`)
+        console.log('响应状态:', response.status, response.statusText)
+        console.log('响应数据:', result)
+        console.groupEnd()
       }
 
       return result
     } catch (error) {
+      console.error('HTTP请求错误:', error)
+      
+      // 处理不同类型的错误
       if (error.name === 'AbortError') {
-        throw new Error('请求超时，请检查网络连接')
+        throw new Error(`请求超时（${this.timeout}ms），请检查网络连接或稍后重试`)
       }
       
-      // 处理网络错误
+      // 处理网络连接错误
       if (!navigator.onLine) {
         throw new Error('网络连接失败，请检查网络设置')
       }
       
-      // 处理HTTP错误
+      // 处理CORS错误
+      if (error.message?.includes('CORS') || error.message?.includes('cross-origin')) {
+        const fullUrl = this.getFullUrl(url)
+        throw new Error(`CORS错误: 无法访问 ${fullUrl}。请确保：
+          1. 后端已正确配置CORS
+          2. 前端代理配置正确
+          3. API地址正确`)
+      }
+      
+      // 处理Fetch API错误
+      if (error.message?.includes('Failed to fetch')) {
+        const fullUrl = this.getFullUrl(url)
+        throw new Error(`网络请求失败: ${fullUrl}。可能原因：
+          1. 后端服务器未运行
+          2. 网络连接问题
+          3. CORS配置错误`)
+      }
+      
+      // 处理HTTP状态码错误
       if (error.status) {
-        throw error
+        const statusMessages = {
+          400: '请求参数错误',
+          401: '未授权，请重新登录',
+          403: '访问被拒绝',
+          404: '请求的资源不存在',
+          409: '资源冲突',
+          500: '服务器内部错误',
+          502: '网关错误',
+          503: '服务不可用',
+          504: '网关超时'
+        }
+        
+        const message = statusMessages[error.status] || `HTTP错误 ${error.status}`
+        throw {
+          status: error.status,
+          message: message,
+          details: error.data?.message || error.statusText
+        }
       }
       
       // 处理其他错误
-      throw new Error(`请求失败: ${error.message}`)
+      throw new Error(`请求失败: ${error.message || '未知错误'}`)
     } finally {
       clearTimeout(timeoutId)
     }

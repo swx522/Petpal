@@ -15,9 +15,10 @@
             {{ userInitials }}
           </div>
           <div class="user-basic-info">
-            <h3 class="user-name">{{ userInfo.name }}</h3>
-            <p class="user-role">{{ roleText }} </p>
-            <p class="user-join-date">注册时间: {{ formatDate(userInfo.joinDate) }}</p>
+            <h3 class="user-name">{{ userInfo.name || '用户' }}</h3>
+            <p class="user-role">{{ roleText }}</p>
+            <p class="user-join-date" v-if="userInfo.joinDate">注册时间: {{ formatDate(userInfo.joinDate) }}</p>
+            <p class="user-join-date" v-else>注册时间: 加载中...</p>
           </div>
         </div>
 
@@ -29,18 +30,18 @@
           <div class="community-info">
             <div class="community-item">
               <span class="community-label">社区名称</span>
-              <span class="community-value">{{ communityInfo.name }}</span>
+              <span class="community-value">{{ communityInfo.name || '未加入社区' }}</span>
             </div>
             <div class="community-item">
               <span class="community-label">社区地址</span>
-              <span class="community-value">{{ communityInfo.address }}</span>
+              <span class="community-value">{{ communityInfo.address || '--' }}</span>
             </div>
             <div class="community-item">
               <span class="community-label">成员数量</span>
-              <span class="community-value">{{ communityInfo.memberCount }}人</span>
+              <span class="community-value">{{ communityInfo.memberCount || '--' }}人</span>
             </div>
           </div>
-          <button class="view-community-btn" @click="viewCommunity">
+          <button class="view-community-btn" @click="viewCommunity" :disabled="!communityInfo.name">
             查看社区详情
           </button>
         </div>
@@ -58,6 +59,7 @@
               class="edit-btn" 
               @click="toggleEditMode('personal')"
               :class="{ 'editing': editingPersonal }"
+              :disabled="loading"
             >
               {{ editingPersonal ? '保存修改' : '编辑信息' }}
             </button>
@@ -71,7 +73,7 @@
                 class="form-input" 
                 :class="{ 'editing': editingPersonal }"
                 v-model="userInfo.name"
-                :disabled="!editingPersonal"
+                :disabled="!editingPersonal || loading"
                 placeholder="请输入用户名"
               />
             </div>
@@ -83,7 +85,7 @@
                 class="form-input" 
                 :class="{ 'editing': editingPersonal }"
                 v-model="userInfo.email"
-                :disabled="!editingPersonal"
+                :disabled="!editingPersonal || loading"
                 placeholder="请输入邮箱地址"
               />
             </div>
@@ -95,7 +97,7 @@
                 class="form-input" 
                 :class="{ 'editing': editingPersonal }"
                 v-model="userInfo.phone"
-                :disabled="!editingPersonal"
+                :disabled="!editingPersonal || loading"
                 placeholder="请输入手机号码"
               />
             </div>
@@ -120,6 +122,7 @@
               class="edit-btn" 
               @click="toggleEditMode('password')"
               :class="{ 'editing': editingPassword }"
+              :disabled="loading"
             >
               {{ editingPassword ? '取消修改' : '修改密码' }}
             </button>
@@ -133,12 +136,14 @@
                   :type="showOldPassword ? 'text' : 'password'"
                   class="form-input"
                   v-model="passwordInfo.oldPassword"
+                  :disabled="loading"
                   placeholder="请输入当前密码"
                 />
                 <button 
                   class="toggle-password-btn"
                   @click="showOldPassword = !showOldPassword"
                   type="button"
+                  :disabled="loading"
                 >
                   {{ showOldPassword ? '🙈' : '👁️' }}
                 </button>
@@ -155,12 +160,14 @@
                   :type="showNewPassword ? 'text' : 'password'"
                   class="form-input"
                   v-model="passwordInfo.newPassword"
+                  :disabled="loading"
                   placeholder="请输入新密码（至少8位）"
                 />
                 <button 
                   class="toggle-password-btn"
                   @click="showNewPassword = !showNewPassword"
                   type="button"
+                  :disabled="loading"
                 >
                   {{ showNewPassword ? '🙈' : '👁️' }}
                 </button>
@@ -178,12 +185,14 @@
                   :type="showConfirmPassword ? 'text' : 'password'"
                   class="form-input"
                   v-model="passwordInfo.confirmPassword"
+                  :disabled="loading"
                   placeholder="请再次输入新密码"
                 />
                 <button 
                   class="toggle-password-btn"
                   @click="showConfirmPassword = !showConfirmPassword"
                   type="button"
+                  :disabled="loading"
                 >
                   {{ showConfirmPassword ? '🙈' : '👁️' }}
                 </button>
@@ -195,15 +204,15 @@
             </div>
             
             <div class="form-actions">
-              <button class="btn-secondary" @click="cancelPasswordChange">
+              <button class="btn-secondary" @click="cancelPasswordChange" :disabled="loading">
                 取消
               </button>
               <button 
                 class="btn-primary" 
                 @click="changePassword"
-                :disabled="!isPasswordFormValid"
+                :disabled="!isPasswordFormValid || loading"
               >
-                确认修改
+                {{ loading ? '处理中...' : '确认修改' }}
               </button>
             </div>
           </div>
@@ -222,7 +231,7 @@
           </div>
           
           <div class="account-actions">
-            <button class="action-btn logout-btn" @click="handleLogout">
+            <button class="action-btn logout-btn" @click="handleLogout" :disabled="loading">
               <span class="btn-icon">🚪</span> 退出登录
             </button>
           </div>
@@ -235,7 +244,7 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>确认删除账户</h3>
-          <button class="close-btn" @click="showDeleteModal = false">×</button>
+          <button class="close-btn" @click="showDeleteModal = false" :disabled="deleting">×</button>
         </div>
         <div class="modal-body">
           <div class="warning-message">
@@ -252,6 +261,7 @@
               <input 
                 type="text" 
                 v-model="deleteConfirmation"
+                :disabled="deleting"
                 placeholder="请输入'确认删除'以继续"
                 class="confirm-input-field"
               />
@@ -259,15 +269,15 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn-secondary" @click="showDeleteModal = false">
+          <button class="btn-secondary" @click="showDeleteModal = false" :disabled="deleting">
             取消
           </button>
           <button 
             class="btn-danger" 
             @click="deleteAccount"
-            :disabled="deleteConfirmation !== '确认删除'"
+            :disabled="deleteConfirmation !== '确认删除' || deleting"
           >
-            确认删除账户
+            {{ deleting ? '删除中...' : '确认删除账户' }}
           </button>
         </div>
       </div>
@@ -278,31 +288,23 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-// import { format } from 'date-fns'
+import { userAPI } from '@/utils/user.js'
 
 const router = useRouter()
 
-// 用户信息
+// 用户信息 - 移除模拟数据
 const userInfo = ref({
-  name: '张三',
-  email: 'zhangsan@example.com',
-  emailVerified: false,
-  phone: '13800138000',
-  level: 5,
-  joinDate: '2023-10-15'
+  name: '',
+  email: '',
+  phone: '',
+  joinDate: ''
 })
 
-// 用户统计
-const userStats = ref({
-  posts: 12,
-  orders: 8,
-})
-
-// 社区信息
+// 社区信息 - 移除模拟数据
 const communityInfo = ref({
-  name: '同济嘉定宠物社区',
-  address: '上海市嘉定区曹安公路4800号',
-  memberCount: 156,
+  name: '',
+  address: '',
+  memberCount: 0
 })
 
 // 编辑状态
@@ -325,12 +327,17 @@ const passwordError = ref('')
 const showDeleteModal = ref(false)
 const deleteConfirmation = ref('')
 
-// 从路由或存储中获取角色信息
-const userRole = ref('moderator') // 这里应该从全局状态获取
+// 加载状态
+const loading = ref(false)
+const deleting = ref(false)
+
+// 从本地存储获取角色信息
+const userRole = ref(userAPI.getUserRole())
 
 // 计算属性
 const userInitials = computed(() => {
-  return userInfo.value.name.substring(0, 2)
+  const name = userInfo.value.name || '用户'
+  return name.substring(0, 2)
 })
 
 const roleText = computed(() => {
@@ -381,7 +388,7 @@ const isPasswordFormValid = computed(() => {
 })
 
 // 方法
-const toggleEditMode = (type) => {
+const toggleEditMode = async (type) => {
   if (type === 'personal') {
     editingPersonal.value = !editingPersonal.value
     if (editingPersonal.value) {
@@ -389,7 +396,7 @@ const toggleEditMode = (type) => {
       backupUserInfo()
     } else {
       // 保存修改
-      savePersonalInfo()
+      await savePersonalInfo()
     }
   } else if (type === 'password') {
     editingPassword.value = !editingPassword.value
@@ -404,10 +411,38 @@ const backupUserInfo = () => {
   originalUserInfo = { ...userInfo.value }
 }
 
-const savePersonalInfo = () => {
-  // 这里应该调用API保存个人信息
-  console.log('保存个人信息:', userInfo.value)
-  alert('个人信息已更新')
+const savePersonalInfo = async () => {
+  loading.value = true
+  try {
+    const updateData = {
+      username: userInfo.value.name,
+      email: userInfo.value.email,
+      phone: userInfo.value.phone
+    }
+    
+    const response = await userAPI.updateUserInfo(updateData)
+    
+    if (response.data?.Success) {
+      // 更新本地存储的用户信息
+      userAPI.updateLocalUserInfo(updateData)
+      alert('个人信息已更新')
+    } else {
+      alert(response.data?.Message || '更新失败')
+      // 恢复原始数据
+      if (originalUserInfo) {
+        userInfo.value = { ...originalUserInfo }
+      }
+    }
+  } catch (error) {
+    console.error('保存个人信息失败:', error)
+    alert('保存失败，请稍后重试')
+    // 恢复原始数据
+    if (originalUserInfo) {
+      userInfo.value = { ...originalUserInfo }
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 const resetPasswordForm = () => {
@@ -430,47 +465,62 @@ const cancelPasswordChange = () => {
 const changePassword = async () => {
   if (!isPasswordFormValid.value) return
   
+  loading.value = true
   try {
-    // 这里应该调用API验证旧密码并修改密码
-    console.log('修改密码:', {
+    const response = await userAPI.changePassword({
       oldPassword: passwordInfo.value.oldPassword,
       newPassword: passwordInfo.value.newPassword
     })
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    alert('密码修改成功！')
-    editingPassword.value = false
-    resetPasswordForm()
+    if (response.data?.Success) {
+      alert('密码修改成功！')
+      editingPassword.value = false
+      resetPasswordForm()
+    } else {
+      passwordError.value = response.data?.Message || '密码修改失败'
+    }
   } catch (error) {
+    console.error('修改密码失败:', error)
     passwordError.value = '当前密码不正确'
+  } finally {
+    loading.value = false
   }
 }
 
-const sendVerificationEmail = () => {
-  console.log('发送验证邮件到:', userInfo.value.email)
-  alert('验证邮件已发送，请查看您的邮箱')
-}
-
 const formatDate = (dateString) => {
+  if (!dateString) return ''
+  
   try {
-    return format(new Date(dateString), 'yyyy年MM月dd日')
+    return new Date(dateString).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
   } catch (error) {
     return dateString
   }
 }
 
 const viewCommunity = () => {
-  router.push('/community')
+  // TODO: 需要社区页面路由
+  // router.push('/community')
+  alert('社区功能开发中...')
 }
 
-const handleLogout = () => {
+const handleLogout = async () => {
   if (confirm('确定要退出登录吗？')) {
-    // 这里应该调用登出API并清除登录状态
-    localStorage.removeItem('petpal_isLoggedIn')
-    localStorage.removeItem('petpal_userRole')
-    router.push('/login')
+    loading.value = true
+    try {
+      await userAPI.logout()
+      router.push('/login')
+    } catch (error) {
+      console.error('退出登录失败:', error)
+      // 即使API调用失败也清除本地存储
+      userAPI.clearLocalStorage()
+      router.push('/login')
+    } finally {
+      loading.value = false
+    }
   }
 }
 
@@ -479,37 +529,154 @@ const showDeleteConfirm = () => {
   deleteConfirmation.value = ''
 }
 
-const deleteAccount = () => {
+const deleteAccount = async () => {
   if (deleteConfirmation.value !== '确认删除') {
     alert('请输入正确的确认文字')
     return
   }
   
-  // 这里应该调用API删除账户
-  console.log('删除账户:', userInfo.value.email)
-  
-  // 清除本地数据
-  localStorage.clear()
-  sessionStorage.clear()
-  
-  alert('账户已成功删除')
-  router.push('/')
+  deleting.value = true
+  try {
+    // 这里应该调用删除账户API
+    // 由于API未完全实现，先模拟删除
+    const response = await userAPI.deleteAccount(deleteConfirmation.value)
+    
+    if (response.data?.Success) {
+      alert('账户已成功删除')
+      userAPI.clearLocalStorage()
+      router.push('/')
+    } else {
+      alert(response.data?.Message || '删除失败')
+    }
+  } catch (error) {
+    console.error('删除账户失败:', error)
+    alert('删除失败，请稍后重试')
+  } finally {
+    deleting.value = false
+    showDeleteModal.value = false
+  }
 }
 
 // 页面加载时获取用户数据
-onMounted(() => {
-  // 这里应该从API获取用户数据
-  console.log('加载个人主页数据')
-  
-  // 模拟从本地存储获取角色
-  const savedRole = localStorage.getItem('petpal_userRole')
-  if (savedRole) {
-    userRole.value = savedRole
+onMounted(async () => {
+  loading.value = true
+  try {
+    // 从API获取用户信息
+    const response = await userAPI.getUserInfo()
+    
+    if (response.data?.Success && response.data.Data) {
+      const apiData = response.data.Data
+      
+      // 更新用户信息
+      userInfo.value = {
+        name: apiData.Username || '',
+        email: apiData.Email || '',
+        phone: apiData.Phone || '',
+        joinDate: apiData.CreatedAt || ''
+      }
+      
+      // 更新角色
+      if (apiData.Role) {
+        userRole.value = apiData.Role.toLowerCase()
+        localStorage.setItem('petpal_userRole', userRole.value)
+      }
+      
+      // 更新本地存储的用户信息
+      userAPI.updateLocalUserInfo({
+        username: userInfo.value.name,
+        email: userInfo.value.email,
+        phone: userInfo.value.phone,
+        role: userRole.value,
+        createdAt: userInfo.value.joinDate
+      })
+    } else {
+      // 如果API获取失败，从本地存储获取
+      const savedUser = userAPI.getCurrentUser()
+      if (savedUser) {
+        userInfo.value = {
+          name: savedUser.username || savedUser.name || '',
+          email: savedUser.email || '',
+          phone: savedUser.phone || '',
+          joinDate: savedUser.createdAt || ''
+        }
+        
+        if (savedUser.role) {
+          userRole.value = savedUser.role
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+    // 从本地存储获取用户信息
+    const savedUser = userAPI.getCurrentUser()
+    if (savedUser) {
+      userInfo.value = {
+        name: savedUser.username || savedUser.name || '',
+        email: savedUser.email || '',
+        phone: savedUser.phone || '',
+        joinDate: savedUser.createdAt || ''
+      }
+      
+      if (savedUser.role) {
+        userRole.value = savedUser.role
+      }
+    }
+  } finally {
+    loading.value = false
   }
 })
 </script>
 
 <style scoped>
+/* 保持原来的所有样式完全不变 */
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.profile-header {
+  margin-bottom: 40px;
+}
+
+/* 保持原来的所有样式完全不变 */
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.profile-header {
+  margin-bottom: 40px;
+}
+
+/* ... 保持所有原有样式完全不变 ... */
+
+/* 最后一部分的响应式设计 */
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 15px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .info-card,
+  .user-card,
+  .community-card {
+    padding: 20px;
+  }
+  
+  .account-actions {
+    flex-direction: column;
+  }
+  
+  .modal-content {
+    margin: 10px;
+  }
+}
+
 .profile-container {
   max-width: 1200px;
   margin: 0 auto;

@@ -54,7 +54,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <!-- 简化：未登录时点击登录，登录后加锁显示状态 -->
+        <!-- 用户信息显示 -->
         <div 
           class="user-pill" 
           :class="{ 'logged-in': isLoggedIn, 'logged-out': !isLoggedIn }"
@@ -155,22 +155,41 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { userAPI } from '@/utils/user.js'
 
 const router = useRouter()
 const route = useRoute()
 
-// 添加这些响应式数据
+// 状态
 const showContactModal = ref(false)
 
-// 模拟用户数据 - 实际项目中应该从 store 或 API 获取
-const isLoggedIn = ref(true) // 登录状态，默认未登录
-const userRole = ref('moderator') // 用户角色，未登录时为''
-const userName = ref('张三')
+// 用户数据（从userAPI获取真实数据）
+const isLoggedIn = computed(() => {
+  return userAPI.isAuthenticated()
+})
+
+const currentUser = computed(() => {
+  return userAPI.getCurrentUser()
+})
+
+const userRole = computed(() => {
+  return currentUser.value?.role || ''
+})
+
+const userName = computed(() => {
+  return currentUser.value?.username || '未登录用户'
+})
+
 const userInitials = computed(() => {
   if (!isLoggedIn.value) return '登'
-  return userName.value.substring(0, 2)
+  const name = userName.value
+  if (name.length >= 2) {
+    return name.substring(0, 2)
+  }
+  return name.substring(0, 1)
 })
-const userLevel = ref(5)
+
+const userLevel = ref(1)
 
 // 计算当前激活的导航
 const activeNav = computed(() => route.path)
@@ -181,6 +200,8 @@ const currentPageName = computed(() => {
     '/publish': '发布需求',
     '/accept': '接单需求',
     '/manage': '管理社区',
+    '/profile': '个人主页',
+    '/': '首页'
   }
   return pageMap[route.path] || 'Dashboard'
 })
@@ -192,7 +213,7 @@ const roleText = computed(() => {
     'sitter': '服务者',
     'moderator': '管理者'
   }
-  return roleMap[userRole.value] || ''
+  return roleMap[userRole.value] || '未分配角色'
 })
 
 // 导航点击处理
@@ -200,7 +221,7 @@ const handleNavClick = (path, requiredRole) => {
   // 未登录时点击导航项
   if (!isLoggedIn.value) {
     if (confirm('该功能需要登录后才能使用，是否前往登录页面？')) {
-      goToLogin()
+      router.push('/login')
     }
     return
   }
@@ -226,7 +247,7 @@ const handleNavClick = (path, requiredRole) => {
 const handleProfileClick = () => {
   if (!isLoggedIn.value) {
     if (confirm('个人主页需要登录后才能查看，是否前往登录页面？')) {
-      goToLogin()
+      router.push('/login')
     }
     return
   }
@@ -238,43 +259,26 @@ const handleProfileClick = () => {
 // 左下角用户按钮点击处理
 const handleUserPillClick = () => {
   if (isLoggedIn.value) {
-    // 已登录状态下，按钮已加锁，点击显示提示信息
+    // 已登录状态下，显示用户信息或提供退出选项
     showLoggedInMessage()
   } else {
     // 未登录，跳转到登录页面
-    goToLogin()
+    router.push('/login')
   }
 }
 
 // 显示已登录提示信息
 const showLoggedInMessage = () => {
-  // 可以显示一个简短的提示，或者什么都不做
-  console.log('您已登录，无需再次登录')
-  // 或者可以显示一个轻量级的提示
-  alert(`您已登录为 ${userName.value} (${roleText.value})\n\n如需退出登录，请通过其他方式操作。`)
+  if (confirm(`您已登录为：${userName.value} (${roleText.value})\n\n是否前往个人主页？`)) {
+    goToProfile()
+  }
 }
 
 // 导航函数
 const goToHome = () => router.push('/')
-const goToPublish = () => handleNavClick('/publish', 'owner')
-const goToAccept = () => handleNavClick('/accept', 'sitter')
-const goToManageCommunity = () => handleNavClick('/manage', 'moderator')
 const goToSquare = () => router.push('/init')
 const goToProfile = () => {
-  router.push('/profile') // 假设个人主页路由为/profile
-}
-const goToLogin = () => {
-  router.push('/login')
-}
-const goToRegister = () => {
-  router.push('/register') // 假设有注册页面
-}
-
-// 登出处理
-const handleLogout = () => {
-  isLoggedIn.value = false
-  userRole.value = ''
-  router.push('/')
+  router.push('/profile')
 }
 
 // 显示联系我们对话框
@@ -282,57 +286,25 @@ const showContactDialog = () => {
   showContactModal.value = true
 }
 
-// 测试函数 - 可以在控制台调用切换登录状态和角色
-window.login = (role = 'owner') => {
-  if (['owner', 'sitter', 'moderator'].includes(role)) {
-    isLoggedIn.value = true
-    userRole.value = role
-    console.log(`已登录，角色: ${roleText.value}`)
-  } else {
-    console.error('无效的角色，请使用: owner, sitter, moderator')
-  }
-}
-
-window.logout = () => {
-  isLoggedIn.value = false
-  userRole.value = ''
-  console.log('已退出登录')
-}
-
-window.changeRole = (role) => {
-  if (!isLoggedIn.value) {
-    console.error('请先登录')
-    return
-  }
-  if (['owner', 'sitter', 'moderator'].includes(role)) {
-    userRole.value = role
-    console.log(`角色已切换为: ${roleText.value}`)
-  } else {
-    console.error('无效的角色，请使用: owner, sitter, moderator')
-  }
-}
-
-// 页面加载时检查登录状态（模拟）
+// 页面加载时检查登录状态
 onMounted(() => {
-  // 模拟从本地存储检查登录状态
-  const savedLoginState = localStorage.getItem('petpal_isLoggedIn')
-  const savedRole = localStorage.getItem('petpal_userRole')
-  
-  if (savedLoginState === 'true' && savedRole) {
-    isLoggedIn.value = true
-    userRole.value = savedRole
+  // 自动获取用户信息
+  if (isLoggedIn.value && !currentUser.value) {
+    // 如果有token但没有用户信息，尝试获取用户信息
+    userAPI.getUserInfo().then(response => {
+      if (response.success) {
+        userAPI.saveUserInfo(response.data)
+      }
+    }).catch(error => {
+      console.error('获取用户信息失败:', error)
+    })
   }
-  
-  // 监听登录状态变化，模拟保存到本地存储
-  watch([isLoggedIn, userRole], ([newIsLoggedIn, newUserRole]) => {
-    if (newIsLoggedIn) {
-      localStorage.setItem('petpal_isLoggedIn', 'true')
-      localStorage.setItem('petpal_userRole', newUserRole)
-    } else {
-      localStorage.removeItem('petpal_isLoggedIn')
-      localStorage.removeItem('petpal_userRole')
-    }
-  })
+})
+
+// 监听路由变化
+watch(() => route.path, () => {
+  // 确保当前页面显示正确
+  console.log('路由变化到:', route.path)
 })
 </script>
 
@@ -500,18 +472,21 @@ onMounted(() => {
   transform: translateY(0);
 }
 
-/* 已登录状态样式 - 加锁不可点击 */
+/* 已登录状态样式 - 可点击（显示用户信息） */
 .user-pill.logged-in {
-  cursor: not-allowed;
-  opacity: 0.8;
+  cursor: pointer;
   border-color: #f1f5f9;
-  background: #f8fafc;
 }
 
 .user-pill.logged-in:hover {
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-  transform: none;
-  cursor: not-allowed;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.user-pill.logged-in:active {
+  transform: translateY(0);
 }
 
 .user-avatar { 
@@ -531,7 +506,7 @@ onMounted(() => {
   background: linear-gradient(135deg, #4f46e5, #7c3aed);
 }
 
-/* 已登录时的锁定样式 */
+/* 已登录时的样式 */
 .user-pill.logged-in .user-avatar {
   background: linear-gradient(135deg, #22c55e, #16a34a);
 }

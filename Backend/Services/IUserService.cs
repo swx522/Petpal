@@ -16,8 +16,9 @@ namespace petpal.API.Services
         /// <param name="password">密码</param>
         /// <param name="phone">手机号码</param>
         /// <param name="email">邮箱地址</param>
+        /// <param name="role">用户角色</param>
         /// <returns>注册成功的用户信息</returns>
-        Task<User> RegisterAsync(string username, string password, string phone, string email);
+        Task<User> RegisterAsync(string username, string password, string phone, string email, UserRole role);
 
         /// <summary>
         /// 用户登录
@@ -68,5 +69,14 @@ namespace petpal.API.Services
         /// <param name="hash">密码哈希值</param>
         /// <returns>验证结果</returns>
         bool VerifyPassword(string password, string hash);
+
+        /// <summary>
+        /// 重置密码
+        /// 通过手机号和旧密码重置新密码
+        /// </summary>
+        /// <param name="phone">手机号码</param>
+        /// <param name="oldPassword">旧密码</param>
+        /// <param name="newPassword">新密码</param>
+        Task ResetPasswordAsync(string phone, string oldPassword, string newPassword);
     }
 }

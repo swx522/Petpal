@@ -108,7 +108,7 @@ petpal/
 
 #### 用户注册
 ```http
-POST /api/user/register
+POST /api/auth/register
 ```
 
 **请求体:**
@@ -117,9 +117,15 @@ POST /api/user/register
   "username": "petlover123",
   "password": "password123",
   "phone": "13800138000",
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "role": "User"
 }
 ```
+
+**角色选项:**
+- `User`: 宠物主人（默认）
+- `Sitter`: 服务者
+- `Admin`: 管理员
 
 **响应示例:**
 ```json
@@ -140,7 +146,7 @@ POST /api/user/register
 
 #### 用户登录
 ```http
-POST /api/user/login
+POST /api/auth/login
 ```
 
 **请求体:**

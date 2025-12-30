@@ -35,9 +35,10 @@ namespace petpal.API.Services
         /// <param name="password">密码</param>
         /// <param name="phone">手机号码</param>
         /// <param name="email">邮箱地址</param>
+        /// <param name="role">用户角色</param>
         /// <returns>新创建的用户信息</returns>
         /// <exception cref="Exception">用户名或手机号已存在时抛出异常</exception>
-        public async Task<User> RegisterAsync(string username, string password, string phone, string email)
+        public async Task<User> RegisterAsync(string username, string password, string phone, string email, UserRole role)
         {
             // 验证用户名唯一性
             if (await _context.Users.AnyAsync(u => u.Username == username))
@@ -57,7 +58,8 @@ namespace petpal.API.Services
                 Username = username,
                 PasswordHash = HashPassword(password), // 对密码进行哈希处理
                 Phone = phone,
-                Email = email
+                Email = email,
+                Role = role // 设置用户角色
                 // ReputationLevel 使用模型中的默认值"新手"
             };
 
@@ -180,6 +182,36 @@ namespace petpal.API.Services
         public bool VerifyPassword(string password, string hash)
         {
             return HashPassword(password) == hash;
+        }
+
+        /// <summary>
+        /// 重置密码实现
+        /// 通过手机号和旧密码验证身份后重置新密码
+        /// </summary>
+        /// <param name="phone">手机号码</param>
+        /// <param name="oldPassword">旧密码</param>
+        /// <param name="newPassword">新密码</param>
+        /// <exception cref="Exception">用户不存在或密码错误时抛出异常</exception>
+        public async Task ResetPasswordAsync(string phone, string oldPassword, string newPassword)
+        {
+            // 根据手机号查找用户
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Phone == phone);
+
+            // 检查用户是否存在
+            if (user == null)
+            {
+                throw new Exception("用户不存在");
+            }
+
+            // 验证旧密码
+            if (!VerifyPassword(oldPassword, user.PasswordHash))
+            {
+                throw new Exception("旧密码错误");
+            }
+
+            // 更新密码
+            user.PasswordHash = HashPassword(newPassword);
+            await _context.SaveChangesAsync();
         }
     }
 }

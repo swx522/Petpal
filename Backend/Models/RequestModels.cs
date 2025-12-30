@@ -10,6 +10,7 @@ namespace petpal.API.Models
         public string Password { get; set; } = "";
         public string Phone { get; set; } = "";
         public string? Email { get; set; }
+        public UserRole Role { get; set; } = UserRole.User; // 默认宠物主人
     }
 
     public class LoginRequest
@@ -18,16 +19,11 @@ namespace petpal.API.Models
         public string Password { get; set; } = "";
     }
 
-    public class SendCaptchaRequest
-    {
-        public string Phone { get; set; } = "";
-        public string Type { get; set; } = "register"; // register, login, reset
-    }
 
     public class ResetPasswordRequest
     {
         public string Phone { get; set; } = "";
-        public string Captcha { get; set; } = "";
+        public string OldPassword { get; set; } = "";
         public string NewPassword { get; set; } = "";
     }
 

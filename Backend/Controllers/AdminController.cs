@@ -38,42 +38,6 @@ namespace petpal.API.Controllers
         // 社区管理接口
         // ===============================
 
-        /// <summary>
-        /// 获取管理员所属社区信息
-        /// </summary>
-        [HttpGet("community/my")]
-        public async Task<IActionResult> GetMyCommunity()
-        {
-            try
-            {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return Unauthorized(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "用户未认证"
-                    });
-                }
-
-                var community = await _communityService.GetUserCommunityAsync(userId);
-                var communityDto = community?.ToCommunitySimpleDto();
-
-                return Ok(new ApiResponse
-                {
-                    Success = true,
-                    Data = communityDto
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new ApiResponse
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
-            }
-        }
 
         /// <summary>
         /// 获取社区数据概览统计

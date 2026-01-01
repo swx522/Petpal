@@ -84,9 +84,18 @@ petpal/
    # 设置 MySQL 连接字符串
    ```
 
-3. **启动服务**
+3. **初始化数据库（可选）**
+   ```bash
+   # 如果需要插入测试数据，运行数据库初始化脚本
+   # 连接到MySQL后执行 database-init.sql 中的内容
+   mysql -h your-host -u your-username -p petpal < Backend/database-init.sql
+   ```
+
+4. **启动服务**
    ```bash
    dotnet run --urls "http://127.0.0.1:5002;https://127.0.0.1:5003"
+   # 或使用启动脚本
+   .\start.bat
    ```
 
 4. **访问接口文档**
@@ -601,7 +610,6 @@ Authorization: Bearer {admin-token}
 
 ## 👨‍💼 AdminController - 管理员专用接口
 ### 社区管理
-- `GET /api/admin/community/my` - 获取管理员所属社区
 - `GET /api/admin/community/stats` - 获取社区统计
 - `GET /api/admin/community/distribution` - 获取成员分布
 - `GET /api/admin/community/activity` - 获取社区活跃度

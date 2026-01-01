@@ -92,23 +92,6 @@ CREATE TABLE IF NOT EXISTS OrderEvaluations (
     INDEX idx_evaluated (EvaluatedUserId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 插入测试数据（可选）
--- 取消注释下面的INSERT语句来添加测试用户
-
-/*
--- 测试用户1：管理员
-INSERT INTO Users (Id, Username, PasswordHash, Phone, Email, Role, Status, ReputationScore, ReputationLevel, IsRealNameCertified, IsPetCertified)
-VALUES ('admin-001', '管理员', '$2a$11$example.hash.here', '13800000000', 'admin@petpal.com', 1, 0, 100, '新手', TRUE, TRUE);
-
--- 测试用户2：普通用户
-INSERT INTO Users (Id, Username, PasswordHash, Phone, Email, Role, Status, ReputationScore, ReputationLevel, IsRealNameCertified, IsPetCertified)
-VALUES ('user-001', '张三', '$2a$11$example.hash.here', '13800000001', 'zhangsan@example.com', 0, 0, 100, '新手', TRUE, TRUE);
-
--- 测试宠物
-INSERT INTO Pets (Id, UserId, Name, Type, Breed, Age, IsVaccinated, Description)
-VALUES ('pet-001', 'user-001', '旺财', 'Dog', '金毛', 2, TRUE, '非常活泼可爱的小狗狗');
-*/
-
 -- 显示创建结果
 SELECT 'Database initialization completed successfully!' as Status;
 SHOW TABLES;

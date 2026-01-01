@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using petpal.API.Services;
+using petpal.API.Data;
 using petpal.API.Models;
 using petpal.API.Models.DTOs;
 using System.Security.Claims;
@@ -18,13 +19,16 @@ namespace petpal.API.Controllers
     {
         private readonly ICommunityService _communityService;
         private readonly IGeolocationService _geolocationService;
+        private readonly ApplicationDbContext _context;
 
         public CommunityController(
             ICommunityService communityService,
-            IGeolocationService geolocationService)
+            IGeolocationService geolocationService,
+            ApplicationDbContext context)
         {
             _communityService = communityService;
             _geolocationService = geolocationService;
+            _context = context;
         }
 
         // ===============================
@@ -144,6 +148,64 @@ namespace petpal.API.Controllers
                 {
                     Success = true,
                     Data = services
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 用户加入社区（设置用户的 CommunityId）
+        /// </summary>
+        [HttpPost("join")]
+        public async Task<IActionResult> JoinCommunity([FromBody] JoinCommunityRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                // 检查社区是否存在
+                var community = await _context.Communities.FindAsync(request.CommunityId);
+                if (community == null)
+                {
+                    return NotFound(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "指定的社区不存在"
+                    });
+                }
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    return NotFound(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户不存在"
+                    });
+                }
+
+                user.CommunityId = request.CommunityId;
+                await _context.SaveChangesAsync();
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Message = "加入社区成功"
                 });
             }
             catch (Exception ex)

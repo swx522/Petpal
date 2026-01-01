@@ -22,45 +22,71 @@
           </div>
         </div>
 
-        <!-- 社区信息 -->
+        <!-- 社区信息卡片 -->
         <div class="community-card">
           <h4 class="card-title">
             <span class="card-icon">🏘️</span> 我的社区
           </h4>
           
-          <!-- 社区选择下拉框 -->
-          <div class="community-select-group">
-            <label class="form-label">选择社区</label>
-            <select 
-              v-model="selectedCommunityId"
-              @change="onCommunityChange"
-              class="community-select"
-              :disabled="loading || switchingCommunity"
-            >
-              <option value="" disabled>请选择社区</option>
-              <option 
-                v-for="community in userCommunities" 
-                :key="community.id"
-                :value="community.id"
-              >
-                {{ community.name }}
-              </option>
-            </select>
-            
-            <!-- 加载状态 -->
-            <div v-if="switchingCommunity" class="community-loading">
-              <span>切换中...</span>
-            </div>
+          <!-- 没有社区时的提示 -->
+          <div v-if="!hasCommunity" class="no-community-message">
+            <div class="no-community-icon">🏠</div>
+            <p class="no-community-text">您尚未加入任何社区</p>
+            <p class="no-community-hint">加入社区可以享受更多互助服务</p>
+            <button class="btn-primary find-community-btn" @click="findNearbyCommunity" :disabled="loading">
+              <span class="btn-icon">🔍</span> 查找附近社区
+            </button>
           </div>
           
-          <div class="community-info">
-            <div class="community-item">
-              <span class="community-label">社区名称</span>
-              <span class="community-value">{{ currentCommunityName }}</span>
+          <!-- 有社区时的显示 -->
+          <div v-else>
+            <!-- 社区下拉框 -->
+            <div class="community-select-group">
+              <label class="form-label">选择社区</label>
+              <select 
+                v-model="selectedCommunityId"
+                @change="onCommunityChange"
+                class="community-select"
+                :disabled="loading || userCommunities.length <= 1"
+              >
+                <option value="" disabled>请选择社区</option>
+                <option 
+                  v-for="community in userCommunities" 
+                  :key="community.id"
+                  :value="community.id"
+                >
+                  {{ community.name }}
+                </option>
+              </select>
+              <p v-if="userCommunities.length <= 1" class="community-select-hint">
+                您目前只加入了一个社区
+              </p>
             </div>
-            <div class="community-item">
-              <span class="community-label">成员数量</span>
-              <span class="community-value">{{ currentMemberCount }}人</span>
+            
+            <!-- 社区信息显示 -->
+            <div class="community-info">
+              <div class="community-item">
+                <span class="community-label">社区名称</span>
+                <span class="community-value">{{ currentCommunityName }}</span>
+              </div>
+              <div class="community-item">
+                <span class="community-label">社区成员</span>
+                <span class="community-value">{{ currentMemberCount }}人</span>
+              </div>
+              <div class="community-item" v-if="currentCommunityDescription">
+                <span class="community-label">社区描述</span>
+                <span class="community-value description">{{ currentCommunityDescription }}</span>
+              </div>
+            </div>
+            
+            <!-- 社区操作按钮 -->
+            <div class="community-actions">
+              <button class="community-action-btn view-members-btn" @click="viewCommunityMembers">
+                <span class="btn-icon">👥</span> 查看成员
+              </button>
+              <button class="community-action-btn view-services-btn" @click="viewCommunityServices">
+                <span class="btn-icon">📋</span> 查看服务
+              </button>
             </div>
           </div>
         </div>
@@ -181,7 +207,6 @@
                   v-model="passwordInfo.newPassword"
                   :disabled="loading"
                   placeholder="请输入新密码（至少6位）"
-                  @input="validatePassword"
                 />
                 <button 
                   class="toggle-password-btn"
@@ -192,7 +217,6 @@
                   {{ showNewPassword ? '🙈' : '👁️' }}
                 </button>
               </div>
-              <!-- 移除密码强度条，改为简单提示 -->
               <p v-if="passwordInfo.newPassword.length > 0 && passwordInfo.newPassword.length < 6" 
                 class="error-message">
                 ❌ 密码至少需要6位
@@ -248,6 +272,7 @@
           <div v-else class="password-security-tips">
             <p class="security-tip">🔐 为了您的账户安全，建议定期更换密码</p>
             <p class="security-tip">💡 密码至少需要6位字符</p>
+            <p class="security-tip">📱 确保密码与其他网站不同</p>
           </div>
         </div>
 
@@ -264,50 +289,6 @@
               <span class="btn-icon">🚪</span> 退出登录
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 删除账户确认对话框 -->
-    <div class="modal-overlay" v-if="showDeleteModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>确认删除账户</h3>
-          <button class="close-btn" @click="showDeleteModal = false" :disabled="deleting">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="warning-message">
-            <span class="warning-icon-big">⚠️</span>
-            <h4>此操作不可撤销！</h4>
-            <p>删除账户将会：</p>
-            <ul class="delete-consequences">
-              <li>永久删除您的所有个人信息</li>
-              <li>清除您的发布需求和接单记录</li>
-              <li>移除您的社区成员身份</li>
-              <li>不可恢复所有数据</li>
-            </ul>
-            <div class="confirm-input">
-              <input 
-                type="text" 
-                v-model="deleteConfirmation"
-                :disabled="deleting"
-                placeholder="请输入'确认删除'以继续"
-                class="confirm-input-field"
-              />
-            </div>
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn-secondary" @click="showDeleteModal = false" :disabled="deleting">
-            取消
-          </button>
-          <button 
-            class="btn-danger" 
-            @click="deleteAccount"
-            :disabled="deleteConfirmation !== '确认删除' || deleting"
-          >
-            {{ deleting ? '删除中...' : '确认删除账户' }}
-          </button>
         </div>
       </div>
     </div>
@@ -332,8 +313,7 @@ const userInfo = ref({
 // 社区相关状态
 const userCommunities = ref([]) // 用户的所有社区列表
 const selectedCommunityId = ref('') // 当前选中的社区ID
-const switchingCommunity = ref(false) // 切换社区加载状态
-const currentCommunityData = ref({}) // 当前社区详细信息
+const hasCommunity = ref(false) // 是否有社区
 
 // 编辑状态
 const editingPersonal = ref(false)
@@ -351,13 +331,8 @@ const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 const passwordError = ref('')
 
-// 删除账户相关
-const showDeleteModal = ref(false)
-const deleteConfirmation = ref('')
-
 // 加载状态
 const loading = ref(false)
-const deleting = ref(false)
 
 // 从本地存储获取角色信息
 const userRole = ref(userAPI.getUserRole())
@@ -389,9 +364,8 @@ const isPasswordFormValid = computed(() => {
 
 // 社区相关计算属性
 const currentCommunityName = computed(() => {
-  if (userCommunities.value.length === 0) return '未加入社区'
+  if (!hasCommunity.value || userCommunities.value.length === 0) return '未加入社区'
   if (!selectedCommunityId.value) {
-    // 默认显示第一个社区
     return userCommunities.value[0]?.name || '未命名社区'
   }
   const community = userCommunities.value.find(c => c.id === selectedCommunityId.value)
@@ -399,16 +373,24 @@ const currentCommunityName = computed(() => {
 })
 
 const currentMemberCount = computed(() => {
-  if (userCommunities.value.length === 0) return '--'
+  if (!hasCommunity.value || userCommunities.value.length === 0) return '--'
   if (!selectedCommunityId.value) {
-    // 默认显示第一个社区
     return userCommunities.value[0]?.memberCount || '--'
   }
   const community = userCommunities.value.find(c => c.id === selectedCommunityId.value)
   return community?.memberCount || '--'
 })
 
-// 方法
+const currentCommunityDescription = computed(() => {
+  if (!hasCommunity.value || userCommunities.value.length === 0) return ''
+  if (!selectedCommunityId.value) {
+    return userCommunities.value[0]?.description || ''
+  }
+  const community = userCommunities.value.find(c => c.id === selectedCommunityId.value)
+  return community?.description || ''
+})
+
+// 个人信息编辑方法
 const toggleEditMode = async (type) => {
   if (type === 'personal') {
     editingPersonal.value = !editingPersonal.value
@@ -442,8 +424,6 @@ const savePersonalInfo = async () => {
     }
     
     const response = await userAPI.updateUserInfo(updateData)
-    
-    console.log('更新API响应:', response)
     
     if (response.success) {
       // 更新本地存储的用户信息
@@ -531,67 +511,181 @@ const formatDate = (dateString) => {
 // 社区相关方法
 const loadUserCommunities = async () => {
   try {
+    console.log('🚀 开始获取社区信息...')
+    
     // 首先获取当前社区
     const myCommunityResponse = await userAPI.getMyCommunity()
     
-    if (myCommunityResponse.success && myCommunityResponse.data) {
-      const currentCommunity = myCommunityResponse.data
-      userCommunities.value = [currentCommunity]
-      selectedCommunityId.value = currentCommunity.id
-      currentCommunityData.value = currentCommunity
+    console.log('🔍 社区API原始响应:', myCommunityResponse)
+    console.log('📊 响应数据:', myCommunityResponse.data)
+    console.log('🎯 响应类型:', typeof myCommunityResponse.data)
+    
+    if (myCommunityResponse.success) {
+      // 检查返回的数据结构
+      const data = myCommunityResponse.data
+      
+      // 情况1：后端返回了新格式（包含hasCommunity字段）
+      if (data && typeof data === 'object' && 'hasCommunity' in data) {
+        console.log('📝 新格式：包含hasCommunity字段')
+        hasCommunity.value = data.hasCommunity === true
+        
+        if (data.hasCommunity && data.community) {
+          console.log('✅ 用户有社区，社区数据:', data.community)
+          userCommunities.value = [data.community]
+          selectedCommunityId.value = data.community.id
+        } else {
+          console.log('⚠️ 用户没有社区')
+          userCommunities.value = []
+          selectedCommunityId.value = ''
+        }
+      }
+      // 情况2：后端直接返回了社区对象（旧格式）
+      else if (data && typeof data === 'object' && data.id) {
+        console.log('📝 旧格式：直接返回社区对象')
+        hasCommunity.value = true
+        userCommunities.value = [data]
+        selectedCommunityId.value = data.id
+      }
+      // 情况3：返回的是空对象或null
+      else if (!data || Object.keys(data).length === 0) {
+        console.log('📝 空数据或null')
+        hasCommunity.value = false
+        userCommunities.value = []
+        selectedCommunityId.value = ''
+      }
+      // 情况4：其他未知格式
+      else {
+        console.log('❓ 未知数据格式:', data)
+        hasCommunity.value = false
+        userCommunities.value = []
+        selectedCommunityId.value = ''
+      }
+    } else {
+      console.log('❌ API返回失败:', myCommunityResponse.message)
+      hasCommunity.value = false
+      userCommunities.value = []
+      selectedCommunityId.value = ''
     }
     
-    // TODO: 如果有获取所有社区列表的API，可以在这里调用
-    // const allCommunitiesResponse = await userAPI.getUserCommunities()
-    // if (allCommunitiesResponse.success && allCommunitiesResponse.data) {
-    //   userCommunities.value = allCommunitiesResponse.data
-    // }
-    
   } catch (error) {
-    console.error('加载社区列表失败:', error)
-    userCommunities.value = []
+    console.error('❌ 加载社区列表失败:', error)
+    console.error('错误详情:', error.response?.data || error.message || error)
+    
+    // 如果是404错误，说明用户没有社区
+    if (error.response?.status === 404) {
+      console.log('⚠️ 用户没有社区（404错误）')
+      hasCommunity.value = false
+      userCommunities.value = []
+      selectedCommunityId.value = ''
+    } else {
+      // 其他错误，使用默认状态
+      hasCommunity.value = false
+      userCommunities.value = []
+      selectedCommunityId.value = ''
+    }
   }
 }
 
-const onCommunityChange = async (event) => {
+const onCommunityChange = (event) => {
   const communityId = event.target.value
   if (!communityId) return
   
-  switchingCommunity.value = true
+  // 更新选中的社区ID
+  selectedCommunityId.value = communityId
+  console.log(`已切换到社区: ${currentCommunityName.value}`)
+}
+
+// 查找附近社区
+const findNearbyCommunity = async () => {
   try {
-    // 切换社区API调用
-    // const response = await userAPI.switchCommunity(communityId)
-    // if (response.success) {
-    //   // 更新当前社区数据
-    //   selectedCommunityId.value = communityId
-    //   // 可以在这里重新加载社区详情数据
-    //   await loadCommunityDetails(communityId)
-    // }
+    loading.value = true
+    console.log('📍 开始查找附近社区...')
     
-    // 暂时模拟切换
-    selectedCommunityId.value = communityId
-    const community = userCommunities.value.find(c => c.id === communityId)
-    if (community) {
-      currentCommunityData.value = community
+    // 提示用户需要位置权限
+    alert('查找附近社区需要获取您的位置信息')
+    
+    // 尝试获取用户当前位置
+    let latitude, longitude
+    
+    if (navigator.geolocation) {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getGoogleMapLocation(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          })
+        })
+        
+        latitude = position.coords.latitude
+        longitude = position.coords.longitude
+        console.log(`📍 获取到用户位置: 纬度 ${latitude}, 经度 ${longitude}`)
+      } catch (geoError) {
+        console.warn('无法获取用户位置，使用默认位置:', geoError)
+        // 使用默认位置（上海）
+        latitude = 31.2304
+        longitude = 121.4737
+      }
+    } else {
+      console.warn('浏览器不支持地理位置API，使用默认位置')
+      latitude = 31.2304
+      longitude = 121.4737
     }
     
-    // 可以在这里添加提示
-    console.log(`已切换到社区: ${currentCommunityName.value}`)
+    // 调用查找社区API
+    console.log(`🔍 开始查找社区: 纬度 ${latitude}, 经度 ${longitude}`)
+    const response = await userAPI.findCommunity(longitude, latitude)
     
+    console.log('🔍 查找社区结果:', response)
+    
+    if (response.success && response.data) {
+      console.log('✅ 找到附近社区:', response.data)
+      
+      // 显示找到的社区信息
+      const community = response.data
+      const confirmJoin = confirm(
+        `找到附近社区：${community.name}\n` +
+        `描述：${community.description || '暂无描述'}\n` +
+        `成员数：${community.memberCount || 0}人\n\n` +
+        `是否加入该社区？`
+      )
+      
+      if (confirmJoin) {
+
+      }
+    } else {
+      alert('附近没有找到可用的社区\n请尝试在其他位置查找。')
+    }
   } catch (error) {
-    console.error('切换社区失败:', error)
-    alert('切换社区失败，请重试')
+    console.error('❌ 查找社区失败:', error)
+    console.error('错误详情:', error.response?.data || error.message || error)
+    alert('查找社区失败，请稍后重试或联系管理员')
   } finally {
-    switchingCommunity.value = false
+    loading.value = false
   }
+}
+
+// 查看社区成员
+const viewCommunityMembers = () => {
+  if (!hasCommunity.value) return
+  alert('查看社区成员功能正在开发中...')
+  // router.push(`/community/${selectedCommunityId.value}/members`)
+}
+
+// 查看社区服务
+const viewCommunityServices = () => {
+  if (!hasCommunity.value) return
+  alert('查看社区服务功能正在开发中...')
+  // router.push(`/community/${selectedCommunityId.value}/services`)
 }
 
 const loadUserData = async () => {
   loading.value = true
   try {
+    console.log('👤 开始加载用户数据...')
     const response = await userAPI.getUserInfo()
     
-    console.log('加载用户数据响应:', response)
+    console.log('👤 用户数据响应:', response)
     
     if (response.success && response.data) {
       const apiData = response.data
@@ -606,12 +700,14 @@ const loadUserData = async () => {
       
       // 更新角色
       if (apiData.role !== undefined) {
+        console.log('🎭 原始角色值:', apiData.role)
         const roleMap = {
           0: 'owner',
           1: 'sitter',
           2: 'moderator'
         }
         userRole.value = roleMap[apiData.role] || 'owner'
+        console.log('🔄 映射后的角色:', userRole.value)
         localStorage.setItem('petpal_userRole', userRole.value)
       }
       
@@ -625,7 +721,7 @@ const loadUserData = async () => {
       })
     }
   } catch (error) {
-    console.error('加载用户数据失败:', error)
+    console.error('❌ 加载用户数据失败:', error)
     const savedUser = userAPI.getCurrentUser()
     if (savedUser) {
       userInfo.value = {
@@ -650,7 +746,7 @@ const handleLogout = async () => {
         window.location.reload()
       }, 100)
     } catch (error) {
-      console.error('退出登录失败:', error)
+      console.error('❌ 退出登录失败:', error)
       userAPI.clearLocalStorage()
       router.push('/login')
     } finally {
@@ -659,195 +755,28 @@ const handleLogout = async () => {
   }
 }
 
-const showDeleteConfirm = () => {
-  showDeleteModal.value = true
-  deleteConfirmation.value = ''
-}
-
-const deleteAccount = async () => {
-  if (deleteConfirmation.value !== '确认删除') {
-    alert('请输入正确的确认文字')
-    return
-  }
-  
-  deleting.value = true
-  try {
-    const response = await userAPI.deleteAccount(deleteConfirmation.value)
-    
-    if (response.success) {
-      alert('账户已成功删除')
-      userAPI.clearLocalStorage()
-      router.push('/')
-    } else {
-      alert(response.message || '删除失败')
-    }
-  } catch (error) {
-    console.error('删除账户失败:', error)
-    alert('删除失败，请稍后重试')
-  } finally {
-    deleting.value = false
-    showDeleteModal.value = false
-  }
-}
-
-// 页面加载时获取用户数据
+// 页面加载时获取数据
 onMounted(async () => {
-  loading.value = true
-  try {
-    // 从API获取用户信息
-    const response = await userAPI.getUserInfo()
-    
-    console.log('API返回的完整数据:', response)
-    
-    if (response.data) {
-      const apiData = response.data
-      
-      console.log('API返回的用户数据:', apiData)
-      
-      // 更新用户信息
-      userInfo.value = {
-        name: apiData.username || '',
-        email: apiData.email || '',
-        phone: apiData.phone || '',
-        joinDate: apiData.createdAt || ''
-      }
-      
-      // 更新角色
-      if (apiData.role !== undefined) {
-        const roleMap = {
-          0: 'owner',
-          1: 'sitter',
-          2: 'moderator'
-        }
-        userRole.value = roleMap[apiData.role] || 'owner'
-        localStorage.setItem('petpal_userRole', userRole.value)
-      }
-      
-      // 更新本地存储的用户信息
-      userAPI.updateLocalUserInfo({
-        username: userInfo.value.name,
-        email: userInfo.value.email,
-        phone: userInfo.value.phone,
-        role: userRole.value,
-        createdAt: userInfo.value.joinDate
-      })
-      
-      // 加载社区信息
-      await loadUserCommunities()
-      
-      console.log('更新后的用户信息:', userInfo.value)
-      console.log('社区列表:', userCommunities.value)
-      console.log('当前选中社区:', selectedCommunityId.value)
-    } else {
-      console.log('API返回数据为空')
-      const savedUser = userAPI.getCurrentUser()
-      if (savedUser) {
-        userInfo.value = {
-          name: savedUser.username || '',
-          email: savedUser.email || '',
-          phone: savedUser.phone || '',
-          joinDate: savedUser.createdAt || ''
-        }
-        
-        if (savedUser.role) {
-          userRole.value = savedUser.role
-        }
-      }
-    }
-  } catch (error) {
-    console.error('加载用户信息失败:', error)
-    const savedUser = userAPI.getCurrentUser()
-    if (savedUser) {
-      userInfo.value = {
-        name: savedUser.username || '',
-        email: savedUser.email || '',
-        phone: savedUser.phone || '',
-        joinDate: savedUser.createdAt || ''
-      }
-      
-      if (savedUser.role) {
-        userRole.value = savedUser.role
-      }
-    }
-  } finally {
-    loading.value = false
-  }
+  console.log('🔄 Profile.vue 组件已挂载')
+  console.log('🔍 当前用户角色:', userRole.value)
+  
+  // 并行加载用户数据和社区数据
+  await Promise.all([
+    loadUserData(),
+    loadUserCommunities()
+  ])
+  
+  console.log('✅ 所有数据加载完成')
+  console.log('🏘️ 社区状态:', {
+    hasCommunity: hasCommunity.value,
+    communities: userCommunities.value,
+    selectedCommunity: selectedCommunityId.value
+  })
 })
 </script>
 
 <style scoped>
-/* 保持原来的所有样式完全不变 */
-.profile-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.profile-header {
-  margin-bottom: 40px;
-}
-
-/* 社区选择相关样式 */
-.community-select-group {
-  margin-bottom: 20px;
-}
-
-.community-select-group .form-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #475569;
-  margin-bottom: 8px;
-  display: block;
-}
-
-.community-select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 15px;
-  color: #1e293b;
-  background: #f8fafc;
-  transition: all 0.3s;
-  cursor: pointer;
-}
-
-.community-select:focus {
-  outline: none;
-  border-color: #22c55e;
-  background: white;
-}
-
-.community-select:disabled {
-  background: #f1f5f9;
-  color: #64748b;
-  cursor: not-allowed;
-}
-
-.community-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #64748b;
-  margin-top: 8px;
-}
-
-.community-loading::before {
-  content: '';
-  width: 12px;
-  height: 12px;
-  border: 2px solid #e2e8f0;
-  border-top-color: #22c55e;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 保持原有的所有样式不变 */
+/* 保持原来的基础样式 */
 .profile-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -930,12 +859,16 @@ onMounted(async () => {
   margin: 0;
 }
 
+/* 社区卡片样式 */
 .community-card {
   background: white;
   border-radius: 16px;
   padding: 25px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   border: 1px solid #f1f5f9;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-title {
@@ -952,31 +885,182 @@ onMounted(async () => {
   font-size: 20px;
 }
 
+/* 没有社区的提示样式 */
+.no-community-message {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.no-community-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+  opacity: 0.8;
+}
+
+.no-community-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 8px 0;
+}
+
+.no-community-hint {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+}
+
+.find-community-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.find-community-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.find-community-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 社区下拉框样式 */
+.community-select-group {
+  margin-bottom: 20px;
+}
+
+.community-select-group .form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.community-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.community-select:focus {
+  outline: none;
+  border-color: #22c55e;
+  background: white;
+}
+
+.community-select:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.community-select-hint {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 5px 0 0 0;
+}
+
+/* 社区信息显示样式 */
 .community-info {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
+  flex: 1;
 }
 
 .community-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .community-label {
   font-size: 14px;
   color: #64748b;
+  white-space: nowrap;
 }
 
 .community-value {
   font-size: 14px;
   font-weight: 500;
   color: #1e293b;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-word;
 }
 
-/* 右侧样式 */
+.community-value.description {
+  font-size: 13px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* 社区操作按钮 */
+.community-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.community-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.view-members-btn {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.view-members-btn:hover {
+  background: #e0f2fe;
+}
+
+.view-services-btn {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.view-services-btn:hover {
+  background: #dcfce7;
+}
+
+/* 右侧样式保持不变 */
 .profile-main {
   display: flex;
   flex-direction: column;
@@ -1219,164 +1303,6 @@ onMounted(async () => {
   transform: translateY(-1px);
 }
 
-/* 模态框样式 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: modalSlideIn 0.3s ease;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 30px 30px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.modal-header h3 {
-  font-size: 24px;
-  color: #1e293b;
-  font-weight: 700;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 28px;
-  color: #94a3b8;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.3s;
-}
-
-.close-btn:hover {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.modal-body {
-  padding: 30px;
-}
-
-.warning-message {
-  text-align: center;
-}
-
-.warning-icon-big {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 20px;
-}
-
-.warning-message h4 {
-  color: #dc2626;
-  font-size: 20px;
-  margin: 0 0 15px 0;
-}
-
-.warning-message p {
-  color: #475569;
-  font-size: 16px;
-  margin: 0 0 15px 0;
-}
-
-.delete-consequences {
-  text-align: left;
-  color: #64748b;
-  font-size: 14px;
-  margin: 0 0 20px 20px;
-  padding: 0;
-}
-
-.delete-consequences li {
-  margin-bottom: 8px;
-}
-
-.confirm-input {
-  margin-top: 20px;
-}
-
-.confirm-input-field {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 15px;
-  color: #1e293b;
-  transition: all 0.3s;
-}
-
-.confirm-input-field:focus {
-  outline: none;
-  border-color: #dc2626;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 30px 30px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.btn-danger {
-  padding: 12px 24px;
-  background: #dc2626;
-  border: none;
-  border-radius: 10px;
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-  transform: translateY(-1px);
-}
-
-.btn-danger:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
-}
-
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .profile-content {
@@ -1411,8 +1337,12 @@ onMounted(async () => {
     flex-direction: column;
   }
   
-  .modal-content {
-    margin: 10px;
+  .community-actions {
+    flex-direction: column;
+  }
+  
+  .community-action-btn {
+    width: 100%;
   }
 }
 </style>

@@ -3,6 +3,36 @@ import { http } from '@/utils/http.js'
 
 // 用户API服务
 export const userAPI = {
+  async getLocation() {
+  try {
+    return await http.get('/user/location')
+  } catch (error) {
+    console.error('获取位置失败:', error)
+    return {
+      success: false,
+      message: error.message || '获取位置失败'
+    }
+  }
+},
+
+/**
+ * 更新用户位置
+ * @param {Object} data - 位置数据 {latitude, longitude}
+ */
+async updateLocation(data) {
+  try {
+    return await http.post('/user/location', {
+      latitude: data.latitude,
+      longitude: data.longitude
+    })
+  } catch (error) {
+    console.error('更新位置失败:', error)
+    return {
+      success: false,
+      message: error.message || '更新位置失败'
+    }
+  }
+},
   // ============ 社区相关API ============
   
   /**

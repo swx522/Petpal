@@ -610,7 +610,7 @@ const findNearbyCommunity = async () => {
     if (navigator.geolocation) {
       try {
         const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getGoogleMapLocation(resolve, reject, {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
             enableHighAccuracy: true,
             timeout: 10000,
             maximumAge: 0

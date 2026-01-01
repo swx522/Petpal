@@ -178,7 +178,11 @@ const handleLogin = async () => {
       ElMessage.success('登录成功！')
       
       // 跳转到首页
-      router.push('/')
+      router.push('/profile')
+
+      setTimeout(() => {
+      window.location.reload()
+    }, 100) // 延迟1秒让用户看到成功消息
     } else {
       // 根据错误信息设置相应的错误提示
       if (response.message.includes('账号') || response.message.includes('用户不存在') || response.message.includes('找不到')) {

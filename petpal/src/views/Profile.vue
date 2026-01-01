@@ -27,23 +27,42 @@
           <h4 class="card-title">
             <span class="card-icon">🏘️</span> 我的社区
           </h4>
+          
+          <!-- 社区选择下拉框 -->
+          <div class="community-select-group">
+            <label class="form-label">选择社区</label>
+            <select 
+              v-model="selectedCommunityId"
+              @change="onCommunityChange"
+              class="community-select"
+              :disabled="loading || switchingCommunity"
+            >
+              <option value="" disabled>请选择社区</option>
+              <option 
+                v-for="community in userCommunities" 
+                :key="community.id"
+                :value="community.id"
+              >
+                {{ community.name }}
+              </option>
+            </select>
+            
+            <!-- 加载状态 -->
+            <div v-if="switchingCommunity" class="community-loading">
+              <span>切换中...</span>
+            </div>
+          </div>
+          
           <div class="community-info">
             <div class="community-item">
               <span class="community-label">社区名称</span>
-              <span class="community-value">{{ communityInfo.name || '未加入社区' }}</span>
-            </div>
-            <div class="community-item">
-              <span class="community-label">社区地址</span>
-              <span class="community-value">{{ communityInfo.address || '--' }}</span>
+              <span class="community-value">{{ currentCommunityName }}</span>
             </div>
             <div class="community-item">
               <span class="community-label">成员数量</span>
-              <span class="community-value">{{ communityInfo.memberCount || '--' }}人</span>
+              <span class="community-value">{{ currentMemberCount }}人</span>
             </div>
           </div>
-          <button class="view-community-btn" @click="viewCommunity" :disabled="!communityInfo.name">
-            查看社区详情
-          </button>
         </div>
       </div>
 
@@ -310,12 +329,11 @@ const userInfo = ref({
   joinDate: ''
 })
 
-// 社区信息
-const communityInfo = ref({
-  name: '',
-  address: '',
-  memberCount: 0
-})
+// 社区相关状态
+const userCommunities = ref([]) // 用户的所有社区列表
+const selectedCommunityId = ref('') // 当前选中的社区ID
+const switchingCommunity = ref(false) // 切换社区加载状态
+const currentCommunityData = ref({}) // 当前社区详细信息
 
 // 编辑状态
 const editingPersonal = ref(false)
@@ -365,8 +383,29 @@ const isPasswordFormValid = computed(() => {
     passwordInfo.value.newPassword &&
     passwordInfo.value.confirmPassword &&
     passwordInfo.value.newPassword === passwordInfo.value.confirmPassword &&
-    passwordInfo.value.newPassword.length >= 6  // 改为至少6位
+    passwordInfo.value.newPassword.length >= 6
   )
+})
+
+// 社区相关计算属性
+const currentCommunityName = computed(() => {
+  if (userCommunities.value.length === 0) return '未加入社区'
+  if (!selectedCommunityId.value) {
+    // 默认显示第一个社区
+    return userCommunities.value[0]?.name || '未命名社区'
+  }
+  const community = userCommunities.value.find(c => c.id === selectedCommunityId.value)
+  return community?.name || '未找到社区'
+})
+
+const currentMemberCount = computed(() => {
+  if (userCommunities.value.length === 0) return '--'
+  if (!selectedCommunityId.value) {
+    // 默认显示第一个社区
+    return userCommunities.value[0]?.memberCount || '--'
+  }
+  const community = userCommunities.value.find(c => c.id === selectedCommunityId.value)
+  return community?.memberCount || '--'
 })
 
 // 方法
@@ -406,8 +445,6 @@ const savePersonalInfo = async () => {
     
     console.log('更新API响应:', response)
     
-    // 注意：PUT请求返回的是 {success: true, data: null, message: '更新成功'}
-    // 所以我们要检查 response.success，而不是 response.data
     if (response.success) {
       // 更新本地存储的用户信息
       userAPI.updateLocalUserInfo(updateData)
@@ -462,7 +499,6 @@ const changePassword = async () => {
       newPassword: passwordInfo.value.newPassword
     })
     
-    // 注意：检查 response.success
     if (response.success) {
       alert('密码修改成功！')
       editingPassword.value = false
@@ -492,10 +528,62 @@ const formatDate = (dateString) => {
   }
 }
 
-const viewCommunity = () => {
-  // TODO: 需要社区页面路由
-  // router.push('/community')
-  alert('社区功能开发中...')
+// 社区相关方法
+const loadUserCommunities = async () => {
+  try {
+    // 首先获取当前社区
+    const myCommunityResponse = await userAPI.getMyCommunity()
+    
+    if (myCommunityResponse.success && myCommunityResponse.data) {
+      const currentCommunity = myCommunityResponse.data
+      userCommunities.value = [currentCommunity]
+      selectedCommunityId.value = currentCommunity.id
+      currentCommunityData.value = currentCommunity
+    }
+    
+    // TODO: 如果有获取所有社区列表的API，可以在这里调用
+    // const allCommunitiesResponse = await userAPI.getUserCommunities()
+    // if (allCommunitiesResponse.success && allCommunitiesResponse.data) {
+    //   userCommunities.value = allCommunitiesResponse.data
+    // }
+    
+  } catch (error) {
+    console.error('加载社区列表失败:', error)
+    userCommunities.value = []
+  }
+}
+
+const onCommunityChange = async (event) => {
+  const communityId = event.target.value
+  if (!communityId) return
+  
+  switchingCommunity.value = true
+  try {
+    // 切换社区API调用
+    // const response = await userAPI.switchCommunity(communityId)
+    // if (response.success) {
+    //   // 更新当前社区数据
+    //   selectedCommunityId.value = communityId
+    //   // 可以在这里重新加载社区详情数据
+    //   await loadCommunityDetails(communityId)
+    // }
+    
+    // 暂时模拟切换
+    selectedCommunityId.value = communityId
+    const community = userCommunities.value.find(c => c.id === communityId)
+    if (community) {
+      currentCommunityData.value = community
+    }
+    
+    // 可以在这里添加提示
+    console.log(`已切换到社区: ${currentCommunityName.value}`)
+    
+  } catch (error) {
+    console.error('切换社区失败:', error)
+    alert('切换社区失败，请重试')
+  } finally {
+    switchingCommunity.value = false
+  }
 }
 
 const loadUserData = async () => {
@@ -505,7 +593,6 @@ const loadUserData = async () => {
     
     console.log('加载用户数据响应:', response)
     
-    // GET请求：检查 response.success && response.data
     if (response.success && response.data) {
       const apiData = response.data
       
@@ -520,9 +607,9 @@ const loadUserData = async () => {
       // 更新角色
       if (apiData.role !== undefined) {
         const roleMap = {
-          0: 'owner',    // 宠物主人
-          1: 'sitter',   // 服务者
-          2: 'moderator' // 管理者
+          0: 'owner',
+          1: 'sitter',
+          2: 'moderator'
         }
         userRole.value = roleMap[apiData.role] || 'owner'
         localStorage.setItem('petpal_userRole', userRole.value)
@@ -539,7 +626,6 @@ const loadUserData = async () => {
     }
   } catch (error) {
     console.error('加载用户数据失败:', error)
-    // 从本地存储获取
     const savedUser = userAPI.getCurrentUser()
     if (savedUser) {
       userInfo.value = {
@@ -560,9 +646,11 @@ const handleLogout = async () => {
     try {
       await userAPI.logout()
       router.push('/login')
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
     } catch (error) {
       console.error('退出登录失败:', error)
-      // 即使API调用失败也清除本地存储
       userAPI.clearLocalStorage()
       router.push('/login')
     } finally {
@@ -586,7 +674,6 @@ const deleteAccount = async () => {
   try {
     const response = await userAPI.deleteAccount(deleteConfirmation.value)
     
-    // 注意：检查 response.success
     if (response.success) {
       alert('账户已成功删除')
       userAPI.clearLocalStorage()
@@ -604,7 +691,6 @@ const deleteAccount = async () => {
 }
 
 // 页面加载时获取用户数据
-// 页面加载时获取用户数据
 onMounted(async () => {
   loading.value = true
   try {
@@ -612,15 +698,11 @@ onMounted(async () => {
     const response = await userAPI.getUserInfo()
     
     console.log('API返回的完整数据:', response)
-    console.log('API返回的Data字段:', response.data)
     
-    // 根据你的调试信息，response.data直接就是用户数据对象
     if (response.data) {
-      const apiData = response.data  // 直接使用response.data
+      const apiData = response.data
       
       console.log('API返回的用户数据:', apiData)
-      console.log('email字段值:', apiData.email)
-      console.log('phone字段值:', apiData.phone)
       
       // 更新用户信息
       userInfo.value = {
@@ -633,9 +715,9 @@ onMounted(async () => {
       // 更新角色
       if (apiData.role !== undefined) {
         const roleMap = {
-          0: 'owner',    // 宠物主人
-          1: 'sitter',   // 服务者
-          2: 'moderator' // 管理者
+          0: 'owner',
+          1: 'sitter',
+          2: 'moderator'
         }
         userRole.value = roleMap[apiData.role] || 'owner'
         localStorage.setItem('petpal_userRole', userRole.value)
@@ -650,10 +732,14 @@ onMounted(async () => {
         createdAt: userInfo.value.joinDate
       })
       
+      // 加载社区信息
+      await loadUserCommunities()
+      
       console.log('更新后的用户信息:', userInfo.value)
+      console.log('社区列表:', userCommunities.value)
+      console.log('当前选中社区:', selectedCommunityId.value)
     } else {
       console.log('API返回数据为空')
-      // 如果API获取失败，从本地存储获取
       const savedUser = userAPI.getCurrentUser()
       if (savedUser) {
         userInfo.value = {
@@ -670,7 +756,6 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('加载用户信息失败:', error)
-    // 从本地存储获取用户信息
     const savedUser = userAPI.getCurrentUser()
     if (savedUser) {
       userInfo.value = {
@@ -702,44 +787,67 @@ onMounted(async () => {
   margin-bottom: 40px;
 }
 
-/* 保持原来的所有样式完全不变 */
-.profile-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+/* 社区选择相关样式 */
+.community-select-group {
+  margin-bottom: 20px;
 }
 
-.profile-header {
-  margin-bottom: 40px;
+.community-select-group .form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+  display: block;
 }
 
-/* ... 保持所有原有样式完全不变 ... */
-
-/* 最后一部分的响应式设计 */
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 15px;
-  }
-  
-  .page-title {
-    font-size: 24px;
-  }
-  
-  .info-card,
-  .user-card,
-  .community-card {
-    padding: 20px;
-  }
-  
-  .account-actions {
-    flex-direction: column;
-  }
-  
-  .modal-content {
-    margin: 10px;
-  }
+.community-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: all 0.3s;
+  cursor: pointer;
 }
 
+.community-select:focus {
+  outline: none;
+  border-color: #22c55e;
+  background: white;
+}
+
+.community-select:disabled {
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.community-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+.community-loading::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 保持原有的所有样式不变 */
 .profile-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -822,31 +930,6 @@ onMounted(async () => {
   margin: 0;
 }
 
-.user-stats {
-  display: flex;
-  justify-content: space-around;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 20px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.stat-number {
-  font-size: 20px;
-  font-weight: 700;
-  color: #166534;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 4px;
-}
-
 .community-card {
   background: white;
   border-radius: 16px;
@@ -891,24 +974,6 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 500;
   color: #1e293b;
-}
-
-.view-community-btn {
-  width: 100%;
-  padding: 12px;
-  background: #f8fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  color: #475569;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.view-community-btn:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
 }
 
 /* 右侧样式 */
@@ -1023,39 +1088,16 @@ onMounted(async () => {
   color: #94a3b8;
 }
 
-.verification-hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+.error-message {
   color: #dc2626;
-  margin: 8px 0 0 0;
-}
-
-.verification-hint.verified {
-  color: #16a34a;
-}
-
-.warning-icon {
-  font-size: 14px;
-}
-
-.success-icon {
-  font-size: 14px;
-}
-
-.verify-btn {
-  background: none;
-  border: none;
-  color: #4f46e5;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
   font-size: 13px;
+  margin: 5px 0 0 0;
 }
 
-.verify-btn:hover {
-  text-decoration: underline;
+.success-message {
+  color: #16a34a;
+  font-size: 13px;
+  margin: 5px 0 0 0;
 }
 
 /* 密码表单样式 */
@@ -1086,54 +1128,6 @@ onMounted(async () => {
   cursor: pointer;
   color: #64748b;
   padding: 5px;
-}
-
-.error-message {
-  color: #dc2626;
-  font-size: 13px;
-  margin: 5px 0 0 0;
-}
-
-.password-strength {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.strength-bar {
-  flex: 1;
-  height: 4px;
-  background: #e2e8f0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.strength-bar::after {
-  content: '';
-  display: block;
-  height: 100%;
-  transition: width 0.3s;
-}
-
-.strength-bar.strength-weak::after {
-  width: 25%;
-  background: #dc2626;
-}
-
-.strength-bar.strength-medium::after {
-  width: 50%;
-  background: #f59e0b;
-}
-
-.strength-bar.strength-strong::after {
-  width: 100%;
-  background: #16a34a;
-}
-
-.strength-text {
-  font-size: 13px;
-  color: #64748b;
 }
 
 .form-actions {
@@ -1223,36 +1217,6 @@ onMounted(async () => {
 .logout-btn:hover {
   background: #fee2e2;
   transform: translateY(-1px);
-}
-
-.delete-btn {
-  background: #f8fafc;
-  color: #475569;
-  border-color: #e2e8f0;
-}
-
-.delete-btn:hover {
-  background: #f1f5f9;
-  transform: translateY(-1px);
-}
-
-.danger-zone {
-  padding: 20px;
-  background: #fef2f2;
-  border-radius: 10px;
-  border: 1px solid #fecaca;
-}
-
-.danger-title {
-  color: #dc2626;
-  font-size: 16px;
-  margin: 0 0 10px 0;
-}
-
-.danger-hint {
-  color: #991b1b;
-  font-size: 14px;
-  margin: 0;
 }
 
 /* 模态框样式 */

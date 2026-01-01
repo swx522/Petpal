@@ -3,6 +3,49 @@ import { http } from '@/utils/http.js'
 
 // 用户API服务
 export const userAPI = {
+  // ============ 社区相关API ============
+  
+  /**
+   * 获取我的社区信息
+   */
+  async getMyCommunity() {
+    return http.get('/community/my')
+  },
+
+  /**
+   * 根据经纬度查找社区
+   * @param {number} longitude - 经度
+   * @param {number} latitude - 纬度
+   */
+  async findCommunity(longitude, latitude) {
+    return http.get(`/community/find?longitude=${longitude}&latitude=${latitude}`)
+  },
+
+  /**
+   * 获取社区内的服务列表
+   * @param {number} communityId - 社区ID
+   * @param {number} userLat - 用户纬度
+   * @param {number} userLng - 用户经度
+   */
+  async getCommunityServices(communityId, userLat, userLng) {
+    return http.get(`/community/services/${communityId}?userLat=${userLat}&userLng=${userLng}`)
+  },
+
+  /**
+   * 获取跨社区的附近服务
+   * @param {number} userLat - 用户纬度
+   * @param {number} userLng - 用户经度
+   * @param {number} radiusKm - 半径（公里）
+   * @param {number} excludeCommunityId - 排除的社区ID（可选）
+   */
+  async getNearbyServices(userLat, userLng, radiusKm = 3, excludeCommunityId = null) {
+    let url = `/community/services/nearby?userLat=${userLat}&userLng=${userLng}&radiusKm=${radiusKm}`
+    if (excludeCommunityId !== null) {
+      url += `&excludeCommunityId=${excludeCommunityId}`
+    }
+    return http.get(url)
+  },
+  
   // 用户注册
   async register(userData) {
     return http.post('/auth/register', userData)

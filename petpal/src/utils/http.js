@@ -40,45 +40,39 @@ class HttpRequest {
   }
 
   // 处理响应
-  async handleResponse(response) {
-    const contentType = response.headers.get('content-type')
+async handleResponse(response) {
+  const contentType = response.headers.get('content-type')
+  
+  // 检查响应类型
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json()
     
-    // 检查响应类型
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json()
-      
-      // 如果响应不成功，抛出错误
-      if (!response.ok) {
-        const error = {
-          status: response.status,
-          statusText: response.statusText,
-          data
-        }
-        
-        // 特殊处理CORS相关错误
-        if (response.status === 0 && response.type === 'opaque') {
-          console.error('CORS错误: 请检查后端CORS配置或代理设置')
-        }
-        
-        throw error
+    // 修改：即使HTTP状态码不是200-299，如果data.success为true，也认为是成功的
+    if (!response.ok && !data?.success) {
+      const error = {
+        status: response.status,
+        statusText: response.statusText,
+        data
       }
-      
-      return data
-    } else {
-      // 处理非JSON响应
-      const text = await response.text()
-      
-      if (!response.ok) {
-        throw {
-          status: response.status,
-          statusText: response.statusText,
-          data: { message: text }
-        }
-      }
-      
-      return { data: text }
+      throw error
     }
+    
+    return data
+  } else {
+    // 处理非JSON响应
+    const text = await response.text()
+    
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        statusText: response.statusText,
+        data: { message: text }
+      }
+    }
+    
+    return { data: text }
   }
+}
 
   // 发送请求
   async request(method, url, data = null) {

@@ -7,8 +7,14 @@
       <p>填写您的宠物需求信息，社区成员会来帮助您</p>
     </div>
 
+    <!-- 加载状态 -->
+    <div v-if="loading.petTypes || loading.serviceCategories" class="loading-state">
+      <div class="spinner"></div>
+      <p>正在加载数据...</p>
+    </div>
+
     <!-- 发布需求表单 -->
-    <div class="publish-form">
+    <div v-else class="publish-form">
       <div class="form-card">
         <h3>需求基本信息</h3>
         
@@ -18,92 +24,119 @@
           <div class="form-grid">
             <div class="form-group">
               <label>宠物类型 *</label>
-              <select v-model="publishData.petType" class="form-select">
+              <select v-model="publishData.petType" class="form-select" :disabled="loading.submit">
                 <option value="">请选择宠物类型</option>
-                <option value="dog">狗狗 🐶</option>
-                <option value="cat">猫咪 🐱</option>
-                <option value="rabbit">兔兔 🐰</option>
-                <option value="bird">鸟鸟 🐦</option>
-                <option value="other">其他 🐾</option>
+                <option v-for="petType in petTypes" :key="petType.value" :value="petType.value">
+                  {{ petType.label }}
+                </option>
               </select>
+              <div v-if="validationErrors.petType" class="error-message">{{ validationErrors.petType }}</div>
             </div>
           </div>
         </div>
 
         <!-- 需求类型 -->
         <div class="form-section">
-          <h4>需求类型</h4>
+          <h4>需求类型 *</h4>
           <div class="requirement-types">
-            <div class="type-card" :class="{ active: selectedType === 'walk' }" @click="selectedType = 'walk'">
-              <div class="type-icon">🚶</div>
+            <div 
+              v-for="service in serviceCategories" 
+              :key="service.value"
+              class="type-card" 
+              :class="{ active: publishData.serviceType === service.value }" 
+              @click="publishData.serviceType = service.value"
+            >
+              <div class="type-icon">{{ getServiceIcon(service.value) }}</div>
               <div class="type-info">
-                <h5>遛狗服务</h5>
-                <p>需要帮忙遛宠物</p>
-              </div>
-            </div>
-            
-            <div class="type-card" :class="{ active: selectedType === 'feed' }" @click="selectedType = 'feed'">
-              <div class="type-icon">🍽️</div>
-              <div class="type-info">
-                <h5>喂食照顾</h5>
-                <p>临时喂食照顾</p>
-              </div>
-            </div>
-            
-            <div class="type-card" :class="{ active: selectedType === 'medical' }" @click="selectedType = 'medical'">
-              <div class="type-icon">🏥</div>
-              <div class="type-info">
-                <h5>就医陪伴</h5>
-                <p>需要陪宠物就医</p>
-              </div>
-            </div>
-            
-            <div class="type-card" :class="{ active: selectedType === 'groom' }" @click="selectedType = 'groom'">
-              <div class="type-icon">✂️</div>
-              <div class="type-info">
-                <h5>美容护理</h5>
-                <p>洗澡、修剪等</p>
+                <h5>{{ service.label }}</h5>
+                <p>{{ service.description }}</p>
               </div>
             </div>
           </div>
+          <div v-if="validationErrors.serviceType" class="error-message">{{ validationErrors.serviceType }}</div>
         </div>
 
         <!-- 时间安排 -->
         <div class="form-section">
-          <h4>时间安排</h4>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>开始时间 *</label>
-              <input v-model="publishData.startTime" type="datetime-local" class="form-input">
+          <h4>时间安排 *</h4>
+          <div class="time-inputs">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>开始时间</label>
+                <input 
+                  v-model="publishData.startTime" 
+                  type="datetime-local" 
+                  class="form-input"
+                  :min="minStartTime"
+                  :disabled="loading.submit"
+                  @change="validateTime"
+                >
+                <div v-if="validationErrors.startTime" class="error-message">{{ validationErrors.startTime }}</div>
+              </div>
+              
+              <div class="form-group">
+                <label>结束时间</label>
+                <input 
+                  v-model="publishData.endTime" 
+                  type="datetime-local" 
+                  class="form-input"
+                  :min="publishData.startTime || minStartTime"
+                  :disabled="loading.submit"
+                  @change="validateTime"
+                >
+                <div v-if="validationErrors.endTime" class="error-message">{{ validationErrors.endTime }}</div>
+              </div>
             </div>
-            
-            <div class="form-group">
-              <label>结束时间 *</label>
-              <input v-model="publishData.endTime" type="datetime-local" class="form-input">
+            <div v-if="timeInterval" class="time-interval">
+              服务时长：{{ timeInterval }}
             </div>
           </div>
         </div>
 
+        <!-- 标题 -->
+        <div class="form-section">
+          <h4>需求标题 *</h4>
+          <input 
+            v-model="publishData.title" 
+            type="text" 
+            class="form-input" 
+            placeholder="例如：帮我遛一下可爱的柯基犬"
+            :disabled="loading.submit"
+            maxlength="100"
+          >
+          <div class="char-count" :class="{ 'limit-reached': publishData.title.length > 100 }">
+            {{ publishData.title.length }}/100
+          </div>
+          <div v-if="validationErrors.title" class="error-message">{{ validationErrors.title }}</div>
+        </div>
+
         <!-- 详细描述 -->
         <div class="form-section">
-          <h4>需求描述</h4>
+          <h4>需求描述 *</h4>
           <textarea 
             v-model="publishData.description"
             class="form-textarea" 
             placeholder="请详细描述您的需求，包括宠物的特殊习惯、注意事项等..."
             rows="4"
+            :disabled="loading.submit"
+            maxlength="500"
           ></textarea>
-        </div>
-
-        <!-- 联系方式 -->
-        <div class="form-section">
-          <h4>联系方式</h4>
-          <input v-model="publishData.contact" type="text" placeholder="默认展示邮箱" class="form-input mt-2">
+          <div class="char-count" :class="{ 'limit-reached': publishData.description.length > 500 }">
+            {{ publishData.description.length }}/500
+          </div>
+          <div v-if="validationErrors.description" class="error-message">{{ validationErrors.description }}</div>
         </div>
 
         <!-- 提交按钮 -->
         <div class="form-actions">
-          <button @click="submitRequirement" class="btn-primary">立即发布</button>
+          <button 
+            @click="submitRequirement" 
+            class="btn-primary"
+            :disabled="loading.submit || !isFormValid"
+          >
+            <span v-if="loading.submit" class="btn-spinner"></span>
+            {{ loading.submit ? '发布中...' : '立即发布' }}
+          </button>
         </div>
       </div>
 
@@ -113,16 +146,78 @@
           <h4>发布提示</h4>
           <ul class="tips-list">
             <li>尽量详细描述需求，提高匹配度</li>
-            <li>设置合理的悬赏积分</li>
-            <li>确认联系方式正确</li>
+            <li>确认时间安排合理</li>
             <li>完成后请及时确认订单</li>
+            <li>准确的宠物类型有助于更好匹配</li>
           </ul>
+        </div>
+
+        <!-- 统计数据 -->
+        <div class="stats-card">
+          <h4>发布统计</h4>
+          <div class="stats-item">
+            <span class="stat-label">待评价订单</span>
+            <span class="stat-value">{{ pendingReviews.length }}个</span>
+          </div>
+          <div class="stats-item">
+            <span class="stat-label">今日可发布</span>
+            <span class="stat-value text-success">3次</span>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- 发布成功弹窗 -->
+    <div v-if="showSuccessModal" class="modal-overlay" @click.self="closeModal">
+      <div class="modal-content">
+        <div class="modal-icon">🎉</div>
+        <h3>需求发布成功！</h3>
+        <p>您的需求已发布到社区，服务者将会看到并接受您的订单。</p>
+        <div class="modal-details">
+          <div class="detail-item">
+            <span class="detail-label">需求标题：</span>
+            <span class="detail-value">{{ publishedOrder.title }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">服务类型：</span>
+            <span class="detail-value">{{ formatServiceType(publishedOrder.serviceType).label }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">宠物类型：</span>
+            <span class="detail-value">{{ formatPetType(publishedOrder.petType).label }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">开始时间：</span>
+            <span class="detail-value">{{ formatDateTime(publishedOrder.startTime) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">结束时间：</span>
+            <span class="detail-value">{{ formatDateTime(publishedOrder.endTime) }}</span>
+          </div>
+          <div v-if="publishedOrder.communityName" class="detail-item">
+            <span class="detail-label">发布到：</span>
+            <span class="detail-value">{{ publishedOrder.communityName }}</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button @click="goToMyOrders" class="btn-primary">查看我的订单</button>
+          <button @click="closeModal" class="btn-secondary">继续发布</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div v-if="showError" class="error-alert">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-content">
+        <h4>{{ errorTitle }}</h4>
+        <p>{{ errorMessage }}</p>
+      </div>
+      <button @click="closeError" class="alert-close">×</button>
+    </div>
+
     <!-- 评价已完成订单部分 -->
-    <div v-if="showReviewSection" class="review-section">
+    <div v-if="showReviewSection && pendingReviews.length > 0" class="review-section">
       <div class="section-header">
         <h2>评价已完成订单</h2>
         <p>为已完成的服务进行评价，帮助其他用户选择</p>
@@ -130,8 +225,11 @@
 
       <!-- 待评价订单 -->
       <div class="review-container">
-        <div v-if="pendingReviews.length > 0" class="pending-reviews">
-          <h3 class="review-title">待评价订单</h3>
+        <div class="pending-reviews">
+          <h3 class="review-title">
+            待评价订单
+            <span class="review-count">{{ pendingReviews.length }}个</span>
+          </h3>
           
           <div class="reviews-grid">
             <div 
@@ -141,25 +239,21 @@
             >
               <div class="review-card-header">
                 <div class="order-info">
-                  <h4>{{ order.serviceType }}</h4>
-                  <p class="order-time">{{ formatDate(order.completedTime) }}</p>
+                  <h4>{{ formatServiceType(order.serviceType).label }}</h4>
+                  <p class="order-time">
+                    完成于 {{ formatDateTime(order.completedAt) }}
+                  </p>
+                  <div class="order-number">
+                    {{ order.orderNumber || generateOrderNumber(order.id, order.createdAt) }}
+                  </div>
                 </div>
                 <div class="pet-info">
-                  <span class="pet-icon">{{ getPetIcon(order.petType) }}</span>
+                  <span class="pet-icon">{{ formatPetType(order.petType).icon }}</span>
+                  <span class="pet-name">{{ formatPetType(order.petType).label }}</span>
                 </div>
               </div>
               
               <div class="review-card-body">
-                <div class="service-provider">
-                  <div class="provider-avatar">
-                    {{ order.providerName.charAt(0) }}
-                  </div>
-                  <div class="provider-info">
-                    <h5>{{ order.providerName }}</h5>
-                    <p class="rating">服务评分：{{ order.providerRating }}/5.0</p>
-                  </div>
-                </div>
-                
                 <div class="review-form">
                   <div class="rating-input">
                     <label>服务评分：</label>
@@ -174,7 +268,7 @@
                         ★
                       </span>
                     </div>
-                    <span class="rating-value">{{ order.userRating }}/5</span>
+                    <span class="rating-value">{{ order.userRating || 0 }}/5</span>
                   </div>
                   
                   <div class="comment-input">
@@ -184,7 +278,9 @@
                       placeholder="请描述服务体验，分享您的感受..."
                       rows="3"
                       class="comment-textarea"
+                      maxlength="200"
                     ></textarea>
+                    <div class="char-count">{{ order.userComment?.length || 0 }}/200</div>
                   </div>
                 </div>
               </div>
@@ -192,73 +288,14 @@
               <div class="review-card-actions">
                 <button 
                   @click="submitReview(order)"
-                  :disabled="order.userRating === 0"
+                  :disabled="!order.userRating || order.userRating === 0 || loading.evaluation"
                   class="btn-review"
                 >
-                  提交评价
+                  <span v-if="loading.evaluation && currentReviewOrder === order.id" class="btn-spinner small"></span>
+                  {{ loading.evaluation && currentReviewOrder === order.id ? '提交中...' : '提交评价' }}
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 已评价订单 -->
-        <div v-if="completedReviews.length > 0" class="completed-reviews">
-          <h3 class="review-title">已评价订单</h3>
-          
-          <div class="reviews-grid">
-            <div 
-              v-for="order in completedReviews" 
-              :key="order.id"
-              class="review-card completed"
-            >
-              <div class="review-card-header">
-                <div class="order-info">
-                  <h4>{{ order.serviceType }}</h4>
-                  <p class="order-time">{{ formatDate(order.reviewedTime) }}</p>
-                </div>
-                <div class="rating-badge">
-                  <span class="badge-icon">⭐</span>
-                  <span class="badge-value">{{ order.userRating }}分</span>
-                </div>
-              </div>
-              
-              <div class="review-card-body">
-                <div class="service-provider">
-                  <div class="provider-avatar">
-                    {{ order.providerName.charAt(0) }}
-                  </div>
-                  <div class="provider-info">
-                    <h5>{{ order.providerName }}</h5>
-                  </div>
-                </div>
-                
-                <div class="review-content">
-                  <p class="comment">{{ order.userComment }}</p>
-                  <div class="review-meta">
-                    <span class="meta-item">服务时间：{{ formatDate(order.completedTime) }}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="review-card-actions">
-                <button 
-                  @click="editReview(order)"
-                  class="btn-edit"
-                >
-                  修改评价
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 无待评价订单 -->
-        <div v-if="pendingReviews.length === 0 && completedReviews.length === 0" class="no-reviews">
-          <div class="empty-state">
-            <div class="empty-icon">📝</div>
-            <h3>暂无待评价订单</h3>
-            <p>完成服务后，您可以在此处为服务提供者评价</p>
           </div>
         </div>
       </div>
@@ -267,514 +304,465 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { orderAPI } from '@/utils/order.js'
 
-// 发布需求相关
-const selectedType = ref('walk')
-const rewardPoints = ref(50)
+// 路由实例
+const router = useRouter()
 
+// 加载状态
+const loading = reactive({
+  petTypes: false,
+  serviceCategories: false,
+  location: false,
+  submit: false,
+  evaluation: false
+})
+
+// 数据
+const petTypes = ref([])
+const serviceCategories = ref([])
+const pendingReviews = ref([])
+const userLocation = reactive({
+  longitude: null,
+  latitude: null,
+  community: null,
+  locationUpdatedAt: null
+})
+
+// 发布数据
 const publishData = reactive({
   petType: '',
+  serviceType: '',
   startTime: '',
   endTime: '',
   description: '',
-  contact: ''
+  title: ''
 })
 
-// 评价相关
+// 表单验证错误
+const validationErrors = reactive({
+  petType: '',
+  serviceType: '',
+  startTime: '',
+  endTime: '',
+  description: '',
+  title: ''
+})
+
+// 模态框和状态
+const showSuccessModal = ref(false)
+const showError = ref(false)
+const errorTitle = ref('')
+const errorMessage = ref('')
 const showReviewSection = ref(true)
-const pendingReviews = ref([])
-const completedReviews = ref([])
+const currentReviewOrder = ref(null)
+const publishedOrder = ref({})
 
-// 模拟数据
-const mockOrders = [
-  {
-    id: 1,
-    orderNumber: 'OD20231215001',
-    serviceType: '遛狗服务',
-    petType: 'dog',
-    petName: '旺财',
-    providerName: '张三',
-    providerRating: 4.8,
-    completedTime: '2023-12-14T15:30:00',
-    userRating: 0,
-    userComment: '',
-    reviewedTime: null
-  },
-  {
-    id: 2,
-    orderNumber: 'OD20231214002',
-    serviceType: '喂食照顾',
-    petType: 'cat',
-    petName: '咪咪',
-    providerName: '李四',
-    providerRating: 4.5,
-    completedTime: '2023-12-13T10:00:00',
-    userRating: 5,
-    userComment: '非常细心的照顾，猫咪很喜欢！',
-    reviewedTime: '2023-12-13T16:20:00'
-  },
-  {
-    id: 3,
-    orderNumber: 'OD20231213003',
-    serviceType: '美容护理',
-    petType: 'dog',
-    petName: '球球',
-    providerName: '王五',
-    providerRating: 4.9,
-    completedTime: '2023-12-12T14:00:00',
-    userRating: 4,
-    userComment: '洗澡很干净，狗狗看起来很舒服',
-    reviewedTime: '2023-12-12T18:45:00'
-  }
-]
-
-onMounted(() => {
-  loadReviews()
+// 计算属性
+const minStartTime = computed(() => {
+  const now = new Date()
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+  return now.toISOString().slice(0, 16)
 })
 
-const loadReviews = () => {
-  // 模拟加载数据
-  pendingReviews.value = mockOrders.filter(order => order.userRating === 0)
-  completedReviews.value = mockOrders.filter(order => order.userRating > 0)
+const timeInterval = computed(() => {
+  if (!publishData.startTime || !publishData.endTime) return null
+  return orderAPI.calculateTimeInterval(publishData.startTime, publishData.endTime)
+})
+
+const isFormValid = computed(() => {
+  return publishData.petType && 
+         publishData.serviceType && 
+         publishData.startTime && 
+         publishData.endTime && 
+         publishData.title.trim().length >= 3 && 
+         publishData.description.trim().length >= 10
+})
+
+// 生命周期
+onMounted(() => {
+  loadInitialData()
+})
+
+// 监听表单变化
+watch(() => publishData.petType, () => {
+  if (validationErrors.petType) validationErrors.petType = ''
+})
+
+watch(() => publishData.serviceType, () => {
+  if (validationErrors.serviceType) validationErrors.serviceType = ''
+})
+
+watch(() => publishData.startTime, () => {
+  if (validationErrors.startTime) validationErrors.startTime = ''
+  if (validationErrors.endTime && publishData.endTime < publishData.startTime) {
+    publishData.endTime = ''
+  }
+})
+
+watch(() => publishData.endTime, () => {
+  if (validationErrors.endTime) validationErrors.endTime = ''
+})
+
+watch(() => publishData.title, () => {
+  if (validationErrors.title && publishData.title.trim().length >= 3) {
+    validationErrors.title = ''
+  }
+})
+
+watch(() => publishData.description, () => {
+  if (validationErrors.description && publishData.description.trim().length >= 10) {
+    validationErrors.description = ''
+  }
+})
+
+// API调用方法
+const loadInitialData = async () => {
+  try {
+    await Promise.all([
+      loadPetTypes(),
+      loadServiceCategories(),
+      loadUserLocation(),
+      loadPendingReviews()
+    ])
+  } catch (error) {
+    console.error('初始化数据失败:', error)
+    showErrorAlert('初始化失败', '无法加载初始数据，请刷新页面重试')
+  }
 }
 
-const getPetIcon = (petType) => {
+const loadPetTypes = async () => {
+  try {
+    loading.petTypes = true
+    const response = await orderAPI.getPetTypes()
+    
+    if (response.success && response.data) {
+      petTypes.value = response.data
+    } else {
+      // 如果API失败，使用默认数据
+      petTypes.value = [
+        { value: 'dog', label: '狗狗 🐶', description: '犬类宠物' },
+        { value: 'cat', label: '猫咪 🐱', description: '猫类宠物' },
+        { value: 'rabbit', label: '兔兔 🐰', description: '兔子等小型宠物' },
+        { value: 'bird', label: '鸟鸟 🐦', description: '鸟类宠物' },
+        { value: 'other', label: '其他 🐾', description: '其他宠物类型' }
+      ]
+    }
+  } catch (error) {
+    console.error('加载宠物类型失败:', error)
+    petTypes.value = []
+  } finally {
+    loading.petTypes = false
+  }
+}
+
+const loadServiceCategories = async () => {
+  try {
+    loading.serviceCategories = true
+    const response = await orderAPI.getServiceCategories()
+    
+    if (response.success && response.data) {
+      serviceCategories.value = response.data
+    } else {
+      // 如果API失败，使用默认数据
+      serviceCategories.value = [
+        { value: 'walk', label: '遛狗服务 🚶', description: '帮您遛狗，保持宠物健康' },
+        { value: 'feed', label: '喂食照顾 🍽️', description: '定时喂食，照顾宠物饮食' },
+        { value: 'medical', label: '就医陪伴 🏥', description: '陪同宠物就医，提供照顾' },
+        { value: 'groom', label: '美容护理 ✂️', description: '洗澡、修剪、美容服务' },
+        { value: 'other', label: '其他服务 🐾', description: '其他宠物服务需求' }
+      ]
+    }
+  } catch (error) {
+    console.error('加载服务类型失败:', error)
+    serviceCategories.value = []
+  } finally {
+    loading.serviceCategories = false
+  }
+}
+
+const loadUserLocation = async () => {
+  try {
+    loading.location = true
+    const response = await orderAPI.getLocation()
+    
+    if (response.success && response.data) {
+      Object.assign(userLocation, response.data)
+    }
+  } catch (error) {
+    console.error('加载位置信息失败:', error)
+    // 不显示错误，允许用户继续发布
+  } finally {
+    loading.location = false
+  }
+}
+
+const loadPendingReviews = async () => {
+  try {
+    const response = await orderAPI.getOrdersToEvaluate()
+    
+    if (response.success && response.data) {
+      pendingReviews.value = Array.isArray(response.data) 
+        ? response.data.map(order => ({
+            ...order,
+            userRating: 0,
+            userComment: ''
+          }))
+        : []
+    }
+  } catch (error) {
+    console.error('加载待评价订单失败:', error)
+    pendingReviews.value = []
+  }
+}
+
+// 表单验证
+const validateTime = () => {
+  if (!publishData.startTime || !publishData.endTime) return
+  
+  const start = new Date(publishData.startTime)
+  const end = new Date(publishData.endTime)
+  const now = new Date()
+  
+  if (start >= end) {
+    validationErrors.startTime = '开始时间必须早于结束时间'
+    validationErrors.endTime = '结束时间必须晚于开始时间'
+    return false
+  }
+  
+  if (start <= now) {
+    validationErrors.startTime = '开始时间必须晚于当前时间'
+    return false
+  }
+  
+  return true
+}
+
+// 提交需求
+const submitRequirement = async () => {
+  // 验证表单
+  const validation = orderAPI.validateRequirementData(publishData)
+  
+  if (!validation.isValid) {
+    // 显示错误信息
+    Object.keys(validation.fieldErrors).forEach(key => {
+      if (validation.fieldErrors[key]) {
+        validationErrors[key] = validation.fieldErrors[key]
+      }
+    })
+    
+    // 滚动到第一个错误
+    const firstErrorField = Object.keys(validation.fieldErrors).find(key => validation.fieldErrors[key])
+    if (firstErrorField) {
+      const element = document.querySelector(`[name="${firstErrorField}"]`) || 
+                      document.querySelector(`[v-model="${firstErrorField}"]`)
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+    
+    return
+  }
+  
+  try {
+    loading.submit = true
+    
+    const requestData = {
+      title: publishData.title.trim(),
+      petType: publishData.petType,
+      serviceType: publishData.serviceType,
+      startTime: publishData.startTime,
+      endTime: publishData.endTime,
+      description: publishData.description.trim()
+    }
+    
+    const response = await orderAPI.createRequest(requestData)
+    
+    if (response.success) {
+      publishedOrder.value = response.data
+      showSuccessModal.value = true
+      resetForm()
+      
+      // 延迟关闭模态框
+      setTimeout(() => {
+        if (showSuccessModal.value) {
+          showSuccessModal.value = false
+          router.push('/orders/my')
+        }
+      }, 5000)
+    } else {
+      showErrorAlert('发布失败', response.message || '请稍后重试')
+    }
+  } catch (error) {
+    console.error('发布需求失败:', error)
+    
+    // 根据错误类型显示不同消息
+    if (error.status === 401) {
+      showErrorAlert('认证失败', '请重新登录后发布需求')
+      router.push('/login')
+    } else if (error.status === 403) {
+      showErrorAlert('权限不足', '您尚未完成宠物认证，请先完成认证')
+      router.push('/certification')
+    } else if (error.status === 400) {
+      showErrorAlert('参数错误', error.details || '请检查填写的信息是否正确')
+    } else {
+      showErrorAlert('发布失败', error.message || error.details || '网络错误，请稍后重试')
+    }
+  } finally {
+    loading.submit = false
+  }
+}
+
+// 提交评价
+const submitReview = async (order) => {
+  if (!order.userRating || order.userRating === 0) {
+    showErrorAlert('评价失败', '请先选择评分')
+    return
+  }
+  
+  try {
+    loading.evaluation = true
+    currentReviewOrder.value = order.id
+    
+    const evaluationData = {
+      orderId: order.id,
+      score: order.userRating,
+      content: order.userComment || ''
+    }
+    
+    const response = await submitEvaluation(evaluationData)
+    
+    if (response.success) {
+      // 从待评价列表中移除
+      pendingReviews.value = pendingReviews.value.filter(o => o.id !== order.id)
+      
+      // 显示成功消息
+      showSuccessAlert('评价成功', '感谢您的评价！')
+      
+      // 如果所有评价都完成，隐藏评价区域
+      if (pendingReviews.value.length === 0) {
+        setTimeout(() => {
+          showReviewSection.value = false
+        }, 2000)
+      }
+    } else {
+      showErrorAlert('评价失败', response.message || '请稍后重试')
+    }
+  } catch (error) {
+    console.error('提交评价失败:', error)
+    
+    if (error.status === 401) {
+      showErrorAlert('认证失败', '请重新登录后评价')
+      router.push('/login')
+    } else if (error.status === 403) {
+      showErrorAlert('权限不足', '您没有权限评价此订单')
+    } else if (error.status === 404) {
+      showErrorAlert('订单不存在', '该订单可能已被删除')
+      pendingReviews.value = pendingReviews.value.filter(o => o.id !== order.id)
+    } else {
+      showErrorAlert('评价失败', error.message || error.details || '网络错误，请稍后重试')
+    }
+  } finally {
+    loading.evaluation = false
+    currentReviewOrder.value = null
+  }
+}
+
+// 工具函数
+const getServiceIcon = (serviceType) => {
   const icons = {
-    dog: '🐶',
-    cat: '🐱',
-    rabbit: '🐰',
-    bird: '🐦',
+    walk: '🚶',
+    feed: '🍽️',
+    medical: '🏥',
+    groom: '✂️',
     other: '🐾'
   }
-  return icons[petType] || '🐾'
+  return icons[serviceType] || '🐾'
 }
 
-const formatDate = (dateString) => {
+const formatTimeAgo = (dateString) => {
   if (!dateString) return ''
+  
   const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', { 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const now = new Date()
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  
+  if (diffMins < 1) return '刚刚'
+  if (diffMins < 60) return `${diffMins}分钟前`
+  if (diffHours < 24) return `${diffHours}小时前`
+  if (diffDays < 30) return `${diffDays}天前`
+  
+  return formatDateTime(date, 'dateOnly')
 }
 
 const rateOrder = (order, rating) => {
   order.userRating = rating
 }
 
-const submitReview = (order) => {
-  if (!order.userRating) {
-    alert('请先选择评分')
-    return
-  }
-  
-  // 模拟提交
-  order.reviewedTime = new Date().toISOString()
-  pendingReviews.value = pendingReviews.value.filter(o => o.id !== order.id)
-  completedReviews.value.unshift(order)
-  
-  alert('评价提交成功！')
+const refreshLocation = async () => {
+  await loadUserLocation()
+  showSuccessAlert('位置更新', '位置信息已更新')
 }
 
-const editReview = (order) => {
-  // 将已评价订单移回待评价
-  completedReviews.value = completedReviews.value.filter(o => o.id !== order.id)
-  order.userRating = 0
-  order.userComment = ''
-  order.reviewedTime = null
-  pendingReviews.value.unshift(order)
+const resetForm = () => {
+  publishData.petType = ''
+  publishData.serviceType = ''
+  publishData.startTime = ''
+  publishData.endTime = ''
+  publishData.description = ''
+  publishData.title = ''
+  
+  // 重置错误
+  Object.keys(validationErrors).forEach(key => {
+    validationErrors[key] = ''
+  })
 }
 
-const submitRequirement = () => {
-  // 验证和提交发布需求的逻辑
-  console.log('发布需求数据:', publishData)
-  alert('需求发布成功！')
+const closeModal = () => {
+  showSuccessModal.value = false
+}
+
+const goToMyOrders = () => {
+  router.push('/orders/my')
+}
+
+const showErrorAlert = (title, message) => {
+  errorTitle.value = title
+  errorMessage.value = message
+  showError.value = true
+  
+  // 5秒后自动关闭
+  setTimeout(() => {
+    showError.value = false
+  }, 5000)
+}
+
+const showSuccessAlert = (title, message) => {
+  // 这里可以扩展实现成功提示
+  console.log(`${title}: ${message}`)
+}
+
+const closeError = () => {
+  showError.value = false
 }
 </script>
 
 <style scoped>
-/* 原有样式保持不变，以下是新增的评价部分样式 */
-
-/* 评价部分头部 */
-.review-section {
-  margin-top: 60px;
-  padding: 40px;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f1f5f9;
-}
-
-.section-header {
-  margin-bottom: 40px;
-}
-
-.section-header h2 {
-  font-size: 28px;
-  color: #1e293b;
-  margin-bottom: 8px;
-  font-weight: 700;
-}
-
-.section-header p {
-  color: #64748b;
-  font-size: 16px;
-}
-
-/* 评价标题 */
-.review-title {
-  font-size: 20px;
-  color: #334155;
-  margin-bottom: 25px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-/* 评价网格 */
-.reviews-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 25px;
-  margin-bottom: 40px;
-}
-
-/* 评价卡片 */
-.review-card {
-  background: white;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-
-.review-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-.review-card.completed {
-  border-color: #d1fae5;
-}
-
-.review-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  background: #f8fafc;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.review-card.completed .review-card-header {
-  background: #f0fdf4;
-}
-
-.order-info h4 {
-  font-size: 16px;
-  color: #1e293b;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.order-time {
-  font-size: 13px;
-  color: #94a3b8;
-}
-
-.pet-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pet-icon {
-  font-size: 24px;
-}
-
-.pet-name {
-  font-size: 14px;
-  color: #475569;
-  font-weight: 500;
-}
-
-.rating-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fef3c7;
-  padding: 6px 12px;
-  border-radius: 20px;
-}
-
-.badge-icon {
-  font-size: 16px;
-}
-
-.badge-value {
-  font-size: 14px;
-  color: #92400e;
-  font-weight: 600;
-}
-
-/* 评价卡片主体 */
-.review-card-body {
-  padding: 20px;
-}
-
-.service-provider {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.provider-avatar {
-  width: 45px;
-  height: 45px;
-  background: linear-gradient(135deg, #22c55e, #166534);
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 18px;
-}
-
-.provider-info h5 {
-  font-size: 16px;
-  color: #1e293b;
-  margin-bottom: 4px;
-  font-weight: 600;
-}
-
-.provider-info .rating {
-  font-size: 13px;
-  color: #64748b;
-}
-
-/* 评价表单 */
-.review-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.rating-input {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.rating-input label {
-  font-size: 14px;
-  color: #475569;
-  font-weight: 500;
-}
-
-.stars {
-  display: flex;
-  gap: 4px;
-}
-
-.star {
-  font-size: 28px;
-  color: #e2e8f0;
-  cursor: pointer;
-  transition: color 0.2s;
-  line-height: 1;
-}
-
-.star:hover,
-.star.active {
-  color: #fbbf24;
-}
-
-.rating-value {
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.comment-input {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.comment-input label {
-  font-size: 14px;
-  color: #475569;
-  font-weight: 500;
-}
-
-.comment-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 14px;
-  resize: vertical;
-  min-height: 80px;
-  transition: border-color 0.2s;
-}
-
-.comment-textarea:focus {
-  outline: none;
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-}
-
-/* 已评价内容 */
-.review-content {
-  margin-top: 15px;
-}
-
-.comment {
-  color: #475569;
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 12px;
-}
-
-.review-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-}
-
-.meta-item {
-  font-size: 13px;
-  color: #94a3b8;
-}
-
-/* 评价卡片操作 */
-.review-card-actions {
-  padding: 20px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-review,
-.btn-edit {
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  border: none;
-}
-
-.btn-review {
-  background: #166534;
-  color: white;
-}
-
-.btn-review:hover:not(:disabled) {
-  background: #14532d;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
-}
-
-.btn-review:disabled {
-  background: #cbd5e1;
-  cursor: not-allowed;
-}
-
-.btn-edit {
-  background: white;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.btn-edit:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-}
-
-/* 空状态 */
-.no-reviews {
-  text-align: center;
-  padding: 60px 40px;
-}
-
-.empty-state {
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-}
-
-.empty-state h3 {
-  font-size: 20px;
-  color: #334155;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.empty-state p {
-  color: #64748b;
-  font-size: 15px;
-}
-
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .reviews-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .review-section {
-    padding: 25px;
-    margin-top: 40px;
-  }
-  
-  .reviews-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .review-card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .rating-input {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  .review-section {
-    padding: 20px;
-  }
-  
-  .section-header h2 {
-    font-size: 24px;
-  }
-}
-
+/* 基础样式 */
 .publish-requirement {
   width: 100%;
   box-sizing: border-box;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
+  padding: 40px 20px;
 }
 
-/* 页面标题 */
 .page-header {
   margin-bottom: 40px;
+  text-align: center;
 }
 
 .page-header h1 {
@@ -789,10 +777,35 @@ const submitRequirement = () => {
   font-size: 16px;
 }
 
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f1f5f9;
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* 发布表单布局 */
 .publish-form {
   display: flex;
   gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .form-card {
@@ -809,14 +822,7 @@ const submitRequirement = () => {
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-/* 表单卡片标题 */
-.form-card h3 {
-  font-size: 24px;
-  color: #166534;
-  margin-bottom: 30px;
-  font-weight: 700;
+  min-width: 300px;
 }
 
 /* 表单部分 */
@@ -829,6 +835,31 @@ const submitRequirement = () => {
   color: #334155;
   margin-bottom: 20px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-section h4:after {
+  content: '*';
+  color: #ef4444;
+  font-size: 14px;
+}
+
+.time-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.time-interval {
+  font-size: 14px;
+  color: #64748b;
+  text-align: center;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
 /* 表单网格 */
@@ -858,7 +889,8 @@ const submitRequirement = () => {
   border-radius: 10px;
   font-size: 14px;
   background: white;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
+  font-family: inherit;
 }
 
 .form-input:focus,
@@ -866,6 +898,34 @@ const submitRequirement = () => {
   outline: none;
   border-color: #22c55e;
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.form-input:disabled,
+.form-select:disabled {
+  background: #f8fafc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* 错误消息 */
+.error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+/* 字符计数 */
+.char-count {
+  text-align: right;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+.char-count.limit-reached {
+  color: #ef4444;
 }
 
 /* 需求类型卡片 */
@@ -884,20 +944,28 @@ const submitRequirement = () => {
   display: flex;
   align-items: center;
   gap: 15px;
+  background: white;
 }
 
 .type-card:hover {
   border-color: #d1fae5;
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .type-card.active {
   border-color: #22c55e;
   background: #f0fdf4;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);
 }
 
 .type-icon {
   font-size: 32px;
+  flex-shrink: 0;
+}
+
+.type-info {
+  flex: 1;
 }
 
 .type-info h5 {
@@ -910,6 +978,7 @@ const submitRequirement = () => {
 .type-info p {
   font-size: 13px;
   color: #64748b;
+  line-height: 1.4;
 }
 
 /* 文本区域 */
@@ -920,7 +989,10 @@ const submitRequirement = () => {
   border-radius: 10px;
   font-size: 14px;
   resize: vertical;
-  transition: border-color 0.2s;
+  min-height: 100px;
+  transition: all 0.2s;
+  font-family: inherit;
+  line-height: 1.5;
 }
 
 .form-textarea:focus {
@@ -929,8 +1001,9 @@ const submitRequirement = () => {
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
 
-.mt-2 {
-  margin-top: 10px;
+.form-textarea:disabled {
+  background: #f8fafc;
+  cursor: not-allowed;
 }
 
 /* 表单操作按钮 */
@@ -949,18 +1022,43 @@ const submitRequirement = () => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
-}
-
-.btn-primary {
   background: #166534;
   color: white;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 120px;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: #14532d;
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(22, 101, 52, 0.2);
+}
+
+.btn-primary:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+/* 按钮加载器 */
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.btn-spinner.small {
+  width: 14px;
+  height: 14px;
 }
 
 /* 侧边提示卡片 */
@@ -970,6 +1068,7 @@ const submitRequirement = () => {
   border: 1px solid #f1f5f9;
   border-radius: 16px;
   padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .tips-card h4,
@@ -978,6 +1077,19 @@ const submitRequirement = () => {
   color: #1e293b;
   margin-bottom: 20px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tips-card h4:before,
+.stats-card h4:before {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 16px;
+  background: #22c55e;
+  border-radius: 2px;
 }
 
 .tips-list {
@@ -990,6 +1102,9 @@ const submitRequirement = () => {
   color: #64748b;
   font-size: 14px;
   border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .tips-list li:last-child {
@@ -1000,7 +1115,8 @@ const submitRequirement = () => {
   content: "✓";
   color: #22c55e;
   font-weight: bold;
-  margin-right: 10px;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 /* 统计数据 */
@@ -1023,8 +1139,482 @@ const submitRequirement = () => {
 
 .stat-value {
   color: #166534;
-  font-size: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stat-value.text-warning {
+  color: #f59e0b;
+}
+
+.stat-value.text-success {
+  color: #22c55e;
+}
+
+.btn-refresh {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #64748b;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 模态框 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.modal-content h3 {
+  font-size: 24px;
+  color: #1e293b;
+  margin-bottom: 12px;
   font-weight: 700;
+}
+
+.modal-content p {
+  color: #64748b;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.modal-details {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.detail-item {
+  display: flex;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: #64748b;
+  font-size: 14px;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: #1e293b;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 15px;
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s;
+  flex: 1;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* 错误提示 */
+.error-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+  z-index: 1001;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.alert-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alert-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-content h4 {
+  color: #991b1b;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.alert-content p {
+  color: #dc2626;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.alert-close {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  margin: -4px -8px -4px 0;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.alert-close:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* 评价部分 */
+.review-section {
+  margin-top: 60px;
+  padding: 40px;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.section-header {
+  margin-bottom: 40px;
+}
+
+.section-header h2 {
+  font-size: 28px;
+  color: #1e293b;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.section-header p {
+  color: #64748b;
+  font-size: 16px;
+}
+
+/* 评价网格 */
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 25px;
+}
+
+/* 评价卡片 */
+.review-card {
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.review-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #d1fae5;
+}
+
+.review-title {
+  font-size: 20px;
+  color: #334155;
+  margin-bottom: 25px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-count {
+  background: #22c55e;
+  color: white;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.review-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.order-info h4 {
+  font-size: 16px;
+  color: #1e293b;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.order-time {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.order-number {
+  font-size: 12px;
+  color: #64748b;
+  font-family: monospace;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.pet-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pet-icon {
+  font-size: 24px;
+}
+
+.pet-name {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.review-card-body {
+  padding: 20px;
+}
+
+/* 评价表单 */
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rating-input {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.rating-input label {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.stars {
+  display: flex;
+  gap: 4px;
+}
+
+.star {
+  font-size: 28px;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.star:hover {
+  transform: scale(1.2);
+}
+
+.star:hover,
+.star.active {
+  color: #fbbf24;
+}
+
+.rating-value {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.comment-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-input label {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.review-card-actions {
+  padding: 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-review {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+  background: #166534;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.btn-review:hover:not(:disabled) {
+  background: #14532d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
+}
+
+.btn-review:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* 响应式设计 */
@@ -1036,28 +1626,91 @@ const submitRequirement = () => {
   .form-grid {
     grid-template-columns: 1fr;
   }
+  
+  .requirement-types {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .reviews-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+  
+  .side-tips {
+    min-width: auto;
+  }
 }
 
 @media (max-width: 768px) {
+  .publish-requirement {
+    padding: 20px 15px;
+  }
+  
+  .page-header h1 {
+    font-size: 28px;
+  }
+  
   .form-card {
     padding: 25px;
+  }
+  
+  .review-section {
+    padding: 25px;
+    margin-top: 40px;
+  }
+  
+  .modal-content {
+    padding: 30px 20px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .reviews-grid {
+    grid-template-columns: 1fr;
   }
   
   .requirement-types {
     grid-template-columns: 1fr;
   }
   
-  .contact-info {
+  .review-card-header {
     flex-direction: column;
-    gap: 15px;
+    align-items: flex-start;
+    gap: 12px;
   }
   
-  .form-actions {
+  .rating-input {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
   
-  .btn-primary,
-  .btn-secondary {
+  .error-alert {
+    left: 20px;
+    right: 20px;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 24px;
+  }
+  
+  .form-card h3 {
+    font-size: 20px;
+  }
+  
+  .review-section {
+    padding: 20px;
+  }
+  
+  .section-header h2 {
+    font-size: 24px;
+  }
+  
+  .modal-actions button {
     width: 100%;
   }
 }

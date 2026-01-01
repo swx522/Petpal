@@ -78,16 +78,6 @@
                 <span class="community-value description">{{ currentCommunityDescription }}</span>
               </div>
             </div>
-            
-            <!-- 社区操作按钮 -->
-            <div class="community-actions">
-              <button class="community-action-btn view-members-btn" @click="viewCommunityMembers">
-                <span class="btn-icon">👥</span> 查看成员
-              </button>
-              <button class="community-action-btn view-services-btn" @click="viewCommunityServices">
-                <span class="btn-icon">📋</span> 查看服务
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -651,12 +641,34 @@ const findNearbyCommunity = async () => {
       )
       
       if (confirmJoin) {
-
+      // 调用加入社区API
+        console.log(`🚀 用户确认加入社区 ${community.id}`)
+        const joinResponse = await userAPI.joinCommunity({ communityId: community.id })
+        
+        if (joinResponse.success) {
+          alert('成功加入社区！')
+          // 刷新社区信息
+          await loadUserCommunities()
+          
+          // 更新本地用户信息
+          const currentUser = userAPI.getCurrentUser()
+          if (currentUser) {
+            currentUser.communityId = community.id
+            userAPI.saveUserInfo(currentUser)
+          }
+          
+          // 发送通知给其他组件
+          window.dispatchEvent(new CustomEvent('community-joined', {
+            detail: { communityId: community.id }
+          }))
+        } else {
+          alert(`加入社区失败: ${joinResponse.message}`)
+        }
       }
-    } else {
+     else {
       alert('附近没有找到可用的社区\n请尝试在其他位置查找。')
     }
-  } catch (error) {
+  }} catch (error) {
     console.error('❌ 查找社区失败:', error)
     console.error('错误详情:', error.response?.data || error.message || error)
     alert('查找社区失败，请稍后重试或联系管理员')

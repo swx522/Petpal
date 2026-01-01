@@ -3,6 +3,20 @@ import { http } from '@/utils/http.js'
 
 // 用户API服务
 export const userAPI = {
+async joinCommunity(data) {
+  try {
+    return await http.post('/community/join', {
+      communityId: data.communityId
+    })
+  } catch (error) {
+    console.error('加入社区失败:', error)
+    return {
+      success: false,
+      message: error.message || '加入社区失败'
+    }
+  }
+},
+
   async getLocation() {
   try {
     return await http.get('/user/location')

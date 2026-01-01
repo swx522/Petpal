@@ -13,6 +13,14 @@ namespace petpal.API.Models
         public UserRole Role { get; set; } = UserRole.User; // 默认宠物主人
     }
 
+    /// <summary>
+    /// 用户加入社区请求模型
+    /// </summary>
+    public class JoinCommunityRequest
+    {
+        public int CommunityId { get; set; }
+    }
+
     public class LoginRequest
     {
         public string Account { get; set; } = ""; // 手机号或邮箱

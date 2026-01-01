@@ -112,6 +112,10 @@ petpal/
 }
 ```
 
+### 关于 DTO（数据传输对象）
+
+所有对外响应已统一使用 DTO（Data Transfer Objects），后端不会直接返回数据库实体。DTO 只包含前端需要的字段，避免循环引用并减少暴露敏感信息。常用 DTO 包括 `UserDto`、`CommunitySimpleDto` 等。
+
 ### 🔑 AuthController - 认证接口
 
 #### 用户注册
@@ -140,13 +144,16 @@ POST /api/auth/register
 {
   "success": true,
   "data": {
-    "userId": "user-guid-123",
-    "username": "petlover123",
-    "phone": "13800138000",
-    "email": "user@example.com",
-    "role": "User",
-    "status": "Active",
-    "createdAt": "2024-01-01T10:00:00Z"
+    "user": {
+      "id": "user-guid-123",
+      "username": "petlover123",
+      "phone": "13800138000",
+      "email": "user@example.com",
+      "role": 0,
+      "status": 0,
+      "createdAt": "2024-01-01T10:00:00Z"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   },
   "message": "注册成功"
 }

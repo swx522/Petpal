@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using petpal.API.Services;
 using petpal.API.Data;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 using System.Security.Claims;
 using System.Linq;
 
@@ -91,7 +92,7 @@ namespace petpal.API.Controllers
                     startTime = o.StartTime,
                     endTime = o.EndTime,
                     status = o.Status.ToString(),
-                    communityName = o.Community?.Name,
+                    community = o.Community?.ToCommunitySimpleDto(),
                     createdAt = o.CreatedAt,
                     acceptedAt = o.AcceptedAt,
                     completedAt = o.CompletedAt
@@ -252,7 +253,7 @@ namespace petpal.API.Controllers
                     title = o.Title,
                     serviceType = o.ServiceType,
                     completedAt = o.CompletedAt,
-                    ownerName = o.Owner.Username,
+                    owner = o.Owner?.ToUserDto(),
                     evaluationCount = o.Evaluations.Count
                 });
 
@@ -337,7 +338,7 @@ namespace petpal.API.Controllers
                     .Select(e => new
                     {
                         evaluationId = e.Id,
-                        evaluatorName = e.Evaluator.Username,
+                        evaluator = e.Evaluator?.ToUserDto(),
                         score = e.Score,
                         content = e.Content,
                         createdAt = e.CreatedAt

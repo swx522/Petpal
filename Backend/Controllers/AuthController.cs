@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using petpal.API.Models;
 using petpal.API.Services;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Controllers
 {
@@ -46,13 +47,14 @@ namespace petpal.API.Controllers
 
                 var token = _jwtService.GenerateToken(user);
 
+                var userDto = user.ToUserDto();
+
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
-                        userId = user.Id,
-                        username = user.Username,
+                        user = userDto,
                         token = token
                     },
                     Message = "注册成功，欢迎加入宠物互助平台"
@@ -91,13 +93,14 @@ namespace petpal.API.Controllers
 
                 var token = _jwtService.GenerateToken(user);
 
+                var userDto = user.ToUserDto();
+
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
-                        userId = user.Id,
-                        username = user.Username,
+                        user = userDto,
                         role = user.Role.ToString(),
                         token = token
                     },

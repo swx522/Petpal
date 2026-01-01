@@ -1,0 +1,101 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace petpal.API.Models.DTOs
+{
+    /// <summary>
+    /// 用户数据传输对象
+    /// 用于避免JSON序列化时的循环引用问题
+    /// </summary>
+    public class UserDto
+    {
+        /// <summary>
+        /// 用户ID
+        /// </summary>
+        public string Id { get; set; }
+
+        /// <summary>
+        /// 用户名
+        /// </summary>
+        public string Username { get; set; }
+
+        /// <summary>
+        /// 手机号码
+        /// </summary>
+        public string Phone { get; set; }
+
+        /// <summary>
+        /// 邮箱地址
+        /// </summary>
+        public string Email { get; set; }
+
+        /// <summary>
+        /// 用户角色
+        /// </summary>
+        public UserRole Role { get; set; }
+
+        /// <summary>
+        /// 用户状态
+        /// </summary>
+        public UserStatus Status { get; set; }
+
+        /// <summary>
+        /// 信誉分数
+        /// </summary>
+        public int ReputationScore { get; set; }
+
+        /// <summary>
+        /// 信誉等级
+        /// </summary>
+        public string ReputationLevel { get; set; }
+
+        /// <summary>
+        /// 实名认证状态
+        /// </summary>
+        public bool IsRealNameCertified { get; set; }
+
+        /// <summary>
+        /// 宠物认证状态
+        /// </summary>
+        public bool IsPetCertified { get; set; }
+
+        /// <summary>
+        /// Sitter审核状态
+        /// </summary>
+        public SitterAuditStatus SitterAuditStatus { get; set; }
+
+        /// <summary>
+        /// 看护简介
+        /// </summary>
+        public string CareIntroduction { get; set; }
+
+        /// <summary>
+        /// 服务类型
+        /// </summary>
+        public string ServiceTypes { get; set; }
+
+        /// <summary>
+        /// 用户所在社区（简易信息，避免循环引用）
+        /// </summary>
+        public CommunitySimpleDto Community { get; set; }
+
+        /// <summary>
+        /// 用户当前位置经度
+        /// </summary>
+        public decimal? Longitude { get; set; }
+
+        /// <summary>
+        /// 用户当前位置纬度
+        /// </summary>
+        public decimal? Latitude { get; set; }
+
+        /// <summary>
+        /// 账户创建时间
+        /// </summary>
+        public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// 最后登录时间
+        /// </summary>
+        public DateTime? LastLoginAt { get; set; }
+    }
+}

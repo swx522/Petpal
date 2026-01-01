@@ -83,7 +83,7 @@ namespace petpal.API.Models
         /// </summary>
         [EmailAddress(ErrorMessage = "邮箱格式不正确")]
         [MaxLength(100)]
-        public string Email { get; set; }
+        public string? Email { get; set; }
 
         /// <summary>
         /// 用户角色

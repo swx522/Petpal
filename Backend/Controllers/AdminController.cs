@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using petpal.API.Models;
 using petpal.API.Services;
+using petpal.API.Models.DTOs;
 using System.Security.Claims;
 
 namespace petpal.API.Controllers
@@ -56,11 +57,12 @@ namespace petpal.API.Controllers
                 }
 
                 var community = await _communityService.GetUserCommunityAsync(userId);
+                var communityDto = community?.ToCommunitySimpleDto();
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
-                    Data = community
+                    Data = communityDto
                 });
             }
             catch (Exception ex)
@@ -160,13 +162,14 @@ namespace petpal.API.Controllers
             try
             {
                 var members = await _communityService.GetCommunityMembersAsync(filters);
+                var memberDtos = members.Select(u => u.ToUserDto()).ToList();
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
-                        members,
+                        members = memberDtos,
                         filters.Page,
                         filters.PageSize
                     }
@@ -200,13 +203,14 @@ namespace petpal.API.Controllers
                 }
 
                 var members = await _communityService.SearchMembersAsync(keyword, filters);
+                var memberDtos = members.Select(u => u.ToUserDto()).ToList();
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
-                        members,
+                        members = memberDtos,
                         filters.Page,
                         filters.PageSize
                     }

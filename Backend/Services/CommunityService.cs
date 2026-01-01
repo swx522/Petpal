@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using petpal.API.Data;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Services
 {
@@ -105,7 +106,9 @@ namespace petpal.API.Services
         /// </summary>
         public async Task<List<User>> GetCommunityMembersAsync(MemberFilters filters)
         {
-            var query = _context.Users.AsQueryable();
+            var query = _context.Users
+                .Include(u => u.Community)
+                .AsQueryable();
 
             if (filters.Role.HasValue)
             {
@@ -117,11 +120,12 @@ namespace petpal.API.Services
                 query = query.Where(u => u.IsRealNameCertified && u.IsPetCertified);
             }
 
-            return await query
+            var users = await query
                 .OrderByDescending(u => u.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
                 .Take(filters.PageSize)
                 .ToListAsync();
+            return users;
         }
 
         /// <summary>
@@ -130,6 +134,7 @@ namespace petpal.API.Services
         public async Task<List<User>> SearchMembersAsync(string keyword, MemberFilters filters)
         {
             var query = _context.Users
+                .Include(u => u.Community)
                 .Where(u => u.Username.Contains(keyword) ||
                            u.Phone.Contains(keyword) ||
                            u.Email.Contains(keyword));
@@ -144,11 +149,12 @@ namespace petpal.API.Services
                 query = query.Where(u => u.IsRealNameCertified && u.IsPetCertified);
             }
 
-            return await query
+            var users = await query
                 .OrderByDescending(u => u.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
                 .Take(filters.PageSize)
                 .ToListAsync();
+            return users;
         }
 
         /// <summary>

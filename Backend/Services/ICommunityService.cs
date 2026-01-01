@@ -1,4 +1,5 @@
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Services
 {

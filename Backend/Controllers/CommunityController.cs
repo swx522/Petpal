@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using petpal.API.Services;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 using System.Security.Claims;
 
 namespace petpal.API.Controllers
@@ -59,10 +60,12 @@ namespace petpal.API.Controllers
                     });
                 }
 
+                var communityDto = community.ToCommunitySimpleDto();
+
                 return Ok(new ApiResponse
                 {
                     Success = true,
-                    Data = community
+                    Data = communityDto
                 });
             }
             catch (Exception ex)

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using petpal.API.Models;
 using petpal.API.Services;
+using petpal.API.Models.DTOs;
 using System.Security.Claims;
 
 namespace petpal.API.Controllers
@@ -51,21 +52,12 @@ namespace petpal.API.Controllers
                 return NotFound(new ApiResponse { Success = false, Message = "用户不存在" });
             }
 
+            var userDto = user.ToUserDto();
+
             return Ok(new ApiResponse
             {
                 Success = true,
-                Data = new
-                {
-                    user.Id,
-                    user.Username,
-                    user.Phone,
-                    user.Email,
-                    user.Role,
-                    user.IsRealNameCertified,
-                    user.IsPetCertified,
-                    user.CreatedAt,
-                    user.LastLoginAt
-                }
+                Data = userDto
             });
         }
 

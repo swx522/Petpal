@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using petpal.API.Services;
 using petpal.API.Data;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 using System.Security.Claims;
 using System.Linq;
 
@@ -526,12 +527,7 @@ namespace petpal.API.Controllers
                     createdAt = request.CreatedAt,
                     owner = new
                     {
-                        userId = request.Owner.Id,
-                        username = request.Owner.Username,
-                        reputationScore = request.Owner.ReputationScore,
-                        reputationLevel = request.Owner.ReputationLevel,
-                        isRealNameCertified = request.Owner.IsRealNameCertified,
-                        isPetCertified = request.Owner.IsPetCertified,
+                        user = request.Owner?.ToUserDto(),
                         reputationSummary = ownerReputation
                     }
                 };
@@ -784,8 +780,7 @@ namespace petpal.API.Controllers
                     petType = o.PetType,
                     serviceType = o.ServiceType,
                     status = o.Status.ToString(),
-                    ownerName = o.Owner.Username,
-                    ownerPhone = o.Owner.Phone,
+                    owner = o.Owner?.ToUserDto(),
                     createdAt = o.CreatedAt
                 });
 
@@ -880,14 +875,7 @@ namespace petpal.API.Controllers
                     createdAt = request.CreatedAt,
                     owner = new
                     {
-                        userId = request.Owner.Id,
-                        username = request.Owner.Username,
-                        phone = request.Owner.Phone,
-                        email = request.Owner.Email,
-                        reputationScore = request.Owner.ReputationScore,
-                        reputationLevel = request.Owner.ReputationLevel,
-                        isRealNameCertified = request.Owner.IsRealNameCertified,
-                        isPetCertified = request.Owner.IsPetCertified
+                        user = request.Owner?.ToUserDto()
                     }
                 };
 

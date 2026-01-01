@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 using petpal.API.Services;
 using System.Security.Claims;
 
@@ -61,13 +62,15 @@ namespace petpal.API.Controllers
                     });
                 }
 
+                var userDto = user.ToUserDto();
+
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
                         sitterId = user.Id,
-                        username = user.Username,
+                        user = userDto,
                         auditStatus = user.SitterAuditStatus.ToString(),
                         stageDescription = GetAuditStageDescription(user.SitterAuditStatus),
                         estimatedCompletion = GetEstimatedCompletion(user.SitterAuditStatus),

@@ -151,7 +151,8 @@ export const adminAPI = {
         }
       }
       
-      return await http.delete(`/admin/community/members/remove/${memberId}`)
+      return await http.delete('/admin/community/members/remove/${memberId}', {
+      })
     } catch (error) {
       console.error('移除成员失败:', error)
       return {
@@ -522,28 +523,15 @@ export const adminAPI = {
     try {
       // 检查本地存储是否有管理员标识
       const userRole = localStorage.getItem('petpal_userRole')
-      console.log('当前用户角色:', userRole, '类型:', typeof userRole)
-
-      // 检查角色是否有效
-      if (!userRole) {
-        console.error('用户角色未找到')
-        return {
-          success: false,
-          message: '用户角色信息缺失，请重新登录'
-        }
-      }
-
-      // 支持大小写不敏感的角色检查
-      const normalizedRole = userRole?.toLowerCase()
-      if (normalizedRole !== 'admin' && normalizedRole !== 'moderator') {
-        console.log('用户角色不匹配，当前角色:', userRole, '期望角色: Admin 或 Moderator')
+      console.log('当前用户角色:', userRole)
+      if (userRole !== '2' && userRole !== 'moderator') {
         return {
           success: false,
           message: '需要管理员权限'
         }
       }
-
-      console.log('权限验证通过，用户角色:', userRole)
+      
+      // 可选：可以调用API进一步验证
       return {
         success: true,
         message: '权限验证通过'

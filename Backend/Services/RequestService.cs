@@ -278,7 +278,7 @@ namespace petpal.API.Services
         public async Task<MutualOrder> ApproveRequestAsync(string adminId, string requestId)
         {
             var admin = await _userService.GetUserByIdAsync(adminId);
-            if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+            if (admin == null || admin.Role != UserRole.Admin)
             {
                 throw new UnauthorizedAccessException("只有管理员可以审核需求");
             }
@@ -306,7 +306,7 @@ namespace petpal.API.Services
         public async Task<MutualOrder> RejectRequestAsync(string adminId, string requestId, string reason)
         {
             var admin = await _userService.GetUserByIdAsync(adminId);
-            if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+            if (admin == null || admin.Role != UserRole.Admin)
             {
                 throw new UnauthorizedAccessException("只有管理员可以审核需求");
             }
@@ -336,7 +336,7 @@ namespace petpal.API.Services
         public async Task<MutualOrder> RecheckRequestAsync(string adminId, string requestId)
         {
             var admin = await _userService.GetUserByIdAsync(adminId);
-            if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+            if (admin == null || admin.Role != UserRole.Admin)
             {
                 throw new UnauthorizedAccessException("只有管理员可以重新审核需求");
             }

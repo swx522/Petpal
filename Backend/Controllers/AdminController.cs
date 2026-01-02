@@ -229,8 +229,8 @@ namespace petpal.API.Controllers
         /// <summary>
         /// 移除社区成员
         /// </summary>
-        [HttpDelete("community/members/remove/{memberId}")]
-        public async Task<IActionResult> RemoveMember(string memberId)
+        [HttpDelete("community/members/remove")]
+        public async Task<IActionResult> RemoveMember([FromBody] RemoveMemberRequest request)
         {
             try
             {
@@ -244,7 +244,7 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                await _communityService.RemoveMemberAsync(adminId, memberId);
+                await _communityService.RemoveMemberAsync(adminId, request.MemberId);
 
                 return Ok(new ApiResponse
                 {

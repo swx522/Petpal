@@ -335,10 +335,9 @@ const userInitials = computed(() => {
 
 const roleText = computed(() => {
   const roleMap = {
-    'user': '宠物主人',
+    'owner': '宠物主人',
     'sitter': '服务者',
-    'moderator': '版主',
-    'admin': '管理员'
+    'moderator': '管理者'
   }
   return roleMap[userRole.value] || '用户'
 })
@@ -714,8 +713,12 @@ const loadUserData = async () => {
       // 更新角色
       if (apiData.role !== undefined) {
         console.log('🎭 原始角色值:', apiData.role)
-        // 直接使用后端返回的枚举字符串
-        userRole.value = apiData.role || 'User'
+        const roleMap = {
+          0: 'owner',
+          1: 'sitter',
+          2: 'moderator'
+        }
+        userRole.value = roleMap[apiData.role] || 'owner'
         console.log('🔄 映射后的角色:', userRole.value)
         localStorage.setItem('petpal_userRole', userRole.value)
       }

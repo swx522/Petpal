@@ -43,13 +43,13 @@
           class="nav-item" 
           :class="{
             active: activeNav === '/manage',
-            unavailable: !isLoggedIn || (userRole?.toLowerCase() !== 'admin' && userRole?.toLowerCase() !== 'moderator')
+            unavailable: !isLoggedIn || userRole !== 'moderator'
           }"
-          @click="handleNavClick('/manage', 'Admin,Moderator')"
+          @click="handleNavClick('/manage', 'moderator')"
         >
           <i class="icon">🍱</i> 
           <span>管理社区</span>
-          <span v-if="!isLoggedIn || (userRole?.toLowerCase() !== 'admin' && userRole?.toLowerCase() !== 'moderator')" class="nav-lock">🔒</span>
+          <span v-if="!isLoggedIn || userRole !== 'moderator'" class="nav-lock">🔒</span>
         </div>
       </nav>
 
@@ -227,15 +227,11 @@ const handleNavClick = (path, requiredRole) => {
   }
   
   // 已登录但角色不匹配
-  const allowedRoles = requiredRole.split(',')
-  const currentRole = userRole.value?.toLowerCase()
-  if (!allowedRoles.some(role => role.toLowerCase() === currentRole)) {
+  if (userRole.value !== requiredRole) {
     const roleNameMap = {
       'owner': '宠物主人',
       'sitter': '服务者',
-      'admin': '管理员',
-      'moderator': '版主',
-      'admin,moderator': '管理员或版主'
+      'moderator': '管理者'
     }
     const requiredRoleName = roleNameMap[requiredRole] || requiredRole
     const currentRoleName = roleText.value || '未分配角色'

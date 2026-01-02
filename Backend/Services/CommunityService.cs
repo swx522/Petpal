@@ -190,7 +190,7 @@ namespace petpal.API.Services
         public async Task RemoveMemberAsync(string adminUserId, string memberId)
         {
             var admin = await _context.Users.FindAsync(adminUserId);
-            if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+            if (admin == null || admin.Role != UserRole.Admin)
             {
                 throw new UnauthorizedAccessException("只有管理员可以移除成员");
             }
@@ -234,7 +234,7 @@ namespace petpal.API.Services
         public async Task UpdateCommunitySettingsAsync(string adminUserId, CommunitySettings settings)
         {
             var admin = await _context.Users.FindAsync(adminUserId);
-            if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+            if (admin == null || admin.Role != UserRole.Admin)
             {
                 throw new UnauthorizedAccessException("只有管理员可以修改社区设置");
             }

@@ -351,10 +351,10 @@ namespace petpal.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new ApiResponse
+                return StatusCode(500, new ApiResponse
                 {
                     Success = false,
-                    Message = ex.Message
+                    Message = "服务器内部错误: " + ex.Message
                 });
             }
         }

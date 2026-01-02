@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using petpal.API.Data;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Services
 {
@@ -224,22 +225,51 @@ namespace petpal.API.Services
         /// <summary>
         /// 获取待审核的需求列表
         /// </summary>
-        public async Task<List<MutualOrder>> GetPendingReviewsAsync(ReviewFilters filters)
+        public async Task<List<ReviewListItemDto>> GetPendingReviewsAsync(ReviewFilters filters)
         {
-            var query = _context.MutualOrders
-                .Include(o => o.Owner)
-                .Where(o => o.Status == OrderStatus.Pending);
+            // 构建基础查询
+            var query = _context.MutualOrders.AsQueryable();
 
+            // 状态过滤
+            if (!string.IsNullOrEmpty(filters.Status))
+            {
+                if (filters.Status == "Pending")
+                    query = query.Where(o => o.Status == OrderStatus.Pending);
+                else if (filters.Status == "Approved")
+                    query = query.Where(o => o.Status == OrderStatus.Approved);
+                else if (filters.Status == "Rejected")
+                    query = query.Where(o => o.Status == OrderStatus.Rejected);
+            }
+            else
+            {
+                // 默认只显示待审核的
+                query = query.Where(o => o.Status == OrderStatus.Pending);
+            }
+
+            // 服务类型过滤
             if (!string.IsNullOrEmpty(filters.ServiceType))
             {
                 query = query.Where(o => o.ServiceType == filters.ServiceType);
             }
 
-            return await query
+            var orders = await query
+                .Include(o => o.Owner)  // Include要在最后
                 .OrderBy(o => o.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
                 .Take(filters.PageSize)
                 .ToListAsync();
+
+            // 转换为DTO避免循环引用
+            return orders.Select(o => new ReviewListItemDto
+            {
+                Id = o.Id,
+                Title = o.Title,
+                ServiceType = o.ServiceType,
+                PetType = o.PetType,
+                CreatedAt = o.CreatedAt,
+                Owner = o.Owner.ToUserDto(),
+                Status = o.Status.ToString()
+            }).ToList();
         }
 
         /// <summary>

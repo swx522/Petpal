@@ -1,4 +1,5 @@
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Services
 {
@@ -64,8 +65,8 @@ namespace petpal.API.Services
         /// 获取待审核的需求列表
         /// </summary>
         /// <param name="filters">筛选条件</param>
-        /// <returns>待审核需求列表</returns>
-        Task<List<MutualOrder>> GetPendingReviewsAsync(ReviewFilters filters);
+        /// <returns>待审核需求列表DTO</returns>
+        Task<List<ReviewListItemDto>> GetPendingReviewsAsync(ReviewFilters filters);
 
         /// <summary>
         /// 获取审核详情
@@ -183,9 +184,24 @@ namespace petpal.API.Services
     /// </summary>
     public class ReviewFilters
     {
+        public string? Status { get; set; }
         public string? ServiceType { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
+    }
+
+    /// <summary>
+    /// 审核列表项DTO
+    /// </summary>
+    public class ReviewListItemDto
+    {
+        public string Id { get; set; } = "";
+        public string Title { get; set; } = "";
+        public string ServiceType { get; set; } = "";
+        public string PetType { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+        public UserDto Owner { get; set; }
+        public string Status { get; set; } = "";
     }
 
     /// <summary>

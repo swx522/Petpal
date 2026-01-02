@@ -743,10 +743,29 @@ onMounted(() => {
 })
 
 const verifyAdminPermission = async () => {
+  // 首先检查localStorage中的角色信息
+  const storedRole = localStorage.getItem('petpal_userRole')
+  const isLoggedIn = localStorage.getItem('petpal_isLoggedIn')
+  console.log('=== 调试信息 ===')
+  console.log('存储的用户角色:', storedRole)
+  console.log('登录状态:', isLoggedIn)
+  console.log('所有localStorage项目:', Object.keys(localStorage).filter(key => key.includes('petpal')))
+  console.log('================')
+
+  // 如果没有登录或没有角色信息，提示重新登录
+  if (!isLoggedIn || !storedRole) {
+    console.error('用户未登录或角色信息缺失')
+    adminAPI.showError('请先登录管理员账号')
+    return
+  }
+
   const result = await adminAPI.verifyAdminPermission()
   if (!result.success) {
+    console.error('权限验证失败:', result.message)
     adminAPI.showError(result.message)
     // 可以跳转到无权限页面或首页
+  } else {
+    console.log('权限验证成功')
   }
 }
 

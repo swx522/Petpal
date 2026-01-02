@@ -151,7 +151,7 @@ export const adminAPI = {
         }
       }
       
-      return await http.delete('/admin/community/members/remove/${memberId}', {
+      return await http.delete(`/admin/community/members/remove/${memberId}`, {
       })
     } catch (error) {
       console.error('移除成员失败:', error)

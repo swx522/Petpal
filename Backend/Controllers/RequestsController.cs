@@ -223,9 +223,7 @@ namespace petpal.API.Controllers
                     StartTime = request.StartTime,
                     EndTime = request.EndTime,
                     Description = request.Description,
-                    CommunityId = community?.Id,
-                    Longitude = user.Longitude,
-                    Latitude = user.Latitude
+                    CommunityId = community?.Id
                 };
 
                 _context.MutualOrders.Add(order);

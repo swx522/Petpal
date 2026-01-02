@@ -417,16 +417,7 @@ const loading = reactive({
 const petTypes = ref([])
 const serviceCategories = ref([])
 const pendingReviews = ref([])
-<<<<<<< HEAD
 const myOrders = ref([])
-=======
-const userLocation = reactive({
-  longitude: null,
-  latitude: null,
-  community: null,
-  locationUpdatedAt: null
-})
->>>>>>> fac8cf5f256ccd13eeaf5661bdecaf41533b39c7
 
 // 发布数据
 const publishData = reactive({

@@ -845,3 +845,32 @@ dotnet petpal.dll --urls "http://0.0.0.0:80"
 ---
 
 **🎉 感谢使用 PetPal - 让宠物照顾变得更简单！**
+
+---
+
+## 自动生成的接口文档（已导出）
+
+接口清单与示例已单独导出为两份文档（以便前端/后端团队直接使用）：
+
+- `docs/api-external.md` — 外部 HTTP 接口（按 Controller 分组，表格含请求体与响应示例）  
+- `docs/api-internal.md` — 内部 Service 层接口（表格含关键方法签名）
+
+请在项目根目录下的 `docs/` 文件夹中查看这两份文档；README 中已移除完整表格以避免冗余。
+
+## 🔧 内部接口（Service 层）——按源码划分
+
+说明：下面列出后端 Service 层公开的接口（供代码内部调用），以便开发者快速了解可用的服务契约和常用方法示例。
+
+| 接口 | 说明 | 关键方法示例 |
+|---|---|---|
+| `IUserService` | 用户管理（注册/登录/资料/密码） | `RegisterAsync(username,password,phone,email,role)`; `LoginAsync(account,password)`; `GetUserByIdAsync(id)`; `ResetPasswordAsync(phone,password)` |
+| `IRequestService` | 需求与宠物信息管理（发布/接单/审核） | `CreatePetProfileAsync(userId,petInfo)`; `CreateRequestAsync(userId,request)`; `GetAvailableRequestsAsync(sitterId,filters)`; `GetRequestDetailAsync(requestId,userId)` |
+| `IOrderService` | 订单与评价相关业务 | `GetUserOrdersAsync(userId,filters)`; `GetOrdersToEvaluateAsync(userId)`; `SubmitEvaluationAsync(evaluatorId,orderId,evaluation)`; `CompleteOrderAsync(userId,orderId)` |
+| `IOrderRatingService` | 订单评分存取（独立于业务评价） | `RateOrderAsync(orderId,raterId,evaluatedUserId,evaluationType,score,content)`; `GetRatingsByOrderAsync(orderId)` |
+| `ICommunityService` | 社区信息、成员管理与统计 | `GetUserCommunityAsync(userId)`; `GetCommunityStatsAsync()`; `GetCommunityMembersAsync(filters)`; `ChangeMemberRoleAsync(adminId,memberId,newRole)` |
+| `IGeolocationService` | 地理位置与社区查找、距离计算 | `FindCommunityByLocationAsync(longitude,latitude)`; `GetServicesInCommunityAsync(communityId,userLat,userLng)`; `CalculateDistance(...)` |
+| `IJwtService` | JWT 令牌生成与验证 | `GenerateToken(User user)`; `ValidateToken(string token)` |
+
+提示：每个接口的完整方法签名与说明位于 `Backend/Services/*.cs` 文件中，若需要我可以把每个接口展开成独立的 Markdown 子页（包含方法参数与返回类型说明）。
+
+若你还需要把“外部接口（HTTP API）”与“内部接口（Service 层）”分别导出为两个单独的文档文件（例如 `docs/api-external.md` 与 `docs/api-internal.md`），我也可以帮你生成并提交到仓库。选择接下来要做的操作即可。

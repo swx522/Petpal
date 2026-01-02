@@ -188,15 +188,7 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                var isCertified = await _userService.ValidateCertificationAsync(userId);
-                if (!isCertified)
-                {
-                    return BadRequest(new ApiResponse
-                    {
-                        Success = false,
-                        Message = "发布需求需要完成实名认证和宠物认证"
-                    });
-                }
+                // 认证检查已移除：发布需求无需实名认证或宠物认证
 
                 // 验证时间
                 if (request.StartTime >= request.EndTime)

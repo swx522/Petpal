@@ -48,8 +48,7 @@ namespace petpal.API.Services
                 // 信誉等级声明 - 用于业务逻辑判断
                 new Claim("ReputationLevel", user.ReputationLevel),
 
-                // 认证状态声明 - 表示用户是否完成双重认证
-                new Claim("IsCertified", (user.IsRealNameCertified && user.IsPetCertified).ToString())
+                // 认证状态已移除，不再包含 IsCertified 声明
             };
 
             // 获取JWT配置信息

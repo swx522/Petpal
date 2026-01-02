@@ -150,51 +150,7 @@ namespace petpal.API.Services
             return await _context.Users.FindAsync(userId);
         }
 
-        /// <summary>
-        /// 验证用户认证状态
-        /// 检查用户是否同时完成了实名认证和宠物认证
-        /// </summary>
-        /// <param name="userId">用户ID</param>
-        /// <returns>认证状态（true表示已完成双重认证）</returns>
-        public async Task<bool> ValidateCertificationAsync(string userId)
-        {
-            var user = await _context.Users.FindAsync(userId);
-            return user != null && user.IsRealNameCertified && user.IsPetCertified;
-        }
-
-        /// <summary>
-        /// 更新用户认证信息
-        /// 处理实名认证或宠物认证的提交
-        /// </summary>
-        /// <param name="userId">用户ID</param>
-        /// <param name="certType">认证类型</param>
-        /// <param name="certImages">认证图片URL列表</param>
-        /// <exception cref="Exception">用户不存在时抛出异常</exception>
-        public async Task UpdateUserCertificationAsync(string userId, string certType, List<string> certImages)
-        {
-            // 查找用户
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                throw new Exception("用户不存在");
-            }
-
-            // 根据认证类型更新相应的认证状态
-            // 注意：这里是简化实现，实际项目中应该调用第三方认证服务进行审核
-            if (certType == "user")
-            {
-                // 实名认证
-                user.IsRealNameCertified = true;
-            }
-            else if (certType == "pet")
-            {
-                // 宠物认证
-                user.IsPetCertified = true;
-            }
-
-            // 保存更改
-            await _context.SaveChangesAsync();
-        }
+        // 认证相关方法已移除
 
         /// <summary>
         /// 密码哈希处理

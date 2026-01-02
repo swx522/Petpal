@@ -36,22 +36,7 @@ namespace petpal.API.Services
         /// <returns>用户信息</returns>
         Task<User> GetUserByIdAsync(string userId);
 
-        /// <summary>
-        /// 验证用户认证状态
-        /// 检查用户是否已完成实名认证和宠物认证
-        /// </summary>
-        /// <param name="userId">用户ID</param>
-        /// <returns>认证状态</returns>
-        Task<bool> ValidateCertificationAsync(string userId);
-
-        /// <summary>
-        /// 提交用户认证信息
-        /// 处理实名认证或宠物认证的提交
-        /// </summary>
-        /// <param name="userId">用户ID</param>
-        /// <param name="certType">认证类型（"user"或"pet"）</param>
-        /// <param name="certImages">认证图片URL列表</param>
-        Task UpdateUserCertificationAsync(string userId, string certType, List<string> certImages);
+        // 认证相关方法已移除
 
         /// <summary>
         /// 密码哈希处理

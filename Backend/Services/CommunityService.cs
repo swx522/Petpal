@@ -117,7 +117,7 @@ namespace petpal.API.Services
 
             if (filters.IsCertified.HasValue)
             {
-                query = query.Where(u => u.IsRealNameCertified && u.IsPetCertified);
+                // 认证字段已移除，忽略此筛选条件
             }
 
             var users = await query
@@ -146,7 +146,7 @@ namespace petpal.API.Services
 
             if (filters.IsCertified.HasValue)
             {
-                query = query.Where(u => u.IsRealNameCertified && u.IsPetCertified);
+                // 认证字段已移除，忽略此筛选条件
             }
 
             var users = await query

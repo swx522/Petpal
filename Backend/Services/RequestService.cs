@@ -89,11 +89,7 @@ namespace petpal.API.Services
                 throw new ArgumentException("用户不存在");
             }
 
-            // 验证宠物认证
-            if (!await _userService.ValidateCertificationAsync(userId))
-            {
-                throw new InvalidOperationException("需要完成实名认证和宠物认证才能发布需求");
-            }
+            // 认证检查已移除：发布需求无需实名认证或宠物认证
 
             var order = new MutualOrder
             {

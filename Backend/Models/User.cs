@@ -113,13 +113,7 @@ namespace petpal.API.Models
         /// 实名认证状态
         /// 表示用户是否已完成实名身份验证
         /// </summary>
-        public bool IsRealNameCertified { get; set; } = false;
-
-        /// <summary>
-        /// 宠物认证状态
-        /// 表示用户是否已完成宠物相关认证（如疫苗证明）
-        /// </summary>
-        public bool IsPetCertified { get; set; } = false;
+        // 认证字段已移除：IsRealNameCertified, IsPetCertified
 
         /// <summary>
         /// Sitter审核状态

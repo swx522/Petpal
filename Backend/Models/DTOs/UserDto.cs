@@ -51,12 +51,7 @@ namespace petpal.API.Models.DTOs
         /// <summary>
         /// 实名认证状态
         /// </summary>
-        public bool IsRealNameCertified { get; set; }
-
-        /// <summary>
-        /// 宠物认证状态
-        /// </summary>
-        public bool IsPetCertified { get; set; }
+        // 认证字段已移除
 
         /// <summary>
         /// Sitter审核状态

@@ -23,8 +23,7 @@ namespace petpal.API.Models.DTOs
                 Status = user.Status,
                 ReputationScore = user.ReputationScore,
                 ReputationLevel = user.ReputationLevel,
-                IsRealNameCertified = user.IsRealNameCertified,
-                IsPetCertified = user.IsPetCertified,
+                // 认证字段已移除
                 SitterAuditStatus = user.SitterAuditStatus,
                 CareIntroduction = user.CareIntroduction,
                 ServiceTypes = user.ServiceTypes,

@@ -180,19 +180,19 @@
           </div>
           <div class="detail-item">
             <span class="detail-label">服务类型：</span>
-            <span class="detail-value">{{ formatServiceType(publishedOrder.serviceType).label }}</span>
+            <span class="detail-value">{{ orderAPI.formatServiceType(publishedOrder.serviceType).label }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">宠物类型：</span>
-            <span class="detail-value">{{ formatPetType(publishedOrder.petType).label }}</span>
+            <span class="detail-value">{{ orderAPI.formatPetType(publishedOrder.petType).label }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">开始时间：</span>
-            <span class="detail-value">{{ formatDateTime(publishedOrder.startTime) }}</span>
+            <span class="detail-value">{{ orderAPI.formatDateTime(publishedOrder.startTime) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">结束时间：</span>
-            <span class="detail-value">{{ formatDateTime(publishedOrder.endTime) }}</span>
+            <span class="detail-value">{{ orderAPI.formatDateTime(publishedOrder.endTime) }}</span>
           </div>
           <div v-if="publishedOrder.communityName" class="detail-item">
             <span class="detail-label">发布到：</span>
@@ -239,17 +239,17 @@
             >
               <div class="review-card-header">
                 <div class="order-info">
-                  <h4>{{ formatServiceType(order.serviceType).label }}</h4>
+                  <h4>{{ orderAPI.formatServiceType(order.serviceType).label }}</h4>
                   <p class="order-time">
-                    完成于 {{ formatDateTime(order.completedAt) }}
+                    完成于 {{ orderAPI.formatDateTime(order.completedAt) }}
                   </p>
                   <div class="order-number">
                     {{ order.orderNumber || generateOrderNumber(order.id, order.createdAt) }}
                   </div>
                 </div>
                 <div class="pet-info">
-                  <span class="pet-icon">{{ formatPetType(order.petType).icon }}</span>
-                  <span class="pet-name">{{ formatPetType(order.petType).label }}</span>
+                  <span class="pet-icon">{{ orderAPI.formatPetType(order.petType).icon }}</span>
+                  <span class="pet-name">{{ orderAPI.formatPetType(order.petType).label }}</span>
                 </div>
               </div>
               
@@ -315,7 +315,6 @@ const router = useRouter()
 const loading = reactive({
   petTypes: false,
   serviceCategories: false,
-  location: false,
   submit: false,
   evaluation: false
 })
@@ -324,12 +323,6 @@ const loading = reactive({
 const petTypes = ref([])
 const serviceCategories = ref([])
 const pendingReviews = ref([])
-const userLocation = reactive({
-  longitude: null,
-  latitude: null,
-  community: null,
-  locationUpdatedAt: null
-})
 
 // 发布数据
 const publishData = reactive({
@@ -424,7 +417,6 @@ const loadInitialData = async () => {
     await Promise.all([
       loadPetTypes(),
       loadServiceCategories(),
-      loadUserLocation(),
       loadPendingReviews()
     ])
   } catch (error) {
@@ -480,22 +472,6 @@ const loadServiceCategories = async () => {
     serviceCategories.value = []
   } finally {
     loading.serviceCategories = false
-  }
-}
-
-const loadUserLocation = async () => {
-  try {
-    loading.location = true
-    const response = await orderAPI.getLocation()
-    
-    if (response.success && response.data) {
-      Object.assign(userLocation, response.data)
-    }
-  } catch (error) {
-    console.error('加载位置信息失败:', error)
-    // 不显示错误，允许用户继续发布
-  } finally {
-    loading.location = false
   }
 }
 
@@ -700,11 +676,6 @@ const formatTimeAgo = (dateString) => {
 
 const rateOrder = (order, rating) => {
   order.userRating = rating
-}
-
-const refreshLocation = async () => {
-  await loadUserLocation()
-  showSuccessAlert('位置更新', '位置信息已更新')
 }
 
 const resetForm = () => {

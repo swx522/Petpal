@@ -7,6 +7,81 @@
       <p>填写您的宠物需求信息，社区成员会来帮助您</p>
     </div>
 
+    <!-- 我的订单快速查看模块 -->
+    <div class="quick-orders-section">
+      <div class="section-header">
+        <h2>
+          <span class="section-title">我的已发布订单</span>
+          <span class="order-count">({{ myOrders.length }})</span>
+        </h2>
+        <div class="section-actions">
+          <button 
+            @click="refreshMyOrders" 
+            class="btn-refresh"
+            :disabled="loading.myOrders"
+          >
+            <span v-if="loading.myOrders" class="btn-spinner small"></span>
+            {{ loading.myOrders ? '刷新中...' : '🔄 刷新' }}
+          </button>
+          <button 
+            @click="toggleMyOrders" 
+            class="btn-toggle"
+          >
+            {{ showMyOrders ? '收起' : '展开' }}
+          </button>
+        </div>
+      </div>
+      
+      <!-- 加载状态 -->
+      <div v-if="loading.myOrders" class="loading-orders">
+        <div class="mini-spinner"></div>
+        <p>加载订单中...</p>
+      </div>
+      
+      <!-- 空状态 -->
+      <div v-else-if="showMyOrders && myOrders.length === 0" class="empty-orders">
+        <div class="empty-icon">📝</div>
+        <h3>暂无已发布订单</h3>
+        <p>发布您的第一个需求吧！</p>
+      </div>
+      
+      <!-- 订单列表 -->
+      <div v-else-if="showMyOrders && myOrders.length > 0" class="orders-grid">
+        <div 
+          v-for="order in myOrders" 
+          :key="order.id"
+          class="order-card"
+        >
+          <div class="order-card-header">
+            <div class="order-status" :class="getStatusClass(order.status)">
+              {{ getStatusText(order.status) }}
+            </div>
+            <div class="order-time">
+              {{ formatDate(order.createdAt) }}
+            </div>
+          </div>
+          
+          <div class="order-card-body">
+            <h4 class="order-title">{{ order.title }}</h4>
+            <div class="order-meta">
+              <div class="meta-item">
+                <span class="meta-label">宠物类型：</span>
+                <span class="meta-value">{{ getPetTypeText(order.petType) }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">服务类型：</span>
+                <span class="meta-value">{{ getServiceTypeText(order.serviceType) }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">服务时间：</span>
+                <span class="meta-value">{{ formatOrderTime(order) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 加载状态 -->
     <div v-if="loading.petTypes || loading.serviceCategories" class="loading-state">
       <div class="spinner"></div>
@@ -160,8 +235,8 @@
             <span class="stat-value">{{ pendingReviews.length }}个</span>
           </div>
           <div class="stats-item">
-            <span class="stat-label">今日可发布</span>
-            <span class="stat-value text-success">3次</span>
+            <span class="stat-label">已发布订单</span>
+            <span class="stat-value">{{ myOrders.length }}个</span>
           </div>
         </div>
       </div>
@@ -180,19 +255,19 @@
           </div>
           <div class="detail-item">
             <span class="detail-label">服务类型：</span>
-            <span class="detail-value">{{ orderAPI.formatServiceType(publishedOrder.serviceType).label }}</span>
+            <span class="detail-value">{{ getServiceTypeText(publishedOrder.serviceType) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">宠物类型：</span>
-            <span class="detail-value">{{ orderAPI.formatPetType(publishedOrder.petType).label }}</span>
+            <span class="detail-value">{{ getPetTypeText(publishedOrder.petType) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">开始时间：</span>
-            <span class="detail-value">{{ orderAPI.formatDateTime(publishedOrder.startTime) }}</span>
+            <span class="detail-value">{{ formatDateTime(publishedOrder.startTime) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">结束时间：</span>
-            <span class="detail-value">{{ orderAPI.formatDateTime(publishedOrder.endTime) }}</span>
+            <span class="detail-value">{{ formatDateTime(publishedOrder.endTime) }}</span>
           </div>
           <div v-if="publishedOrder.communityName" class="detail-item">
             <span class="detail-label">发布到：</span>
@@ -239,17 +314,17 @@
             >
               <div class="review-card-header">
                 <div class="order-info">
-                  <h4>{{ orderAPI.formatServiceType(order.serviceType).label }}</h4>
+                  <h4>{{ getServiceTypeText(order.serviceType) }}</h4>
                   <p class="order-time">
-                    完成于 {{ orderAPI.formatDateTime(order.completedAt) }}
+                    完成于 {{ formatDateTime(order.completedAt) }}
                   </p>
                   <div class="order-number">
                     {{ order.orderNumber || generateOrderNumber(order.id, order.createdAt) }}
                   </div>
                 </div>
                 <div class="pet-info">
-                  <span class="pet-icon">{{ orderAPI.formatPetType(order.petType).icon }}</span>
-                  <span class="pet-name">{{ orderAPI.formatPetType(order.petType).label }}</span>
+                  <span class="pet-icon">{{ getPetTypeIcon(order.petType) }}</span>
+                  <span class="pet-name">{{ getPetTypeText(order.petType) }}</span>
                 </div>
               </div>
               
@@ -316,13 +391,15 @@ const loading = reactive({
   petTypes: false,
   serviceCategories: false,
   submit: false,
-  evaluation: false
+  evaluation: false,
+  myOrders: false
 })
 
 // 数据
 const petTypes = ref([])
 const serviceCategories = ref([])
 const pendingReviews = ref([])
+const myOrders = ref([])
 
 // 发布数据
 const publishData = reactive({
@@ -350,6 +427,7 @@ const showError = ref(false)
 const errorTitle = ref('')
 const errorMessage = ref('')
 const showReviewSection = ref(true)
+const showMyOrders = ref(true) // 控制是否显示我的订单
 const currentReviewOrder = ref(null)
 const publishedOrder = ref({})
 
@@ -362,7 +440,7 @@ const minStartTime = computed(() => {
 
 const timeInterval = computed(() => {
   if (!publishData.startTime || !publishData.endTime) return null
-  return orderAPI.calculateTimeInterval(publishData.startTime, publishData.endTime)
+  return calculateTimeInterval(publishData.startTime, publishData.endTime)
 })
 
 const isFormValid = computed(() => {
@@ -417,7 +495,8 @@ const loadInitialData = async () => {
     await Promise.all([
       loadPetTypes(),
       loadServiceCategories(),
-      loadPendingReviews()
+      loadPendingReviews(),
+      loadMyOrders() // 新增：加载我的订单
     ])
   } catch (error) {
     console.error('初始化数据失败:', error)
@@ -494,6 +573,35 @@ const loadPendingReviews = async () => {
   }
 }
 
+// 新增：加载我的订单
+const loadMyOrders = async () => {
+  try {
+    loading.myOrders = true
+    const response = await orderAPI.getMyOrders({
+      page: 1,
+      pageSize: 10
+    })
+    
+    if (response.success && response.data) {
+      // 根据后端返回的数据结构调整
+      if (response.data.orders && Array.isArray(response.data.orders)) {
+        myOrders.value = response.data.orders
+      } else if (Array.isArray(response.data)) {
+        myOrders.value = response.data
+      } else {
+        myOrders.value = []
+      }
+    } else {
+      myOrders.value = []
+    }
+  } catch (error) {
+    console.error('加载我的订单失败:', error)
+    myOrders.value = []
+  } finally {
+    loading.myOrders = false
+  }
+}
+
 // 表单验证
 const validateTime = () => {
   if (!publishData.startTime || !publishData.endTime) return
@@ -559,11 +667,13 @@ const submitRequirement = async () => {
       showSuccessModal.value = true
       resetForm()
       
+      // 刷新我的订单列表
+      await loadMyOrders()
+      
       // 延迟关闭模态框
       setTimeout(() => {
         if (showSuccessModal.value) {
           showSuccessModal.value = false
-          router.push('/orders/my')
         }
       }, 5000)
     } else {
@@ -606,7 +716,7 @@ const submitReview = async (order) => {
       content: order.userComment || ''
     }
     
-    const response = await submitEvaluation(evaluationData)
+    const response = await orderAPI.submitEvaluation(evaluationData)
     
     if (response.success) {
       // 从待评价列表中移除
@@ -697,7 +807,7 @@ const closeModal = () => {
 }
 
 const goToMyOrders = () => {
-  router.push('/orders/my')
+  router.push('/publish')
 }
 
 const showErrorAlert = (title, message) => {
@@ -718,6 +828,130 @@ const showSuccessAlert = (title, message) => {
 
 const closeError = () => {
   showError.value = false
+}
+
+// 新增：我的订单相关函数
+const toggleMyOrders = () => {
+  showMyOrders.value = !showMyOrders.value
+}
+
+const refreshMyOrders = () => {
+  loadMyOrders()
+}
+
+const viewOrderDetail = (orderId) => {
+  router.push(`/orders/${orderId}`)
+}
+
+const getStatusClass = (status) => {
+  const statusMap = {
+    'Pending': 'status-pending',
+    'Accepted': 'status-accepted',
+    'InProgress': 'status-inprogress',
+    'Completed': 'status-completed',
+    'Cancelled': 'status-cancelled'
+  }
+  return statusMap[status] || 'status-pending'
+}
+
+const getStatusText = (status) => {
+  const statusMap = {
+    'Pending': '待接单',
+    'Accepted': '已接单',
+    'InProgress': '进行中',
+    'Completed': '已完成',
+    'Cancelled': '已取消'
+  }
+  return statusMap[status] || status
+}
+
+const getPetTypeText = (petType) => {
+  const petTypeMap = {
+    'dog': '狗狗',
+    'cat': '猫咪',
+    'rabbit': '兔兔',
+    'bird': '鸟鸟',
+    'other': '其他'
+  }
+  return petTypeMap[petType] || petType
+}
+
+const getPetTypeIcon = (petType) => {
+  const iconMap = {
+    'dog': '🐶',
+    'cat': '🐱',
+    'rabbit': '🐰',
+    'bird': '🐦',
+    'other': '🐾'
+  }
+  return iconMap[petType] || '🐾'
+}
+
+const getServiceTypeText = (serviceType) => {
+  const serviceTypeMap = {
+    'walk': '遛狗服务',
+    'feed': '喂食照顾',
+    'medical': '就医陪伴',
+    'groom': '美容护理',
+    'other': '其他服务'
+  }
+  return serviceTypeMap[serviceType] || serviceType
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN')
+}
+
+const formatDateTime = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const formatOrderTime = (order) => {
+  if (order.startTime && order.endTime) {
+    const start = new Date(order.startTime)
+    const end = new Date(order.endTime)
+    return `${start.getMonth() + 1}/${start.getDate()} ${start.getHours()}:${start.getMinutes().toString().padStart(2, '0')} - ${end.getMonth() + 1}/${end.getDate()} ${end.getHours()}:${end.getMinutes().toString().padStart(2, '0')}`
+  }
+  return ''
+}
+
+const calculateTimeInterval = (startTime, endTime) => {
+  if (!startTime || !endTime) return ''
+  const start = new Date(startTime)
+  const end = new Date(endTime)
+  const diffMs = end - start
+  const diffHours = diffMs / (1000 * 60 * 60)
+  
+  if (diffHours < 1) {
+    const minutes = Math.round(diffHours * 60)
+    return `${minutes}分钟`
+  } else if (diffHours < 24) {
+    const hours = Math.round(diffHours)
+    return `${hours}小时`
+  } else {
+    const days = Math.round(diffHours / 24)
+    return `${days}天`
+  }
+}
+
+const generateOrderNumber = (orderId, createdAt) => {
+  try {
+    const date = new Date(createdAt)
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '')
+    const idPrefix = orderId ? orderId.substring(0, 4).toUpperCase() : 'XXXX'
+    return `OD${dateStr}${idPrefix}`
+  } catch (error) {
+    return `OD${Date.now().toString().slice(-8)}`
+  }
 }
 </script>
 
@@ -746,6 +980,289 @@ const closeError = () => {
 .page-header p {
   color: #64748b;
   font-size: 16px;
+}
+
+/* 我的订单快速查看模块 */
+.quick-orders-section {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  margin-bottom: 40px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.quick-orders-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.quick-orders-section .section-header h2 {
+  font-size: 22px;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title {
+  font-weight: 700;
+}
+
+.order-count {
+  font-size: 16px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.section-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-refresh {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-toggle {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #22c55e;
+  color: white;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-toggle:hover {
+  background: #16a34a;
+}
+
+.loading-orders {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.mini-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #f1f5f9;
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+.empty-orders {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-orders h3 {
+  color: #64748b;
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.empty-orders p {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.order-card {
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.order-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #d1fae5;
+}
+
+.order-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.order-status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-accepted {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-inprogress {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.order-time {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.order-card-body {
+  padding: 16px;
+}
+
+.order-title {
+  font-size: 16px;
+  color: #1e293b;
+  margin-bottom: 12px;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.order-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+}
+
+.meta-label {
+  font-size: 12px;
+  color: #64748b;
+  min-width: 60px;
+}
+
+.meta-value {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.order-card-footer {
+  padding: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.order-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-view {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #22c55e;
+  color: white;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-view:hover {
+  background: #16a34a;
+}
+
+.order-id {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.view-all {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.btn-view-all {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  background: transparent;
+  color: #22c55e;
+  border: 1px solid #22c55e;
+  transition: all 0.2s;
+}
+
+.btn-view-all:hover {
+  background: #f0fdf4;
 }
 
 /* 加载状态 */
@@ -1122,33 +1639,6 @@ const closeError = () => {
   color: #22c55e;
 }
 
-.btn-refresh {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  color: #64748b;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 15px;
-}
-
-.btn-refresh:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-}
-
-.btn-refresh:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 /* 模态框 */
 .modal-overlay {
   position: fixed;
@@ -1361,18 +1851,18 @@ const closeError = () => {
   margin-right: auto;
 }
 
-.section-header {
+.review-section .section-header {
   margin-bottom: 40px;
 }
 
-.section-header h2 {
+.review-section .section-header h2 {
   font-size: 28px;
   color: #1e293b;
   margin-bottom: 8px;
   font-weight: 700;
 }
 
-.section-header p {
+.review-section .section-header p {
   color: #64748b;
   font-size: 16px;
 }
@@ -1606,6 +2096,10 @@ const closeError = () => {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
   
+  .orders-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  
   .side-tips {
     min-width: auto;
   }
@@ -1618,6 +2112,21 @@ const closeError = () => {
   
   .page-header h1 {
     font-size: 28px;
+  }
+  
+  .quick-orders-section {
+    padding: 20px;
+  }
+  
+  .quick-orders-section .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .section-actions {
+    width: 100%;
+    justify-content: space-between;
   }
   
   .form-card {
@@ -1638,6 +2147,10 @@ const closeError = () => {
   }
   
   .reviews-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .orders-grid {
     grid-template-columns: 1fr;
   }
   
@@ -1669,6 +2182,10 @@ const closeError = () => {
     font-size: 24px;
   }
   
+  .quick-orders-section .section-header h2 {
+    font-size: 20px;
+  }
+  
   .form-card h3 {
     font-size: 20px;
   }
@@ -1677,7 +2194,7 @@ const closeError = () => {
     padding: 20px;
   }
   
-  .section-header h2 {
+  .review-section .section-header h2 {
     font-size: 24px;
   }
   

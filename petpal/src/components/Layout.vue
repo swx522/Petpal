@@ -37,6 +37,20 @@
           <span>接单需求</span>
           <span v-if="!isLoggedIn || userRole !== 'Sitter'" class="nav-lock">🔒</span>
         </div>
+
+        <!-- 接单需求 - 仅服务者可见 -->
+        <div 
+          class="nav-item" 
+          :class="{
+            active: activeNav === '/order',
+            unavailable: !isLoggedIn || userRole !== 'Sitter'
+          }"
+          @click="handleNavClick('/order', 'Sitter')"
+        >
+          <i class="icon">🦴</i> 
+          <span>订单状态</span>
+          <span v-if="!isLoggedIn || userRole !== 'Sitter'" class="nav-lock">🔒</span>
+        </div>
         
         <!-- 管理社区 - 仅管理者可见 -->
         <div 

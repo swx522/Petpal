@@ -32,6 +32,11 @@ const router = createRouter({
           name: 'publish',
           component: () => import('@/views/PublishRequirement.vue'),
         },
+         {
+          path: '/order',
+          name: 'order',
+          component: () => import('@/views/SitterOrders.vue'),
+        },
         {
           path: '/accept',
           name: 'accept',

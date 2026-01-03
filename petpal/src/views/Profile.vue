@@ -335,9 +335,9 @@ const userInitials = computed(() => {
 
 const roleText = computed(() => {
   const roleMap = {
-    'user': '宠物主人',
-    'sitter': '服务者',
-    'admin': '管理者'
+    'User': '宠物主人',
+    'Sitter': '服务者',
+    'Admin': '管理者'
   }
   return roleMap[userRole.value] || '用户'
 })

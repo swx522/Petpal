@@ -533,8 +533,8 @@ async verifyAdminPermission() {
     })
     
     // 检查是否为管理员（2）或版主（admin）
-    if (userRole !== '2' && userRole !== 'admin') {
-      console.warn('权限不足：当前角色 =', userRole, '，需要2或admin')
+    if (userRole !== 'Admin') {
+      console.warn('权限不足：当前角色 =', userRole, '，需要Admin')
       return {
         success: false,
         message: '需要管理员权限'

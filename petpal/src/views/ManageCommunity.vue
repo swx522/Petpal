@@ -885,7 +885,7 @@ const getAvatarEmoji = (name) => {
 }
 
 const getRoleClass = (role) => {
-  return role === 'user' ? 'petuser' : 'serviceProvider'
+  return role === 'User' ? 'petuser' : 'serviceProvider'
 }
 
 const getAuditStatusClass = (status) => {

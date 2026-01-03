@@ -309,7 +309,7 @@
                       <div class="detail-item">
                         <span class="detail-icon">👤</span>
                         <span class="detail-label">发布者：</span>
-                        <span class="detail-value">{{ requirement.user?.nickName || requirement.user.name || '匿名用户' }}</span>
+                        <span class="detail-value">{{ requirement.user?.nickName || requirement.user?.name || '匿名用户' }}</span>
                         <span v-if="requirement.user?.level" class="member-level">Lv.{{ requirement.user.level }}</span>
                       </div>
                       
@@ -419,7 +419,6 @@
                       <div class="detail-item">
                         <span class="detail-icon">👤</span>
                         <span>{{ requirement.user?.nickName || requirement.user?.name || '匿名用户' }}</span>
-                        <span>{{ requirement.username}}</span>
                       </div>
                     </div>
                     
@@ -449,7 +448,14 @@
                     >
                       <span v-if="processingRequirement === requirement.id">处理中...</span>
                       <span v-else>🔄 重新审核</span>
-                    </button>                  
+                    </button>
+                    
+                    <button 
+                      @click="viewRequirementDetails(requirement)"
+                      class="action-btn view-btn"
+                    >
+                      👁️ 查看详情
+                    </button>
                     
                     <button 
                       @click="deleteReviewRecord(requirement)"

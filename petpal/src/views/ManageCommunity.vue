@@ -772,7 +772,6 @@ const loadMembers = async () => {
         totalCount: data.totalCount || 0,
         totalPages: Math.ceil((data.totalCount || 0) / (data.pageSize || 12))
       }
-      console.log('加载成员数据:', members.value)
     } else {
       adminAPI.showError(response.message || '加载成员列表失败')
     }

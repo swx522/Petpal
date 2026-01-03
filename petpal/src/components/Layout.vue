@@ -15,13 +15,13 @@
           class="nav-item" 
           :class="{
             active: activeNav === '/publish',
-            unavailable: !isLoggedIn || userRole !== 'user'
+            unavailable: !isLoggedIn || userRole !== 'User'
           }"
-          @click="handleNavClick('/publish', 'user')"
+          @click="handleNavClick('/publish', 'User')"
         >
           <i class="icon">📈</i> 
           <span>发布需求</span>
-          <span v-if="!isLoggedIn || userRole !== 'user'" class="nav-lock">🔒</span>
+          <span v-if="!isLoggedIn || userRole !== 'User'" class="nav-lock">🔒</span>
         </div>
         
         <!-- 接单需求 - 仅服务者可见 -->
@@ -29,13 +29,13 @@
           class="nav-item" 
           :class="{
             active: activeNav === '/accept',
-            unavailable: !isLoggedIn || userRole !== 'sitter'
+            unavailable: !isLoggedIn || userRole !== 'Sitter'
           }"
-          @click="handleNavClick('/accept', 'sitter')"
+          @click="handleNavClick('/accept', 'Sitter')"
         >
           <i class="icon">🦴</i> 
           <span>接单需求</span>
-          <span v-if="!isLoggedIn || userRole !== 'sitter'" class="nav-lock">🔒</span>
+          <span v-if="!isLoggedIn || userRole !== 'Sitter'" class="nav-lock">🔒</span>
         </div>
         
         <!-- 管理社区 - 仅管理者可见 -->
@@ -43,13 +43,13 @@
           class="nav-item" 
           :class="{
             active: activeNav === '/manage',
-            unavailable: !isLoggedIn || userRole !== 'admin'
+            unavailable: !isLoggedIn || userRole !== 'Admin'
           }"
-          @click="handleNavClick('/manage', 'admin')"
+          @click="handleNavClick('/manage', 'Admin')"
         >
           <i class="icon">🍱</i> 
           <span>管理社区</span>
-          <span v-if="!isLoggedIn || userRole !== 'admin'" class="nav-lock">🔒</span>
+          <span v-if="!isLoggedIn || userRole !== 'Admin'" class="nav-lock">🔒</span>
         </div>
       </nav>
 

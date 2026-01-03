@@ -161,7 +161,7 @@ namespace petpal.API.Controllers
                 // 获取已完成的订单中还未评价的
                 var completedOrders = await _context.MutualOrders
                     .Include(o => o.Evaluations)
-                    .Where(o => o.OwnerId == userId && o.Status == OrderStatus.Completed)
+                    .Where(o => o.OwnerId == userId && o.ExecutionStatus == OrderExecutionStatus.Completed)
                     .ToListAsync();
 
                 // 过滤出还未被当前用户评价的订单
@@ -235,7 +235,7 @@ namespace petpal.API.Controllers
                 var query = _context.MutualOrders
                     .Include(o => o.Owner)
                     .Include(o => o.Evaluations)
-                    .Where(o => o.Status == OrderStatus.Completed);
+                    .Where(o => o.ExecutionStatus == OrderExecutionStatus.Completed);
 
                 // 这里需要通过某种方式关联服务者，暂时简化处理
                 // 实际应该通过订单状态变化历史或专门的关联表来确定服务者
@@ -321,7 +321,7 @@ namespace petpal.API.Controllers
                 var order = await _context.MutualOrders
                     .Include(o => o.Evaluations)
                         .ThenInclude(e => e.Evaluator)
-                    .FirstOrDefaultAsync(o => o.Id == id && o.Status == OrderStatus.Completed);
+                    .FirstOrDefaultAsync(o => o.Id == id && o.ExecutionStatus == OrderExecutionStatus.Completed);
 
                 if (order == null)
                 {
@@ -398,7 +398,7 @@ namespace petpal.API.Controllers
                 // 获取订单
                 var order = await _context.MutualOrders
                     .Include(o => o.Owner)
-                    .FirstOrDefaultAsync(o => o.Id == request.OrderId && o.Status == OrderStatus.Completed);
+                    .FirstOrDefaultAsync(o => o.Id == request.OrderId && o.ExecutionStatus == OrderExecutionStatus.Completed);
 
                 if (order == null)
                 {

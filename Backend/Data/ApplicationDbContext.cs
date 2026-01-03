@@ -92,6 +92,11 @@ namespace petpal.API.Data
             modelBuilder.Entity<MutualOrder>()
                 .HasIndex(o => new { o.Status, o.CreatedAt });
 
+            // 配置执行状态的默认值
+            modelBuilder.Entity<MutualOrder>()
+                .Property(o => o.ExecutionStatus)
+                .HasDefaultValue(OrderExecutionStatus.Open);
+
 
             // 配置外键关系
             // 虽然使用了[ForeignKey]特性，但这里可以添加额外的约束配置

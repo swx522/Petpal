@@ -208,12 +208,19 @@ namespace petpal.API.Services
                 throw new ArgumentException("需求不存在");
             }
 
-            if (request.Status != OrderStatus.Pending)
+            // 检查审核状态：必须先审核通过才能接单
+            if (request.Status != OrderStatus.Approved)
+            {
+                throw new InvalidOperationException("该需求尚未通过审核，无法接单");
+            }
+
+            // 检查执行状态：只有开放状态才能接单
+            if (request.ExecutionStatus != OrderExecutionStatus.Open)
             {
                 throw new InvalidOperationException("该需求已被接受或已完成");
             }
 
-            request.Status = OrderStatus.Accepted;
+            request.ExecutionStatus = OrderExecutionStatus.Accepted;
             request.AcceptedAt = DateTime.Now;
             // 这里可以添加SitterId字段来记录接受者
 

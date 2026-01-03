@@ -133,7 +133,8 @@ namespace petpal.API.Services
             var services = await _context.MutualOrders
                 .Include(o => o.Owner)
                 .Include(o => o.Community)
-                .Where(o => o.Status == OrderStatus.Pending &&
+                .Where(o => o.Status == OrderStatus.Approved &&
+                           o.ExecutionStatus == OrderExecutionStatus.Open &&
                            o.CommunityId == communityId)
                 .ToListAsync();
 
@@ -174,7 +175,8 @@ namespace petpal.API.Services
             var query = _context.MutualOrders
                 .Include(o => o.Owner)
                 .Include(o => o.Community)
-                .Where(o => o.Status == OrderStatus.Pending);
+                .Where(o => o.Status == OrderStatus.Approved &&
+                           o.ExecutionStatus == OrderExecutionStatus.Open);
 
             if (excludeCommunityId.HasValue)
             {

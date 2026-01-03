@@ -51,7 +51,7 @@ namespace petpal.API.Services
             // 实际应该根据评价关系来确定
             return await _context.MutualOrders
                 .Include(o => o.Owner)
-                .Where(o => o.OwnerId == userId && o.Status == OrderStatus.Completed)
+                .Where(o => o.OwnerId == userId && o.ExecutionStatus == OrderExecutionStatus.Completed)
                 .OrderByDescending(o => o.CompletedAt)
                 .ToListAsync();
         }
@@ -65,7 +65,7 @@ namespace petpal.API.Services
             // 暂时返回所有已完成的订单
             return await _context.MutualOrders
                 .Include(o => o.Owner)
-                .Where(o => o.Status == OrderStatus.Completed)
+                .Where(o => o.ExecutionStatus == OrderExecutionStatus.Completed)
                 .OrderByDescending(o => o.CompletedAt)
                 .ToListAsync();
         }
@@ -101,7 +101,7 @@ namespace petpal.API.Services
             var positiveEvaluations = evaluations.Count(e => e.Score >= 4);
             // 暂时只计算作为发布者的已完成订单
             var totalCompletedOrders = await _context.MutualOrders
-                .CountAsync(o => o.OwnerId == userId && o.Status == OrderStatus.Completed);
+                .CountAsync(o => o.OwnerId == userId && o.ExecutionStatus == OrderExecutionStatus.Completed);
 
             return new UserReputation
             {
@@ -110,7 +110,7 @@ namespace petpal.API.Services
                 ReputationScore = user.ReputationScore,
                 ReputationLevel = "",
                 TotalCompletedOrders = totalCompletedOrders,
-                OrdersAsRequester = await _context.MutualOrders.CountAsync(o => o.OwnerId == userId && o.Status == OrderStatus.Completed),
+                OrdersAsRequester = await _context.MutualOrders.CountAsync(o => o.OwnerId == userId && o.ExecutionStatus == OrderExecutionStatus.Completed),
                 OrdersAsHelper = 0, // 暂时设为0，实际需要根据服务者记录计算
                 TotalEvaluations = evaluations.Count,
                 PositiveEvaluations = positiveEvaluations,
@@ -134,7 +134,7 @@ namespace petpal.API.Services
                 throw new ArgumentException("订单不存在");
             }
 
-            if (order.Status != OrderStatus.Completed)
+            if (order.ExecutionStatus != OrderExecutionStatus.Completed)
             {
                 throw new InvalidOperationException("只能评价已完成的订单");
             }
@@ -225,12 +225,12 @@ namespace petpal.API.Services
                 throw new UnauthorizedAccessException("无权限完成此订单");
             }
 
-            if (order.Status != OrderStatus.Accepted)
+            if (order.ExecutionStatus != OrderExecutionStatus.Accepted && order.ExecutionStatus != OrderExecutionStatus.InProgress)
             {
                 throw new InvalidOperationException("只有进行中的订单才能完成");
             }
 
-            order.Status = OrderStatus.Completed;
+            order.ExecutionStatus = OrderExecutionStatus.Completed;
             order.CompletedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();

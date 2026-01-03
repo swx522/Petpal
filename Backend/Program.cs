@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using petpal.API.Data;
 using petpal.API.Services;
+using petpal.API.Models;
 using Pomelo.EntityFrameworkCore.MySql;
 using Serilog;
 using System.Text;
@@ -116,22 +117,23 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// 应用程序启动时执行数据库迁移
-// 确保数据库结构与代码模型同步
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    try
-    {
-        // 确保数据库存在，如果不存在则创建
-        db.Database.EnsureCreated();
-        Log.Information("数据库初始化完成");
-    }
-    catch (Exception ex)
-    {
-        Log.Warning(ex, "数据库初始化警告，继续启动服务");
-    }
-}
+        // 应用程序启动时执行数据库迁移
+        // 确保数据库结构与代码模型同步
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            try
+            {
+                // 应用数据库迁移
+                await db.Database.MigrateAsync();
+                Log.Information("数据库迁移完成");
+
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "数据库初始化警告，继续启动服务");
+            }
+        }
 
 // 启动应用程序
 Log.Information("宠物互助平台API服务启动");

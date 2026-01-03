@@ -209,9 +209,9 @@ const currentPageName = computed(() => {
 // 角色文本显示
 const roleText = computed(() => {
   const roleMap = {
-    'user': '宠物主人',
-    'sitter': '服务者',
-    'admin': '管理者'
+    'User': '宠物主人',
+    'Sitter': '服务者',
+    'Admin': '管理者'
   }
   return roleMap[userRole.value] || '未分配角色'
 })
@@ -229,9 +229,9 @@ const handleNavClick = (path, requiredRole) => {
   // 已登录但角色不匹配
   if (userRole.value !== requiredRole) {
     const roleNameMap = {
-      'user': '宠物主人',
-      'sitter': '服务者',
-      'admin': '管理者'
+      'User': '宠物主人',
+      'Sitter': '服务者',
+      'Admin': '管理者'
     }
     const requiredRoleName = roleNameMap[requiredRole] || requiredRole
     const currentRoleName = roleText.value || '未分配角色'

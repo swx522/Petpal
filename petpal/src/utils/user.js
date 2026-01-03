@@ -203,7 +203,6 @@ async updateLocation(data) {
       isRealNameCertified: userInfo.isRealNameCertified || false,
       isPetCertified: userInfo.isPetCertified || false
     }
-    const currentUser = this.getCurrentUser()
     
     // 保存完整的用户信息
     this.saveUserInfo(fullUserInfo)

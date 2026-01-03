@@ -76,6 +76,7 @@
               <div class="order-details">
                 <h3>{{ order.title }}</h3>
                 <div class="order-meta">
+                  <span class="order-id">订单号: {{ order.orderId }}</span>
                   <span class="order-date">接单时间: {{ formatDate(order.acceptedAt) }}</span>
                 </div>
               </div>
@@ -130,8 +131,18 @@
           
           <!-- 订单操作 -->
           <div class="order-actions">
+            <!-- 待处理订单操作 -->
+            <div v-if="order.status === 'pending'" class="action-buttons">              
+                <button 
+                class="action-btn contact-btn"
+                @click="showCompleteDialog(order)"
+                >
+                点击确认完成
+                </button>
+            </div>
+            
             <!-- 已完成订单操作 -->
-            <div v-if="order.status === 'completed'" class="action-buttons">
+            <div v-else-if="order.status === 'completed'" class="action-buttons">
               <button 
                 v-if="!order.hasFeedback"
                 class="action-btn feedback-btn"
@@ -477,30 +488,6 @@ const mockOrders = [
       { icon: '👍', title: '您已接单', time: '12-12 11:45', completed: true, active: false },
       { icon: '🚀', title: '服务开始', time: '12-13 18:00', completed: true, active: false },
       { icon: '✅', title: '服务完成', time: '12-13 20:30', completed: true, active: true }
-    ]
-  },
-  {
-    id: '4',
-    orderId: 'ORD20231212004',
-    title: '宠物兔日常照顾',
-    serviceType: '其他服务',
-    petName: '小白',
-    petType: '宠物兔',
-    petEmoji: '🐇',
-    price: 50,
-    location: '西城区金融街',
-    distance: '4.1',
-    serviceTime: '2023-12-12T09:00:00',
-    customerName: '赵先生',
-    customerRating: '4.6',
-    requirements: '提供新鲜蔬菜，清理笼子',
-    status: 'completed',
-    acceptedAt: '2023-12-11T15:30:00',
-    cancelReason: '客户行程变更',
-    timeline: [
-      { icon: '📝', title: '订单创建', time: '12-11 14:00', completed: true, active: false },
-      { icon: '👍', title: '您已接单', time: '12-11 15:30', completed: true, active: false },
-      { icon: '❌', title: '订单取消', time: '12-11 20:15', completed: true, active: true }
     ]
   },
 ]
@@ -1037,23 +1024,6 @@ const showOperationResult = (type, message) => {
   font-weight: 600;
 }
 
-/* 排序选项 */
-.sort-select {
-  padding: 10px 16px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: white;
-  font-size: 14px;
-  color: #475569;
-  cursor: pointer;
-  min-width: 120px;
-}
-
-.sort-select:focus {
-  outline: none;
-  border-color: #22c55e;
-}
-
 /* 统计卡片 */
 .stats-container {
   display: grid;
@@ -1087,9 +1057,6 @@ const showOperationResult = (type, message) => {
   border-left: 4px solid #f59e0b;
 }
 
-.stats-card.in-progress {
-  border-left: 4px solid #8b5cf6;
-}
 
 .stats-card.completed {
   border-left: 4px solid #22c55e;
@@ -1173,10 +1140,6 @@ const showOperationResult = (type, message) => {
   border-left: 4px solid #f59e0b;
 }
 
-.order-card.in_progress {
-  border-left: 4px solid #3b82f6;
-}
-
 .order-card.completed {
   border-left: 4px solid #22c55e;
 }
@@ -1255,11 +1218,6 @@ const showOperationResult = (type, message) => {
 .status-badge.pending {
   background: #fef3c7;
   color: #92400e;
-}
-
-.status-badge.in_progress {
-  background: #dbeafe;
-  color: #1e40af;
 }
 
 .status-badge.completed {
@@ -1391,10 +1349,6 @@ const showOperationResult = (type, message) => {
   transform: none;
 }
 
-.start-btn {
-  background: #3b82f6;
-  color: white;
-}
 
 .start-btn:hover:not(:disabled) {
   background: #2563eb;

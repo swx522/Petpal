@@ -99,6 +99,11 @@ namespace petpal.API.Services
         /// <param name="requestId">需求ID</param>
         /// <returns>审核结果</returns>
         Task<MutualOrder> RecheckRequestAsync(string adminId, string requestId);
+        
+        /// <summary>
+        /// 删除审核记录（管理员操作）
+        /// </summary>
+        Task DeleteReviewAsync(string adminId, string requestId);
 
         /// <summary>
         /// 计算距离
@@ -185,6 +190,11 @@ namespace petpal.API.Services
     public class ReviewFilters
     {
         public string? ServiceType { get; set; }
+        /// <summary>
+        /// 订单状态过滤，Accept values: \"Pending\", \"Approved\", \"Rejected\", \"Accepted\", \"InProgress\", \"Completed\", \"Cancelled\".
+        /// If not provided, defaults to Pending for admin review list.
+        /// </summary>
+        public string? Status { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

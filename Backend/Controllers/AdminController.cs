@@ -506,6 +506,34 @@ namespace petpal.API.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// 删除审核记录
+        /// </summary>
+        [HttpDelete("requests/review/delete")]
+        public async Task<IActionResult> DeleteReview([FromBody] ReviewRequest request)
+        {
+            try
+            {
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(adminId))
+                {
+                    return Unauthorized(new ApiResponse { Success = false, Message = "用户未认证" });
+                }
+
+                await _requestService.DeleteReviewAsync(adminId, request.RequestId);
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Message = "删除审核记录成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
+            }
+        }
     }
 
 }

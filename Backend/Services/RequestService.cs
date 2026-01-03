@@ -227,8 +227,24 @@ namespace petpal.API.Services
         /// </summary>
         public async Task<List<RequestDto>> GetPendingReviewsAsync(ReviewFilters filters)
         {
-            var query = _context.MutualOrders
-                .Where(o => o.Status == OrderStatus.Pending);
+            // 基于 filters.Status 进行状态过滤；如果未提供 status，默认返回 Pending（审核列表）
+            var query = _context.MutualOrders.AsQueryable();
+
+            if (!string.IsNullOrEmpty(filters.Status))
+            {
+                if (Enum.TryParse<OrderStatus>(filters.Status, true, out var parsedStatus))
+                {
+                    query = query.Where(o => o.Status == parsedStatus);
+                }
+                else
+                {
+                    // 如果无法解析，默认不应用状态过滤（保持原有行为）
+                }
+            }
+            else
+            {
+                query = query.Where(o => o.Status == OrderStatus.Pending);
+            }
 
             if (!string.IsNullOrEmpty(filters.ServiceType))
             {
@@ -382,6 +398,30 @@ namespace petpal.API.Services
             await _context.SaveChangesAsync();
 
             return request;
+        }
+
+        /// <summary>
+        /// 删除审核记录（管理员操作）
+        /// </summary>
+        public async Task DeleteReviewAsync(string adminId, string requestId)
+        {
+            var admin = await _userService.GetUserByIdAsync(adminId);
+            if (admin == null || admin.Role != UserRole.Admin)
+            {
+                throw new UnauthorizedAccessException("只有管理员可以删除审核记录");
+            }
+
+            var request = await _context.MutualOrders
+                .Include(o => o.Evaluations)
+                .FirstOrDefaultAsync(o => o.Id == requestId);
+
+            if (request == null)
+            {
+                throw new ArgumentException("需求不存在");
+            }
+
+            _context.MutualOrders.Remove(request);
+            await _context.SaveChangesAsync();
         }
 
         /// <summary>

@@ -56,7 +56,7 @@ namespace petpal.API.Models.DTOs
         /// <summary>
         /// 宠物主人信息（简易版，避免循环引用）
         /// </summary>
-        public UserSimpleDto Owner { get; set; }
+        public UserSimpleDto User { get; set; }
 
         /// <summary>
         /// 服务经度
@@ -89,6 +89,11 @@ namespace petpal.API.Models.DTOs
         /// 用户名
         /// </summary>
         public string Username { get; set; }
+        
+        /// <summary>
+        /// 姓名（兼容前端统一使用 name 字段）
+        /// </summary>
+        public string Name { get; set; }
 
         /// <summary>
         /// 手机号码

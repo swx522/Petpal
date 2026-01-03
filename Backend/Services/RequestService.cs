@@ -228,7 +228,6 @@ namespace petpal.API.Services
         public async Task<List<RequestDto>> GetPendingReviewsAsync(ReviewFilters filters)
         {
             var query = _context.MutualOrders
-                .Include(o => o.Owner)
                 .Where(o => o.Status == OrderStatus.Pending);
 
             if (!string.IsNullOrEmpty(filters.ServiceType))
@@ -240,9 +239,33 @@ namespace petpal.API.Services
                 .OrderBy(o => o.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
                 .Take(filters.PageSize)
+                .Select(o => new RequestDto
+                {
+                    Id = o.Id,
+                    Title = o.Title,
+                    PetType = o.PetType,
+                    ServiceType = o.ServiceType,
+                    StartTime = o.StartTime,
+                    EndTime = o.EndTime,
+                    Description = o.Description,
+                    Status = o.Status,
+                    CreatedAt = o.CreatedAt,
+                    Longitude = o.Longitude,
+                    Latitude = o.Latitude,
+                    Distance = o.Distance,
+                    User = o.Owner != null ? new UserSimpleDto
+                    {
+                        Id = o.Owner.Id,
+                        Username = o.Owner.Username,
+                        Name = o.Owner.Username,
+                        Phone = o.Owner.Phone,
+                        Role = o.Owner.Role,
+                        ReputationScore = o.Owner.ReputationScore
+                    } : null
+                })
                 .ToListAsync();
 
-            return orders.ToRequestDtos().ToList();
+            return orders;
         }
 
         /// <summary>

@@ -73,7 +73,7 @@ namespace petpal.API.Models.DTOs
                 Description = order.Description,
                 Status = order.Status,
                 CreatedAt = order.CreatedAt,
-                Owner = order.Owner?.ToUserSimpleDto(),
+                User = order.Owner?.ToUserSimpleDto(),
                 Longitude = order.Longitude,
                 Latitude = order.Latitude,
                 Distance = order.Distance
@@ -89,6 +89,7 @@ namespace petpal.API.Models.DTOs
             {
                 Id = user.Id,
                 Username = user.Username,
+                Name = user.Username,
                 Phone = user.Phone,
                 Role = user.Role,
                 ReputationScore = user.ReputationScore

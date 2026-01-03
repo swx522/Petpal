@@ -81,7 +81,7 @@
         <div class="member-card" v-for="member in members" :key="member.id">
           <!-- 用户类型标签 -->
           <div class="user-type-badge" :class="getRoleClass(member.role)">
-              {{ member.role === 0 ? '🐾 宠物主人' : (member.role === 1 ? '🛠️ 服务提供者' : '管理员') }}
+              {{ member.role === 'User' ? '🐾 宠物主人' : (member.role === 'Sitter' ? '🛠️ 服务提供者' : '管理员') }}
           </div>
 
           <div class="member-avatar">
@@ -659,18 +659,10 @@ watch(activeTab, (newTab) => {
 })
 
 onMounted(() => {
-  console.log('组件挂载，检查权限状态...')
-  
   // 调试：查看当前用户信息
   const userRole = localStorage.getItem('petpal_userRole')
   const userId = localStorage.getItem('petpal_userId')
   const token = localStorage.getItem('auth_token')
-  
-  console.log('用户调试信息:', {
-    userId,
-    userRole,
-    token: token ? '存在' : '不存在'
-  })
   
   // 验证管理员权限
   verifyAdminPermission()
@@ -697,7 +689,6 @@ const loadCommunityStats = async () => {
   try {
     loadingStats.value = true
     const response = await adminAPI.getCommunityStats()
-    console.log('社区统计数据:', response)
     if (response.success && response.data) {
       communityStats.value = {
         totalMembers: response.data.totalMembers || 0,
@@ -781,6 +772,7 @@ const loadMembers = async () => {
         totalCount: data.totalCount || 0,
         totalPages: Math.ceil((data.totalCount || 0) / (data.pageSize || 12))
       }
+      console.log('加载成员数据:', members.value)
     } else {
       adminAPI.showError(response.message || '加载成员列表失败')
     }

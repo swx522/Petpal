@@ -37,9 +37,30 @@ namespace petpal.API.Services
         /// </summary>
         public async Task<CommunityStats> GetCommunityStatsAsync()
         {
-            var users = await _context.Users.ToListAsync();
-            var pendingRequests = await _context.MutualOrders
-                .CountAsync(o => o.Status == OrderStatus.Pending);
+            // 默认统计全站。如果传入 communityId 则按社区过滤（方法签名在接口中已更新）
+            // 为兼容现有调用，提供无参重载行为：调用新的实现并传入 null
+            return await GetCommunityStatsAsync(null);
+        }
+
+        /// <summary>
+        /// 获取社区数据概览统计（按 communityId 可选过滤）
+        /// </summary>
+        public async Task<CommunityStats> GetCommunityStatsAsync(int? communityId = null)
+        {
+            var query = _context.Users.AsQueryable();
+            if (communityId.HasValue)
+            {
+                query = query.Where(u => u.CommunityId == communityId.Value);
+            }
+
+            var users = await query.ToListAsync();
+
+            var ordersQuery = _context.MutualOrders.AsQueryable();
+            if (communityId.HasValue)
+            {
+                ordersQuery = ordersQuery.Where(o => o.CommunityId == communityId.Value);
+            }
+            var pendingRequests = await ordersQuery.CountAsync(o => o.Status == OrderStatus.Pending);
 
             return new CommunityStats
             {
@@ -55,7 +76,34 @@ namespace petpal.API.Services
         /// </summary>
         public async Task<MemberDistribution> GetMemberDistributionAsync()
         {
-            var users = await _context.Users.ToListAsync();
+            // 默认统计全量。若传入 communityId，则只统计该社区内的用户。
+            var query = _context.Users.AsQueryable();
+            // communityId may be provided via overloaded interface signature; attempt to get it from method parameter.
+            // Note: interface signature changed to accept int? communityId - implement overload handling by checking caller provided value.
+            // Since this method signature doesn't currently accept parameter here, add an overload below.
+            var users = await query.ToListAsync();
+
+            return new MemberDistribution
+            {
+                TotalMembers = users.Count,
+                PetOwners = users.Count(u => u.Role == UserRole.User),
+                ServiceProviders = users.Count(u => u.Role == UserRole.Sitter),
+                Admins = users.Count(u => u.Role == UserRole.Admin)
+            };
+        }
+
+        /// <summary>
+        /// 获取社区成员分布数据 (按 communityId 过滤)
+        /// </summary>
+        public async Task<MemberDistribution> GetMemberDistributionAsync(int? communityId = null)
+        {
+            var query = _context.Users.AsQueryable();
+            if (communityId.HasValue)
+            {
+                query = query.Where(u => u.CommunityId == communityId.Value);
+            }
+
+            var users = await query.ToListAsync();
 
             return new MemberDistribution
             {

@@ -9,10 +9,10 @@ namespace petpal.API.Models
     /// </summary>
     public enum UserRole
     {
-        User,       // 普通用户
-        Sitter,     // 服务提供者
-        // Moderator,  // 社区管理员 (已弃用，统一使用Admin)
-        Admin       // 系统管理员
+        User = 0,       // 普通用户
+        Sitter = 1,     // 服务提供者
+        // Moderator = 2,  // 社区管理员 (已弃用，统一使用Admin)
+        Admin = 2       // 系统管理员（设为2）
     }
 
     /// <summary>

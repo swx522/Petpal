@@ -47,7 +47,19 @@ namespace petpal.API.Controllers
         {
             try
             {
-                var stats = await _communityService.GetCommunityStatsAsync();
+                // 按管理员所属社区统计（若管理员无社区，则返回全站统计）
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                int? communityId = null;
+                if (!string.IsNullOrEmpty(adminId))
+                {
+                    var adminUser = await _userService.GetUserByIdAsync(adminId);
+                    if (adminUser != null && adminUser.CommunityId.HasValue)
+                    {
+                        communityId = adminUser.CommunityId;
+                    }
+                }
+
+                var stats = await _communityService.GetCommunityStatsAsync(communityId);
 
                 return Ok(new ApiResponse
                 {
@@ -73,7 +85,19 @@ namespace petpal.API.Controllers
         {
             try
             {
-                var distribution = await _communityService.GetMemberDistributionAsync();
+                // 尝试获取当前管理员所属社区，并按社区统计
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                int? communityId = null;
+                if (!string.IsNullOrEmpty(adminId))
+                {
+                    var adminUser = await _userService.GetUserByIdAsync(adminId);
+                    if (adminUser != null && adminUser.CommunityId.HasValue)
+                    {
+                        communityId = adminUser.CommunityId;
+                    }
+                }
+
+                var distribution = await _communityService.GetMemberDistributionAsync(communityId);
 
                 return Ok(new ApiResponse
                 {

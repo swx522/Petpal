@@ -20,13 +20,13 @@ namespace petpal.API.Services
         /// 获取社区数据概览统计
         /// </summary>
         /// <returns>社区统计数据</returns>
-        Task<CommunityStats> GetCommunityStatsAsync();
+        Task<CommunityStats> GetCommunityStatsAsync(int? communityId = null);
 
         /// <summary>
         /// 获取社区成员分布数据
         /// </summary>
         /// <returns>成员分布数据</returns>
-        Task<MemberDistribution> GetMemberDistributionAsync();
+        Task<MemberDistribution> GetMemberDistributionAsync(int? communityId = null);
 
         /// <summary>
         /// 获取社区活跃度趋势数据

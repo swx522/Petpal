@@ -20,6 +20,8 @@ namespace petpal.API.Models.DTOs
                 Phone = user.Phone,
                 Email = user.Email,
                 Role = user.Role,
+                RoleId = (int)user.Role,
+                RoleName = user.Role.ToString(),
                 Status = user.Status,
                 ReputationScore = user.ReputationScore,
                 ReputationLevel = user.ReputationLevel,
@@ -92,6 +94,8 @@ namespace petpal.API.Models.DTOs
                 Name = user.Username,
                 Phone = user.Phone,
                 Role = user.Role,
+                RoleId = (int)user.Role,
+                RoleName = user.Role.ToString(),
                 ReputationScore = user.ReputationScore
             };
         }

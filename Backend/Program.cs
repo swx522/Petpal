@@ -59,8 +59,12 @@ builder.Services.AddStackExchangeRedisCache(options =>
     builder.Services.AddScoped<IRequestService, RequestService>();     // 需求管理服务
     builder.Services.AddScoped<IOrderService, OrderService>();         // 订单管理服务
 
-// 添加控制器服务
-builder.Services.AddControllers();
+// 添加控制器服务，并将枚举序列化为字符串以便前端接收可读角色名
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // 配置Swagger API文档
 builder.Services.AddEndpointsApiExplorer();

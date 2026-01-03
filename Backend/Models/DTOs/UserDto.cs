@@ -32,6 +32,14 @@ namespace petpal.API.Models.DTOs
         /// 用户角色
         /// </summary>
         public UserRole Role { get; set; }
+        /// <summary>
+        /// 角色编号（数值），便于前端按数字判断（如 Admin = 2）
+        /// </summary>
+        public int RoleId { get; set; }
+        /// <summary>
+        /// 角色名称（字符串形式，供前端兼容使用）
+        /// </summary>
+        public string RoleName { get; set; }
 
         /// <summary>
         /// 用户状态

@@ -339,7 +339,6 @@ const loadData = async () => {
     }
     
     const response = await sitterService.getAvailableRequests(filters)
-    
     if (response.success) {
       requirements.value = response.data.requests.map(req => 
         sitterService.formatRequestData(req)

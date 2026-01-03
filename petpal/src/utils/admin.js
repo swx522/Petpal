@@ -450,6 +450,85 @@ export const adminAPI = {
     }
   },
 
+  // ============ 服务者资质审核相关API ============
+  
+  /**
+   * 获取待审核的服务者申请列表
+   * @param {Object} filters - 筛选条件
+   * @param {number} filters.page - 页码
+   * @param {number} filters.pageSize - 每页数量
+   */
+  async getPendingSitterApplications(filters = {}) {
+    try {
+      const params = {
+        page: filters.page || 1,
+        pageSize: filters.pageSize || 10
+      }
+      
+      return await http.get('/admin/sitter/applications/pending', params)
+    } catch (error) {
+      console.error('获取待审核申请失败:', error)
+      return {
+        success: false,
+        message: error.message || '获取待审核申请失败'
+      }
+    }
+  },
+
+  /**
+   * 获取所有服务者申请记录
+   * @param {Object} filters - 筛选条件
+   * @param {string} filters.status - 状态筛选: 'all'/'pending'/'approved'/'rejected'
+   * @param {number} filters.page - 页码
+   * @param {number} filters.pageSize - 每页数量
+   */
+  async getAllSitterApplications(filters = {}) {
+    try {
+      const params = {
+        page: filters.page || 1,
+        pageSize: filters.pageSize || 10,
+        ...(filters.status && filters.status !== 'all' && { status: filters.status })
+      }
+      
+      return await http.get('/admin/sitter/applications', params)
+    } catch (error) {
+      console.error('获取服务者申请失败:', error)
+      return {
+        success: false,
+        message: error.message || '获取服务者申请失败'
+      }
+    }
+  },
+
+  /**
+   * 审核服务者资格申请
+   * @param {string} applicationId - 申请ID
+   * @param {boolean} approved - 是否通过
+   * @param {string} reviewComment - 审核意见
+   */
+  async reviewSitterApplication(applicationId, approved, reviewComment = '') {
+    try {
+      if (!applicationId) {
+        return {
+          success: false,
+          message: '申请ID不能为空'
+        }
+      }
+      
+      return await http.post('/admin/sitter/applications/review', {
+        applicationId,
+        approved,
+        reviewComment
+      })
+    } catch (error) {
+      console.error('审核服务者申请失败:', error)
+      return {
+        success: false,
+        message: error.message || '审核服务者申请失败'
+      }
+    }
+  },
+
   // ============ 社区设置相关API ============
   
   /**
@@ -519,40 +598,40 @@ export const adminAPI = {
   /**
    * 验证管理员权限
    */
-async verifyAdminPermission() {
-  try {
-    // 检查本地存储是否有管理员标识
-    const userRole = localStorage.getItem('petpal_userRole')
-    console.log('当前用户角色:', userRole)
-    
-    // 打印更多调试信息
-    console.log('localStorage内容:', {
-      userRole: userRole,
-      auth_token: localStorage.getItem('auth_token'),
-      userId: localStorage.getItem('petpal_userId')
-    })
-    
-    // 检查是否为管理员（2）或版主（admin）
-    if (userRole !== 'Admin') {
-      console.warn('权限不足：当前角色 =', userRole, '，需要Admin')
+  async verifyAdminPermission() {
+    try {
+      // 检查本地存储是否有管理员标识
+      const userRole = localStorage.getItem('petpal_userRole')
+      console.log('当前用户角色:', userRole)
+      
+      // 打印更多调试信息
+      console.log('localStorage内容:', {
+        userRole: userRole,
+        auth_token: localStorage.getItem('auth_token'),
+        userId: localStorage.getItem('petpal_userId')
+      })
+      
+      // 检查是否为管理员（2）或版主（admin）
+      if (userRole !== 'Admin') {
+        console.warn('权限不足：当前角色 =', userRole, '，需要Admin')
+        return {
+          success: false,
+          message: '需要管理员权限'
+        }
+      }
+      
+      return {
+        success: true,
+        message: '权限验证通过'
+      }
+    } catch (error) {
+      console.error('权限验证失败:', error)
       return {
         success: false,
-        message: '需要管理员权限'
+        message: error.message || '权限验证失败'
       }
     }
-    
-    return {
-      success: true,
-      message: '权限验证通过'
-    }
-  } catch (error) {
-    console.error('权限验证失败:', error)
-    return {
-      success: false,
-      message: error.message || '权限验证失败'
-    }
-  }
-},
+  },
 
   /**
    * 统一错误处理
@@ -665,6 +744,37 @@ async verifyAdminPermission() {
   },
 
   /**
+   * 格式化申请时间（相对时间）
+   * @param {string|Date} date - 日期
+   * @returns {string} - 相对时间描述
+   */
+  formatApplicationTime(date) {
+    if (!date) return '未知时间'
+    const dateObj = new Date(date)
+    const now = new Date()
+    const diffMs = now - dateObj
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    
+    if (diffHours < 1) {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60))
+      if (diffMinutes < 1) {
+        return '刚刚'
+      }
+      return `${diffMinutes}分钟前`
+    } else if (diffHours < 24) {
+      return `${diffHours}小时前`
+    } else if (diffHours < 168) { // 7天内
+      const diffDays = Math.floor(diffHours / 24)
+      return `${diffDays}天前`
+    } else {
+      return dateObj.toLocaleDateString('zh-CN', { 
+        month: 'short', 
+        day: 'numeric'
+      })
+    }
+  },
+
+  /**
    * 获取宠物类型emoji
    * @param {string} petType - 宠物类型
    * @returns {string} - emoji
@@ -725,6 +835,70 @@ async verifyAdminPermission() {
       groom: '美容护理',
     }
     return typeMap[type] || '其他服务'
+  },
+
+  /**
+   * 获取审核状态文本
+   * @param {string} status - 审核状态
+   * @returns {string} - 状态文本
+   */
+  getSitterAuditStatusText(status) {
+    const statusMap = {
+      'Pending': '待审核',
+      'Approved': '已通过',
+      'Rejected': '已拒绝'
+    }
+    return statusMap[status] || '未知状态'
+  },
+
+  /**
+   * 获取审核状态颜色
+   * @param {string} status - 审核状态
+   * @returns {string} - 颜色代码
+   */
+  getSitterAuditStatusColor(status) {
+    const colorMap = {
+      'Pending': '#f59e0b',    // 橙色
+      'Approved': '#10b981',   // 绿色
+      'Rejected': '#ef4444'    // 红色
+    }
+    return colorMap[status] || '#64748b'
+  },
+
+  /**
+   * 格式化身份证号（显示前4位和后4位）
+   * @param {string} idCard - 身份证号
+   * @returns {string} - 格式化后的身份证号
+   */
+  formatIdCard(idCard) {
+    if (!idCard || idCard.length < 8) return idCard || ''
+    const firstFour = idCard.substring(0, 4)
+    const lastFour = idCard.substring(idCard.length - 4)
+    return `${firstFour}****${lastFour}`
+  },
+
+  /**
+   * 截断文本
+   * @param {string} text - 原始文本
+   * @param {number} maxLength - 最大长度
+   * @returns {string} - 截断后的文本
+   */
+  truncateText(text, maxLength = 100) {
+    if (!text || text.length <= maxLength) return text || ''
+    return text.substring(0, maxLength) + '...'
+  },
+
+  /**
+   * 获取默认审核意见模板
+   * @param {boolean} isApproved - 是否通过
+   * @returns {string} - 审核意见模板
+   */
+  getReviewCommentTemplate(isApproved) {
+    if (isApproved) {
+      return '资质审核通过，信息完整，符合服务者要求。'
+    } else {
+      return '资质审核未通过，原因：信息不完整/不准确，请完善信息后重新提交。'
+    }
   }
 }
 

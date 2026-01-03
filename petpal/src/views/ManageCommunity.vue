@@ -1,3 +1,5 @@
+[file name]: ManageCommunity.vue
+[file content begin]
 <!-- src/views/ManageCommunity.vue -->
 <template>
 <div class="manage-community">
@@ -21,6 +23,10 @@
           <div class="stat-label">服务提供者</div>
         </div>
         <div class="stat-item">
+          <div class="stat-value">{{ pendingApplicationsCount || 0 }}</div>
+          <div class="stat-label">待审资质</div>
+        </div>
+        <div class="stat-item">
           <div class="stat-value">{{ communityStats.pendingRequests || 0 }}</div>
           <div class="stat-label">待审核需求</div>
         </div>
@@ -36,6 +42,13 @@
           @click="activeTab = 'members'"
         >
           👥 成员管理
+        </button>
+        <button 
+          class="tab-btn" 
+          :class="{ active: activeTab === 'sitter-audit' }"
+          @click="activeTab = 'sitter-audit'"
+        >
+          🎯 资质审核
         </button>
         <button 
           class="tab-btn" 
@@ -179,75 +192,399 @@
       </div>
     </div>
 
+    <!-- 服务者资质审核页面 -->
+    <div class="tab-content" v-if="activeTab === 'sitter-audit'">
+      <div class="sitter-audit-container">
+        <!-- 资质审核统计和筛选 -->
+        <div class="audit-header">
+          <div class="audit-stats-cards">
+            <div class="audit-stat-card total">
+              <div class="stat-icon">📋</div>
+              <div class="stat-info">
+                <h3>{{ sitterApplications.totalCount || 0 }}</h3>
+                <p>总申请数</p>
+              </div>
+            </div>
+            <div class="audit-stat-card pending">
+              <div class="stat-icon">⏳</div>
+              <div class="stat-info">
+                <h3>{{ pendingApplicationsCount || 0 }}</h3>
+                <p>待审核</p>
+              </div>
+            </div>
+            <div class="audit-stat-card approved">
+              <div class="stat-icon">✅</div>
+              <div class="stat-info">
+                <h3>{{ approvedApplicationsCount || 0 }}</h3>
+                <p>已通过</p>
+              </div>
+            </div>
+            <div class="audit-stat-card rejected">
+              <div class="stat-icon">❌</div>
+              <div class="stat-info">
+                <h3>{{ rejectedApplicationsCount || 0 }}</h3>
+                <p>已拒绝</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="audit-filters">
+            <div class="filter-group">
+              <button 
+                class="filter-btn" 
+                :class="{ active: sitterAuditFilter === 'pending' }"
+                @click="setSitterAuditFilter('pending')"
+              >
+                待审核 ({{ pendingApplicationsCount }})
+              </button>
+              <button 
+                class="filter-btn" 
+                :class="{ active: sitterAuditFilter === 'all' }"
+                @click="setSitterAuditFilter('all')"
+              >
+                全部申请
+              </button>
+            </div>
+            
+            <div class="filter-select-group">
+              <select v-model="sitterAuditStatusFilter" class="filter-select" @change="filterSitterApplications">
+                <option value="all">所有状态</option>
+                <option value="Pending">待审核</option>
+                <option value="Approved">已通过</option>
+                <option value="Rejected">已拒绝</option>
+              </select>
+              
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input 
+                  type="text" 
+                  v-model="sitterSearchQuery" 
+                  placeholder="搜索用户名、姓名..."
+                  class="search-input"
+                  @input="searchSitterApplications"
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div v-if="loadingSitterApplications" class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>正在加载资质申请数据...</p>
+        </div>
+
+        <!-- 资质申请列表 -->
+        <div class="sitter-applications-list" v-if="!loadingSitterApplications">
+          <!-- 待审核申请 -->
+          <div v-if="sitterAuditFilter === 'pending' && filteredSitterApplications.length > 0" class="pending-applications">
+            <div class="applications-grid">
+              <div 
+                v-for="application in filteredSitterApplications" 
+                :key="application.id"
+                class="sitter-application-card pending"
+              >
+                <div class="application-header">
+                  <div class="applicant-info">
+                    <div class="applicant-avatar">{{ getAvatarEmoji(application.username) }}</div>
+                    <div class="applicant-details">
+                      <h3>{{ application.nickname || application.username }}</h3>
+                      <div class="applicant-meta">
+                        <span class="user-level">Lv.{{ application.userInfo?.level || 1 }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="application-status pending">
+                    ⏳ 待审核
+                  </div>
+                </div>
+                
+                <div class="application-content">
+                  <!-- 基本信息 -->
+                  <div class="info-section">
+                    <h4>申请信息</h4>
+                    <div class="info-grid">
+                      <div class="info-item">
+                        <span class="info-label">真实姓名：</span>
+                        <span class="info-value">{{ application.realName || '未提供' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">身份证号：</span>
+                        <span class="info-value">{{ formatIdCard(application.idCardNumber) || '未提供' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">联系方式：</span>
+                        <span class="info-value">
+                          {{ application.phone || application.email || '未提供' }}
+                        </span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">申请时间：</span>
+                        <span class="info-value">{{ formatApplicationTime(application.appliedAt) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- 申请理由 -->
+                  <div class="reason-section">
+                    <h4>申请理由</h4>
+                    <div class="reason-content">
+                      {{ application.joinReason || '用户未填写申请理由' }}
+                    </div>
+                  </div>
+                  
+                  <!-- 用户统计信息 -->
+                  <div class="user-stats-section" v-if="application.userInfo">
+                    <div class="stats-grid">
+                      <div class="stat-item-small">
+                        <div class="stat-icon-small">✅</div>
+                        <div class="stat-details">
+                          <div class="stat-number">{{ application.userInfo.completedOrders || 0 }}</div>
+                          <div class="stat-label">完成订单</div>
+                        </div>
+                      </div>
+                      <div class="stat-item-small">
+                        <div class="stat-icon-small">⭐</div>
+                        <div class="stat-details">
+                          <div class="stat-number">{{ application.userInfo.averageRating ? application.userInfo.averageRating.toFixed(1) : '0.0' }}</div>
+                          <div class="stat-label">平均评分</div>
+                        </div>
+                      </div>
+                      <div class="stat-item-small">
+                        <div class="stat-icon-small">🎯</div>
+                        <div class="stat-details">
+                          <div class="stat-number">{{ application.userInfo.creditScore || 100 }}</div>
+                          <div class="stat-label">信誉分</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- 审核操作 -->
+                <div class="audit-actions-section">
+                  <div class="review-comment-input" v-if="showReviewCommentInput === application.id">
+                    <textarea 
+                      v-model="reviewComment" 
+                      placeholder="请输入审核意见（可选），如：信息完整、经验丰富、符合要求等..."
+                      class="comment-textarea"
+                      rows="2"
+                    ></textarea>
+                  </div>
+                  
+                  <div class="action-buttons">
+                    <button 
+                      @click="approveSitterApplication(application)"
+                      class="action-btn approve-btn"
+                      :disabled="processingApplication === application.id"
+                    >
+                      <span v-if="processingApplication === application.id">处理中...</span>
+                      <span v-else>✅ 通过审核</span>
+                    </button>
+                    
+                    <button 
+                      @click="toggleReviewCommentInput(application, false)"
+                      class="action-btn reject-btn"
+                      :disabled="processingApplication === application.id"
+                    >
+                      {{ showReviewCommentInput === application.id && !isApproving ? '取消拒绝' : '❌ 拒绝申请' }}
+                    </button>
+                    
+                    <button 
+                      v-if="showReviewCommentInput === application.id && !isApproving"
+                      @click="rejectSitterApplication(application)"
+                      class="action-btn confirm-reject-btn"
+                      :disabled="!reviewComment.trim() || processingApplication === application.id"
+                    >
+                      <span v-if="processingApplication === application.id">处理中...</span>
+                      <span v-else>确认拒绝</span>
+                    </button>
+                    
+                    <button 
+                      @click="viewApplicantProfile(application)"
+                      class="action-btn view-btn"
+                      :disabled="processingApplication === application.id"
+                    >
+                      👤 查看用户
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 全部申请记录 -->
+          <div v-if="sitterAuditFilter === 'all' && filteredSitterApplications.length > 0" class="all-applications">
+            <div class="applications-grid">
+              <div 
+                v-for="application in filteredSitterApplications" 
+                :key="application.id"
+                class="sitter-application-card"
+                :class="application.status.toLowerCase()"
+              >
+                <div class="application-header">
+                  <div class="applicant-info">
+                    <div class="applicant-avatar" :style="{ backgroundColor: getSitterAuditStatusColor(application.status) }">
+                      {{ getAvatarEmoji(application.username) }}
+                    </div>
+                    <div class="applicant-details">
+                      <h3>{{ application.nickname || application.username }}</h3>
+                      <div class="applicant-meta">
+                        <span class="real-name">{{ application.realName || '未实名' }}</span>
+                        <span class="application-time">{{ formatApplicationTime(application.appliedAt) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="application-status" :class="application.status.toLowerCase()">
+                    {{ application.statusText || getSitterAuditStatusText(application.status) }}
+                  </div>
+                </div>
+                
+                <div class="application-content">
+                  <div class="info-section compact">
+                    <div class="info-row">
+                      <div class="info-item">
+                        <span class="info-icon">🆔</span>
+                        <span class="info-text">{{ formatIdCard(application.idCardNumber) || '未提供' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-icon">📞</span>
+                        <span class="info-text">{{ application.phone || application.email || '未提供' }}</span>
+                      </div>
+                    </div>
+                    
+                    <!-- 申请理由摘要 -->
+                    <div class="reason-summary">
+                      {{ truncateText(application.joinReason, 80) || '未填写申请理由' }}
+                    </div>
+                    
+                    <!-- 审核信息 -->
+                    <div class="review-info" v-if="application.status !== 'Pending'">
+                      <div class="reviewer-info">
+                        <span class="reviewer-label">审核人：</span>
+                        <span class="reviewer-name">{{ application.reviewerName || '管理员' }}</span>
+                        <span class="review-time">{{ formatDate(application.reviewedAt) }}</span>
+                      </div>
+                      
+                      <div class="review-comment" v-if="application.reviewComment">
+                        <span class="comment-label">审核意见：</span>
+                        <span class="comment-text">{{ application.reviewComment }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 空状态 -->
+          <div v-if="filteredSitterApplications.length === 0 && !loadingSitterApplications" class="no-applications">
+            <div class="empty-state">
+              <div class="empty-icon" v-if="sitterAuditFilter === 'pending'">🎉</div>
+              <div class="empty-icon" v-if="sitterAuditFilter === 'all'">📄</div>
+              <h3>{{ getSitterEmptyStateTitle() }}</h3>
+              <p>{{ getSitterEmptyStateMessage() }}</p>
+              <button v-if="sitterAuditFilter === 'pending'" class="refresh-btn" @click="loadSitterApplications">
+                🔄 刷新申请列表
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分页 -->
+        <div v-if="!loadingSitterApplications && filteredSitterApplications.length > 0 && sitterApplications.pagination.totalPages > 1" class="pagination">
+          <button 
+            class="pagination-btn" 
+            :disabled="sitterApplications.pagination.page === 1" 
+            @click="changeSitterApplicationsPage(sitterApplications.pagination.page - 1)"
+          >
+            上一页
+          </button>
+          <span class="pagination-info">
+            第 {{ sitterApplications.pagination.page }} 页 / 共 {{ sitterApplications.pagination.totalPages }} 页
+          </span>
+          <button 
+            class="pagination-btn" 
+            :disabled="sitterApplications.pagination.page >= sitterApplications.pagination.totalPages" 
+            @click="changeSitterApplicationsPage(sitterApplications.pagination.page + 1)"
+          >
+            下一页
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 需求审核页面 -->
     <div class="tab-content" v-if="activeTab === 'content'">
       <div class="content-review">
         <!-- 审核统计和筛选 -->
-<div class="review-header">
-  <div class="review-stats-cards">
-    <div class="review-stat-card total">
-      <div class="stat-icon">📋</div>
-      <div class="stat-info">
-        <!-- 这里直接使用 pendingRequirements.length -->
-        <h3>{{ pendingRequirements.length }}</h3>
-        <p>待审核需求</p>
-      </div>
-    </div>
-    <div class="review-stat-card approved">
-      <div class="stat-icon">✅</div>
-      <div class="stat-info">
-        <!-- 这里直接使用 approvedRequirements.length -->
-        <h3>{{ approvedRequirements.length }}</h3>
-        <p>已通过</p>
-      </div>
-    </div>
-    <div class="review-stat-card rejected">
-      <div class="stat-icon">❌</div>
-      <div class="stat-info">
-        <!-- 这里直接使用 rejectedRequirements.length -->
-        <h3>{{ rejectedRequirements.length }}</h3>
-        <p>已拒绝</p>
-      </div>
-    </div>
-  </div>
-  
-  <div class="review-filters">
-    <div class="filter-group">
-      <button 
-        class="filter-btn" 
-        :class="{ active: reviewFilter === 'pending' }"
-        @click="setReviewFilter('pending')"
-      >
-        <!-- 这里显示待审核数量 -->
-        待审核 ({{ pendingRequirements.length }})
-      </button>
-      <button 
-        class="filter-btn" 
-        :class="{ active: reviewFilter === 'approved' }"
-        @click="setReviewFilter('approved')"
-      >
-        已通过
-      </button>
-      <button 
-        class="filter-btn" 
-        :class="{ active: reviewFilter === 'rejected' }"
-        @click="setReviewFilter('rejected')"
-      >
-        已拒绝
-      </button>
-    </div>
-    
-    <div class="filter-select-group">
-      <select v-model="typeFilter" class="filter-select" @change="filterRequirements">
-        <option value="all">所有类型</option>
-        <option value="walk">遛狗服务</option>
-        <option value="feed">喂食照顾</option>
-        <option value="medical">就医陪伴</option>
-        <option value="groom">美容护理</option>
-      </select>
-    </div>
-  </div>
-</div>
+        <div class="review-header">
+          <div class="review-stats-cards">
+            <div class="review-stat-card total">
+              <div class="stat-icon">📋</div>
+              <div class="stat-info">
+                <!-- 这里直接使用 pendingRequirements.length -->
+                <h3>{{ pendingRequirements.length }}</h3>
+                <p>待审核需求</p>
+              </div>
+            </div>
+            <div class="review-stat-card approved">
+              <div class="stat-icon">✅</div>
+              <div class="stat-info">
+                <!-- 这里直接使用 approvedRequirements.length -->
+                <h3>{{ approvedRequirements.length }}</h3>
+                <p>已通过</p>
+              </div>
+            </div>
+            <div class="review-stat-card rejected">
+              <div class="stat-icon">❌</div>
+              <div class="stat-info">
+                <!-- 这里直接使用 rejectedRequirements.length -->
+                <h3>{{ rejectedRequirements.length }}</h3>
+                <p>已拒绝</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="review-filters">
+            <div class="filter-group">
+              <button 
+                class="filter-btn" 
+                :class="{ active: reviewFilter === 'pending' }"
+                @click="setReviewFilter('pending')"
+              >
+                <!-- 这里显示待审核数量 -->
+                待审核 ({{ pendingRequirements.length }})
+              </button>
+              <button 
+                class="filter-btn" 
+                :class="{ active: reviewFilter === 'approved' }"
+                @click="setReviewFilter('approved')"
+              >
+                已通过
+              </button>
+              <button 
+                class="filter-btn" 
+                :class="{ active: reviewFilter === 'rejected' }"
+                @click="setReviewFilter('rejected')"
+              >
+                已拒绝
+              </button>
+            </div>
+            
+            <div class="filter-select-group">
+              <select v-model="typeFilter" class="filter-select" @change="filterRequirements">
+                <option value="all">所有类型</option>
+                <option value="walk">遛狗服务</option>
+                <option value="feed">喂食照顾</option>
+                <option value="medical">就医陪伴</option>
+                <option value="groom">美容护理</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         <!-- 加载状态 -->
         <div v-if="loadingRequirements" class="loading-state">
@@ -537,6 +874,16 @@
               </label>
             </div>
           </div>
+          
+          <!-- 重新审核确认 -->
+          <div v-if="modalType === 'reReviewApplication' && selectedApplication" class="re-review-form">
+            <p>确定要对申请者 <strong>{{ selectedApplication.nickname || selectedApplication.username }}</strong> 进行重新审核吗？</p>
+            <p>申请信息：{{ selectedApplication.realName }} - {{ formatIdCard(selectedApplication.idCardNumber) }}</p>
+            <div class="form-group">
+              <label>审核意见（可选）</label>
+              <textarea v-model="reviewComment" rows="3" class="form-textarea" placeholder="请输入审核意见..."></textarea>
+            </div>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" @click="closeModal">取消</button>
@@ -559,10 +906,12 @@ const activeTab = ref('members')
 // 加载状态
 const loadingMembers = ref(false)
 const loadingRequirements = ref(false)
+const loadingSitterApplications = ref(false)
 const loadingStats = ref(false)
 const loadingSettings = ref(false)
 const savingSettings = ref(false)
 const processingRequirement = ref(null)
+const processingApplication = ref(null)
 
 // 社区统计
 const communityStats = ref({
@@ -572,7 +921,7 @@ const communityStats = ref({
   pendingRequests: 0
 })
 
-// 搜索和筛选
+// 搜索和筛选 - 成员管理
 const searchQuery = ref('')
 const memberFilter = ref('all')
 
@@ -583,6 +932,20 @@ const membersPagination = ref({
   pageSize: 12,
   totalCount: 0,
   totalPages: 0
+})
+
+// 服务者资质审核相关数据
+const sitterAuditFilter = ref('pending')
+const sitterAuditStatusFilter = ref('all')
+const sitterSearchQuery = ref('')
+const sitterApplications = ref({
+  applications: [],
+  pagination: {
+    page: 1,
+    pageSize: 10,
+    totalCount: 0,
+    totalPages: 0
+  }
 })
 
 // 需求审核相关数据
@@ -599,6 +962,13 @@ const requirementsPagination = ref({
   totalCount: 0,
   totalPages: 0
 })
+
+// 审核相关状态
+const showRejectionInput = ref(null)
+const rejectionReason = ref('')
+const showReviewCommentInput = ref(null)
+const reviewComment = ref('')
+const isApproving = ref(false)
 
 // 社区设置
 const communitySettings = ref({
@@ -617,17 +987,48 @@ const modalTitle = ref('')
 const modalConfirmText = ref('')
 const selectedMember = ref(null)
 const selectedRequirement = ref(null)
+const selectedApplication = ref(null)
 const editingRequirement = ref(null)
-
-// 拒绝相关
-const showRejectionInput = ref(null)
-const rejectionReason = ref('')
 
 // 成员分布和活跃度数据
 const memberDistribution = ref([])
 const activityData = ref([])
 
-// 计算属性
+// 计算属性 - 服务者资质申请
+const filteredSitterApplications = computed(() => {
+  let applications = sitterApplications.value.applications
+  
+  // 状态过滤
+  if (sitterAuditStatusFilter.value !== 'all') {
+    applications = applications.filter(app => app.status === sitterAuditStatusFilter.value)
+  }
+  
+  // 搜索过滤
+  if (sitterSearchQuery.value.trim()) {
+    const keyword = sitterSearchQuery.value.trim().toLowerCase()
+    applications = applications.filter(app => 
+      (app.username && app.username.toLowerCase().includes(keyword)) ||
+      (app.nickname && app.nickname.toLowerCase().includes(keyword)) ||
+      (app.realName && app.realName.toLowerCase().includes(keyword))
+    )
+  }
+  
+  return applications
+})
+
+const pendingApplicationsCount = computed(() => {
+  return sitterApplications.value.applications.filter(app => app.status === 'Pending').length
+})
+
+const approvedApplicationsCount = computed(() => {
+  return sitterApplications.value.applications.filter(app => app.status === 'Approved').length
+})
+
+const rejectedApplicationsCount = computed(() => {
+  return sitterApplications.value.applications.filter(app => app.status === 'Rejected').length
+})
+
+// 计算属性 - 需求审核
 const filteredRequirements = computed(() => {
   let requirements = []
   
@@ -655,6 +1056,8 @@ watch(activeTab, (newTab) => {
     loadMemberDistribution()
     loadActivityTrend()
     loadMembers()
+  } else if (newTab === 'sitter-audit') {
+    loadSitterApplications()
   } else if (newTab === 'content') {
     loadRequirements()
   } else if (newTab === 'settings') {
@@ -663,11 +1066,6 @@ watch(activeTab, (newTab) => {
 })
 
 onMounted(() => {
-  // 调试：查看当前用户信息
-  const userRole = localStorage.getItem('petpal_userRole')
-  const userId = localStorage.getItem('petpal_userId')
-  const token = localStorage.getItem('auth_token')
-  
   // 验证管理员权限
   verifyAdminPermission()
   loadInitialData()
@@ -688,7 +1086,9 @@ const loadInitialData = () => {
   loadMembers()
 }
 
-// API调用方法 - 使用adminAPI
+// ============ API调用方法 ============
+
+// 社区统计相关
 const loadCommunityStats = async () => {
   try {
     loadingStats.value = true
@@ -739,6 +1139,7 @@ const loadActivityTrend = async () => {
   }
 }
 
+// 成员管理相关
 const loadMembers = async () => {
   try {
     loadingMembers.value = true
@@ -787,6 +1188,49 @@ const loadMembers = async () => {
   }
 }
 
+// 服务者资质审核相关
+const loadSitterApplications = async () => {
+  try {
+    loadingSitterApplications.value = true
+    
+    let response
+    
+    if (sitterAuditFilter.value === 'pending') {
+      // 加载待审核申请
+      response = await adminAPI.getPendingSitterApplications({
+        page: sitterApplications.value.pagination.page,
+        pageSize: sitterApplications.value.pagination.pageSize
+      })
+    } else {
+      // 加载全部申请
+      response = await adminAPI.getAllSitterApplications({
+        page: sitterApplications.value.pagination.page,
+        pageSize: sitterApplications.value.pagination.pageSize
+      })
+    }
+    
+    if (response.success && response.data) {
+      const data = response.data
+      sitterApplications.value.applications = data.applications || []
+      sitterApplications.value.pagination = {
+        page: data.pagination?.page || 1,
+        pageSize: data.pagination?.pageSize || 10,
+        totalCount: data.pagination?.totalCount || 0,
+        totalPages: data.pagination?.totalPages || 0
+      }
+    } else {
+      adminAPI.showError(response.message || '加载资质申请失败')
+      sitterApplications.value.applications = []
+    }
+  } catch (error) {
+    adminAPI.handleError(error, '加载资质申请')
+    sitterApplications.value.applications = []
+  } finally {
+    loadingSitterApplications.value = false
+  }
+}
+
+// 需求审核相关
 const loadRequirements = async () => {
   try {
     loadingRequirements.value = true
@@ -837,6 +1281,7 @@ const loadRequirements = async () => {
   }
 }
 
+// 社区设置相关
 const loadCommunitySettings = async () => {
   try {
     loadingSettings.value = true
@@ -853,7 +1298,7 @@ const loadCommunitySettings = async () => {
   }
 }
 
-// 成员相关方法
+// ============ 成员管理方法 ============
 const searchMembers = () => {
   membersPagination.value.page = 1
   loadMembers()
@@ -864,6 +1309,33 @@ const filterMembers = () => {
   loadMembers()
 }
 
+const changeMembersPage = (page) => {
+  membersPagination.value.page = page
+  loadMembers()
+}
+
+// ============ 服务者资质审核方法 ============
+const setSitterAuditFilter = (filter) => {
+  sitterAuditFilter.value = filter
+  sitterApplications.value.pagination.page = 1
+  loadSitterApplications()
+}
+
+const filterSitterApplications = () => {
+  sitterApplications.value.pagination.page = 1
+  // 不需要重新加载API，因为已经加载了所有数据
+}
+
+const searchSitterApplications = () => {
+  // 实时搜索，不需要重新加载API
+}
+
+const changeSitterApplicationsPage = (page) => {
+  sitterApplications.value.pagination.page = page
+  loadSitterApplications()
+}
+
+// ============ 需求审核方法 ============
 const filterRequirements = () => {
   requirementsPagination.value.page = 1
   loadRequirements()
@@ -874,17 +1346,12 @@ const setReviewFilter = (filter) => {
   // 不需要重新加载数据，因为已经全部加载了
 }
 
-const changeMembersPage = (page) => {
-  membersPagination.value.page = page
-  loadMembers()
-}
-
 const changeRequirementsPage = (page) => {
   requirementsPagination.value.page = page
   loadRequirements()
 }
 
-// 辅助方法 - 使用adminAPI的工具方法
+// ============ 辅助方法 ============
 const getAvatarEmoji = (name) => {
   if (!name) return '👤'
   const emojis = ['😊', '😄', '😃', '😀', '😁', '😂', '🤣', '😅', '😆', '😉', '😋', '😎', '😍', '😘']
@@ -896,30 +1363,6 @@ const getRoleClass = (role) => {
   return role === 'User' ? 'petuser' : 'serviceProvider'
 }
 
-const getAuditStatusClass = (status) => {
-  const statusMap = {
-    'Pending': 'pending',
-    'Approved': 'approved',
-    'Rejected': 'rejected'
-  }
-  return statusMap[status] || 'pending'
-}
-
-const getAuditStatusText = (status) => {
-  const textMap = {
-    'Pending': '待审核',
-    'Approved': '已认证',
-    'Rejected': '未通过'
-  }
-  return textMap[status] || '待审核'
-}
-
-const getLevelClass = (level) => {
-  if (level >= 4) return 'level-high'
-  if (level >= 3) return 'level-medium'
-  return 'level-low'
-}
-
 // 宠物相关方法 - 使用adminAPI的工具方法
 const getPetEmoji = adminAPI.getPetEmoji
 const getPetTypeName = adminAPI.getPetTypeName
@@ -929,81 +1372,205 @@ const getTypeName = adminAPI.getTypeName
 // 时间格式化 - 使用adminAPI的工具方法
 const formatTime = adminAPI.formatTime
 const formatDate = adminAPI.formatDate
+const formatApplicationTime = adminAPI.formatApplicationTime
 
-// ===== 成员管理方法 =====
-const updateUserRole = async (member) => {
+// 资质审核相关方法
+const getSitterAuditStatusText = adminAPI.getSitterAuditStatusText
+const getSitterAuditStatusColor = adminAPI.getSitterAuditStatusColor
+const formatIdCard = adminAPI.formatIdCard
+const truncateText = adminAPI.truncateText
+
+// ============ 资质审核操作 ============
+const approveSitterApplication = async (application) => {
   try {
-    const response = await adminAPI.changeMemberRole(member.id, member.role)
+    processingApplication.value = application.id
+    isApproving.value = true
     
-    if (response.success) {
-      adminAPI.showSuccess('成员角色修改成功')
-      loadMembers()
-      loadCommunityStats()
-    } else {
-      adminAPI.showError(response.message)
-    }
-  } catch (error) {
-    adminAPI.handleError(error, '修改成员角色')
-  }
-}
-
-const approveQualification = async (member) => {
-  try {
-    const response = await adminAPI.approveQualification(member.id)
+    const response = await adminAPI.reviewSitterApplication(
+      application.id, 
+      true, 
+      reviewComment.value || adminAPI.getReviewCommentTemplate(true)
+    )
     
     if (response.success) {
       adminAPI.showSuccess('资质审核通过')
-      loadMembers()
+      
+      // 从申请列表中移除
+      const index = sitterApplications.value.applications.findIndex(app => app.id === application.id)
+      if (index !== -1) {
+        sitterApplications.value.applications.splice(index, 1)
+      }
+      
+      // 清空审核输入
+      showReviewCommentInput.value = null
+      reviewComment.value = ''
+      
+      // 更新统计
       loadCommunityStats()
+      
     } else {
       adminAPI.showError(response.message)
     }
   } catch (error) {
     adminAPI.handleError(error, '审核通过')
+  } finally {
+    processingApplication.value = null
+    isApproving.value = false
   }
 }
 
-const viewQualification = (member) => {
-  alert(`查看资质信息：${member.sitterCertifications || '暂无资质信息'}`)
-}
-
-const viewRejectReason = (member) => {
-  alert(`审核未通过原因：\n${member.rejectReason || '未提供具体原因'}`)
-}
-
-const showRejectDialog = (member) => {
-  selectedMember.value = member
-  modalType.value = 'rejectReview'
-  modalTitle.value = '拒绝资质审核'
-  modalConfirmText.value = '确认拒绝'
-  showModal.value = true
-}
-
-const showReReviewDialog = (member) => {
-  selectedMember.value = member
-  modalType.value = 'reReview'
-  modalTitle.value = '重新审核资质'
-  modalConfirmText.value = '开始重新审核'
-  showModal.value = true
-}
-
-const allowResubmit = async (member) => {
+const rejectSitterApplication = async (application) => {
   try {
-    const response = await adminAPI.allowResubmitQualification(member.id)
+    if (!reviewComment.value.trim()) {
+      adminAPI.showError('请填写拒绝原因')
+      return
+    }
+    
+    processingApplication.value = application.id
+    isApproving.value = false
+    
+    const response = await adminAPI.reviewSitterApplication(
+      application.id, 
+      false, 
+      reviewComment.value
+    )
     
     if (response.success) {
-      adminAPI.showSuccess('允许重新提交审核')
-      loadMembers()
+      adminAPI.showSuccess('资质审核已拒绝')
+      
+      // 从申请列表中移除
+      const index = sitterApplications.value.applications.findIndex(app => app.id === application.id)
+      if (index !== -1) {
+        sitterApplications.value.applications.splice(index, 1)
+      }
+      
+      // 清空审核输入
+      showReviewCommentInput.value = null
+      reviewComment.value = ''
+      
+    } else {
+      adminAPI.showError(response.message)
+    }
+  } catch (error) {
+    adminAPI.handleError(error, '审核拒绝')
+  } finally {
+    processingApplication.value = null
+  }
+}
+
+const toggleReviewCommentInput = (application, isApprovingAction = false) => {
+  isApproving.value = isApprovingAction
+  if (showReviewCommentInput.value === application.id) {
+    showReviewCommentInput.value = null
+    reviewComment.value = ''
+  } else {
+    showReviewCommentInput.value = application.id
+    reviewComment.value = isApprovingAction ? adminAPI.getReviewCommentTemplate(true) : ''
+  }
+}
+
+const viewApplicantProfile = (application) => {
+  let profileInfo = `申请者信息：\n`
+  profileInfo += `用户名：${application.username}\n`
+  profileInfo += `昵称：${application.nickname || '未设置'}\n`
+  profileInfo += `真实姓名：${application.realName || '未提供'}\n`
+  profileInfo += `身份证号：${formatIdCard(application.idCardNumber) || '未提供'}\n`
+  profileInfo += `联系方式：${application.phone || application.email || '未提供'}\n`
+  profileInfo += `用户等级：Lv.${application.userInfo?.level || 1}\n`
+  profileInfo += `信誉分：${application.userInfo?.creditScore || 100}\n`
+  profileInfo += `完成订单：${application.userInfo?.completedOrders || 0}\n`
+  profileInfo += `平均评分：${application.userInfo?.averageRating ? application.userInfo.averageRating.toFixed(1) : '0.0'}\n`
+  profileInfo += `申请时间：${formatApplicationTime(application.appliedAt)}\n`
+  profileInfo += `申请理由：${application.joinReason || '未填写'}\n`
+  
+  alert(profileInfo)
+}
+
+const viewApplicationDetails = async (application) => {
+  try {
+    let details = `资质申请详情：\n`
+    details += `申请ID：${application.id}\n`
+    details += `申请者：${application.nickname || application.username}\n`
+    details += `真实姓名：${application.realName || '未提供'}\n`
+    details += `身份证号：${application.idCardNumber || '未提供'}\n`
+    details += `联系方式：${application.phone || application.email || '未提供'}\n`
+    details += `申请时间：${formatDate(application.appliedAt)}\n`
+    details += `申请状态：${getSitterAuditStatusText(application.status)}\n`
+    
+    if (application.reviewedAt) {
+      details += `审核时间：${formatDate(application.reviewedAt)}\n`
+      details += `审核人：${application.reviewerName || '管理员'}\n`
+    }
+    
+    if (application.reviewComment) {
+      details += `审核意见：${application.reviewComment}\n`
+    }
+    
+    details += `\n申请理由：\n${application.joinReason || '未填写申请理由'}\n`
+    
+    alert(details)
+  } catch (error) {
+    adminAPI.showError('获取详情失败')
+  }
+}
+
+const startReviewApplication = (application) => {
+  selectedApplication.value = application
+  showReviewCommentInput.value = application.id
+  reviewComment.value = adminAPI.getReviewCommentTemplate(true)
+}
+
+const showReReviewDialog = (application) => {
+  selectedApplication.value = application
+  modalType.value = 'reReviewApplication'
+  modalTitle.value = '重新审核资质申请'
+  modalConfirmText.value = '开始重新审核'
+  reviewComment.value = ''
+  showModal.value = true
+}
+
+const reReviewApplication = async () => {
+  try {
+    if (!selectedApplication.value) return
+    
+    const response = await adminAPI.reviewSitterApplication(
+      selectedApplication.value.id, 
+      true, 
+      reviewComment.value || '重新审核通过'
+    )
+    
+    if (response.success) {
+      adminAPI.showSuccess('重新审核通过')
+      closeModal()
+      loadSitterApplications()
       loadCommunityStats()
     } else {
       adminAPI.showError(response.message)
     }
   } catch (error) {
-    adminAPI.handleError(error, '允许重审')
+    adminAPI.handleError(error, '重新审核')
   }
 }
 
-// ===== 需求审核方法 =====
+const getSitterEmptyStateTitle = () => {
+  if (sitterAuditFilter.value === 'pending') {
+    return '暂无待审核申请'
+  } else if (sitterAuditStatusFilter.value !== 'all') {
+    return `暂无${getSitterAuditStatusText(sitterAuditStatusFilter.value)}的申请`
+  }
+  return '暂无申请记录'
+}
+
+const getSitterEmptyStateMessage = () => {
+  if (sitterAuditFilter.value === 'pending') {
+    return '所有服务者资质申请都已审核完毕'
+  } else if (sitterSearchQuery.value.trim()) {
+    return '没有找到匹配的申请记录'
+  }
+  return '还没有服务者提交资质申请'
+}
+
+// ============ 需求审核方法 ============
 const approveRequirement = async (requirement) => {
   try {
     processingRequirement.value = requirement.id
@@ -1152,7 +1719,7 @@ const viewRequirementDetails = async (requirement) => {
   }
 }
 
-// ===== 成员移除方法 =====
+// ============ 成员移除方法 ============
 const showRemoveDialog = (member) => {
   selectedMember.value = member
   modalType.value = 'remove'
@@ -1161,7 +1728,7 @@ const showRemoveDialog = (member) => {
   showModal.value = true
 }
 
-// ===== 审核记录删除方法 =====
+// ============ 审核记录删除方法 ============
 const deleteReviewRecord = (requirement) => {
   selectedRequirement.value = requirement
   modalType.value = 'deleteRequirement'
@@ -1170,7 +1737,7 @@ const deleteReviewRecord = (requirement) => {
   showModal.value = true
 }
 
-// ===== 空状态文本 =====
+// ============ 空状态文本 ============
 const getEmptyStateTitle = () => {
   switch (reviewFilter.value) {
     case 'pending': return '暂无待审核需求'
@@ -1189,7 +1756,7 @@ const getEmptyStateMessage = () => {
   }
 }
 
-// ===== 社区设置方法 =====
+// ============ 社区设置方法 ============
 const resetSettings = async () => {
   try {
     const response = await adminAPI.resetCommunitySettings()
@@ -1220,12 +1787,14 @@ const saveSettings = async () => {
   }
 }
 
-// ===== 模态框方法 =====
+// ============ 模态框方法 ============
 const closeModal = () => {
   showModal.value = false
   selectedMember.value = null
   selectedRequirement.value = null
+  selectedApplication.value = null
   editingRequirement.value = null
+  reviewComment.value = ''
 }
 
 const confirmModal = async () => {
@@ -1266,39 +1835,9 @@ const confirmModal = async () => {
         }
         break
         
-      case 'rejectReview':
-        if (selectedMember.value) {
-          const reason = prompt('请输入拒绝原因：', '资质不符合要求')
-          if (reason && selectedMember.value) {
-            const response = await adminAPI.rejectQualification(selectedMember.value.id, reason)
-            
-            if (response.success) {
-              adminAPI.showSuccess('审核拒绝成功')
-              closeModal()
-              loadMembers()
-              loadCommunityStats()
-            } else {
-              adminAPI.showError(response.message)
-            }
-          }
-        }
-        break
-        
-      case 'reReview':
-        if (selectedMember.value) {
-          const confirmed = await adminAPI.confirmDialog(`确定要对 ${selectedMember.value.nickName || selectedMember.value.name} 进行重新审核吗？`)
-          if (!confirmed) return
-          
-          const response = await adminAPI.reReviewQualification(selectedMember.value.id)
-          
-          if (response.success) {
-            adminAPI.showSuccess('重新审核开始')
-            closeModal()
-            loadMembers()
-            loadCommunityStats()
-          } else {
-            adminAPI.showError(response.message)
-          }
+      case 'reReviewApplication':
+        if (selectedApplication.value) {
+          await reReviewApplication()
         }
         break
         
@@ -1323,6 +1862,993 @@ const confirmModal = async () => {
 </script>
 
 <style scoped>
+.manage-community {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 页面头部 */
+.page-header {
+  margin-bottom: 40px;
+}
+
+.header-left h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.header-left p {
+  color: #64748b;
+  font-size: 16px;
+}
+
+.header-stats {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 16px;
+  min-width: 120px;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #166534;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* 管理导航 */
+.management-tabs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 10px;
+}
+
+.tabs {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.tab-btn:hover {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.tab-btn.active {
+  background: #166534;
+  color: white;
+}
+
+/* 标签页内容 */
+.tab-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 加载状态 */
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #166534;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 分页 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 30px;
+  padding: 20px;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* ===== 服务者资质审核页面样式 ===== */
+.sitter-audit-container {
+  width: 100%;
+}
+
+.audit-header {
+  margin-bottom: 30px;
+}
+
+.audit-stats-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.audit-stat-card {
+  padding: 25px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.audit-stat-card.total {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+}
+
+.audit-stat-card.pending {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.audit-stat-card.approved {
+  background: linear-gradient(135deg, #10b981, #047857);
+  color: white;
+}
+
+.audit-stat-card.rejected {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+}
+
+.audit-stat-card .stat-icon {
+  font-size: 40px;
+}
+
+.audit-stat-card .stat-info h3 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.audit-stat-card .stat-info p {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* 审核筛选 */
+.audit-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filter-group {
+  display: flex;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 6px;
+  border-radius: 12px;
+  width: fit-content;
+}
+
+.filter-btn {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.filter-btn:hover {
+  background: #e2e8f0;
+}
+
+.filter-btn.active {
+  background: #166534;
+  color: white;
+}
+
+.filter-select-group {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.filter-select {
+  padding: 10px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  color: #475569;
+  min-width: 160px;
+}
+
+/* 资质申请列表 */
+.sitter-applications-list {
+  width: 100%;
+}
+
+.applications-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+/* 申请卡片样式 */
+.sitter-application-card {
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.sitter-application-card:hover {
+  border-color: #d1fae5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.sitter-application-card.pending {
+  border-left: 4px solid #f59e0b;
+}
+
+.sitter-application-card.approved {
+  border-left: 4px solid #10b981;
+}
+
+.sitter-application-card.rejected {
+  border-left: 4px solid #ef4444;
+}
+
+/* 申请头部 */
+.application-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.applicant-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.applicant-avatar {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: white;
+}
+
+.applicant-details h3 {
+  font-size: 18px;
+  color: #1e293b;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.applicant-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.user-level {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.user-score {
+  color: #166534;
+  font-weight: 500;
+}
+
+.real-name {
+  color: #475569;
+  font-weight: 500;
+}
+
+.application-time {
+  color: #94a3b8;
+}
+
+/* 申请状态 */
+.application-status {
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.application-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.application-status.approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.application-status.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* 申请内容 */
+.application-content {
+  padding: 25px;
+}
+
+.info-section h4 {
+  font-size: 16px;
+  color: #475569;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.info-label {
+  min-width: 80px;
+  color: #64748b;
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.info-value {
+  color: #1e293b;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* 申请理由 */
+.reason-section h4 {
+  font-size: 16px;
+  color: #475569;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.reason-content {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 20px;
+  color: #475569;
+  line-height: 1.6;
+  font-size: 14px;
+  border-left: 3px solid #6366f1;
+}
+
+/* 用户统计信息 */
+.user-stats-section {
+  margin-top: 25px;
+  padding-top: 25px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.stat-item-small {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #f0fdf4;
+  border-radius: 12px;
+}
+
+.stat-icon-small {
+  font-size: 24px;
+}
+
+.stat-details .stat-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: #166534;
+  margin-bottom: 2px;
+}
+
+.stat-details .stat-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* 紧凑布局 */
+.info-section.compact {
+  padding: 0;
+}
+
+.info-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.info-icon {
+  font-size: 16px;
+}
+
+.info-text {
+  color: #475569;
+  font-weight: 500;
+}
+
+.reason-summary {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 15px 0;
+}
+
+/* 审核信息 */
+.review-info {
+  background: #f0fdf4;
+  border-radius: 10px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.reviewer-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.reviewer-label {
+  font-weight: 500;
+}
+
+.reviewer-name {
+  color: #166534;
+  font-weight: 600;
+}
+
+.review-time {
+  color: #94a3b8;
+}
+
+.review-comment {
+  background: #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+}
+
+.comment-label {
+  font-weight: 600;
+  color: #475569;
+}
+
+.comment-text {
+  color: #64748b;
+  margin-left: 8px;
+}
+
+/* 审核操作区域 */
+.audit-actions-section {
+  padding: 20px 25px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.review-comment-input {
+  margin-bottom: 20px;
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: #166534;
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.1);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.approve-btn {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.approve-btn:hover:not(:disabled) {
+  background: #a7f3d0;
+  transform: translateY(-1px);
+}
+
+.approve-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reject-btn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.reject-btn:hover:not(:disabled) {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+.reject-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirm-reject-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.confirm-reject-btn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.confirm-reject-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.reapprove-btn {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.reapprove-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.review-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.review-btn:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  transform: translateY(-1px);
+}
+
+.view-btn {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.view-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.view-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 空状态 */
+.no-applications {
+  text-align: center;
+  padding: 60px 40px;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed #e2e8f0;
+  margin: 20px 0;
+}
+
+.empty-state {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  color: #334155;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  color: #64748b;
+  font-size: 15px;
+  margin-bottom: 20px;
+}
+
+.refresh-btn {
+  padding: 10px 24px;
+  background: #166534;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.refresh-btn:hover {
+  background: #14532d;
+}
+
+/* ===== 成员管理页面样式 ===== */
+/* ... 已有成员管理样式保持不变 ... */
+
+/* ===== 需求审核页面样式 ===== */
+/* ... 已有需求审核样式保持不变 ... */
+
+/* 模态框 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px 30px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.modal-header h2 {
+  font-size: 24px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.modal-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #94a3b8;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.modal-header .close-btn:hover {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.modal-body {
+  padding: 30px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+  padding: 20px 30px 30px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* 模态框中的表单 */
+.edit-requirement-form .form-group,
+.re-review-form .form-group {
+  margin-bottom: 20px;
+}
+
+.edit-requirement-form label,
+.re-review-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #475569;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.btn-secondary, .btn-primary {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-secondary {
+  background: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.btn-primary {
+  background: #166534;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #14532d;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .audit-stats-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .management-tabs {
+    flex-direction: column;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  
+  .tabs {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  
+  .filter-select-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-box {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-stats {
+    flex-wrap: wrap;
+  }
+  
+  .stat-item {
+    flex: 1 1 calc(50% - 10px);
+    min-width: auto;
+  }
+  
+  .audit-stats-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .applicant-info {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .application-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+  
+  .application-status {
+    align-self: flex-start;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-item {
+    flex: 1 1 100%;
+  }
+  
+  .info-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 20px;
+  }
+}
 .manage-community {
   width: 100%;
   box-sizing: border-box;

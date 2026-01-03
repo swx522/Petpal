@@ -3,7 +3,7 @@ import { http } from '@/utils/http.js'
 
 class SitterService {
   // ===============================
-  // 服务者资质管理
+  // 服务者资质管理（新增）
   // ===============================
 
   /**
@@ -15,6 +15,33 @@ class SitterService {
       return response
     } catch (error) {
       console.error('获取审核状态失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 提交服务者资格申请
+   * @param {Object} applicationData - 申请数据
+   */
+  async submitApplication(applicationData) {
+    try {
+      const response = await http.post('/sitter/application', applicationData)
+      return response
+    } catch (error) {
+      console.error('提交申请失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取我的申请记录
+   */
+  async getMyApplication() {
+    try {
+      const response = await http.get('/sitter/application')
+      return response
+    } catch (error) {
+      console.error('获取申请记录失败:', error)
       throw error
     }
   }
@@ -47,7 +74,7 @@ class SitterService {
   }
 
   // ===============================
-  // 接单相关功能
+  // 接单相关功能（保持不变）
   // ===============================
 
   /**
@@ -80,7 +107,7 @@ class SitterService {
    */
   async getRequestDetail(requestId) {
     try {
-      const response = await http.get(`/requests/detail/${requestId}`)
+      const response = await http.get(`/sitter/requests/detail/${requestId}`)
       return response
     } catch (error) {
       console.error('获取需求详情失败:', error)
@@ -134,7 +161,7 @@ class SitterService {
         pageSize: options.pageSize || 10
       }
       
-      const response = await http.get('/orders/finished', params)
+      const response = await http.get('/sitter/orders/finished', params)
       return response
     } catch (error) {
       console.error('获取已完成订单失败:', error)
@@ -148,20 +175,13 @@ class SitterService {
    */
   async getOrderFeedback(orderId) {
     try {
-      const response = await http.get(`/orders/feedback/${orderId}`)
+      const response = await http.get(`/sitter/orders/feedback/${orderId}`)
       return response
     } catch (error) {
       console.error('获取订单评价失败:', error)
       throw error
     }
   }
-
-  // ===============================
-  // 个人资料管理（统一使用 UserService）
-  // ===============================
-
-  // 注意：个人资料和密码修改已统一到 UserService
-  // 相关功能请使用 user.js 中的方法
 
   // ===============================
   // 实用工具方法
@@ -190,6 +210,44 @@ class SitterService {
       rabbit: { label: "兔兔", emoji: "🐰" },
       bird: { label: "鸟鸟", emoji: "🐦" },
       other: { label: "其他", emoji: "🐾" }
+    }
+  }
+
+  /**
+   * 获取审核状态映射
+   */
+  getAuditStatusMapping() {
+    return {
+      NotApplied: { 
+        label: "未申请", 
+        icon: "📝", 
+        color: "#6b7280",
+        description: "您尚未提交服务者资质申请"
+      },
+      Pending: { 
+        label: "审核中", 
+        icon: "⏳", 
+        color: "#f59e0b",
+        description: "管理员正在审核您的申请资料"
+      },
+      Approved: { 
+        label: "已通过", 
+        icon: "✅", 
+        color: "#10b981",
+        description: "恭喜！您已成为认证服务者"
+      },
+      Rejected: { 
+        label: "已拒绝", 
+        icon: "❌", 
+        color: "#ef4444",
+        description: "申请未通过审核，请修改后重新提交"
+      },
+      Resubmitted: { 
+        label: "重新提交", 
+        icon: "🔄", 
+        color: "#8b5cf6",
+        description: "您的补充资料正在审核中"
+      }
     }
   }
 
@@ -248,6 +306,62 @@ class SitterService {
   }
 
   /**
+   * 格式化审核状态数据
+   * @param {Object} auditData - 后端返回的审核状态数据
+   */
+  formatAuditData(auditData) {
+    const statusMap = this.getAuditStatusMapping()
+    const status = auditData.auditStatus
+    const statusInfo = statusMap[status] || statusMap.NotApplied
+    
+    return {
+      sitterId: auditData.sitterId,
+      user: auditData.user,
+      auditStatus: status,
+      statusInfo: statusInfo,
+      stageDescription: auditData.stageDescription,
+      estimatedCompletion: auditData.estimatedCompletion,
+      progress: auditData.progress || 0,
+      appliedAt: auditData.appliedAt,
+      lastAuditAt: auditData.lastAuditAt,
+      reviewComment: auditData.reviewComment
+    }
+  }
+
+  /**
+   * 格式化申请记录数据
+   * @param {Object} applicationData - 后端返回的申请记录数据
+   */
+  formatApplicationData(applicationData) {
+    const statusMap = this.getAuditStatusMapping()
+    const status = applicationData.status
+    const statusInfo = statusMap[status] || statusMap.NotApplied
+    
+    return {
+      id: applicationData.id,
+      realName: applicationData.realName,
+      idCardNumber: this.maskIdCard(applicationData.idCardNumber),
+      joinReason: applicationData.joinReason,
+      status: status,
+      statusInfo: statusInfo,
+      appliedAt: applicationData.appliedAt,
+      reviewedAt: applicationData.reviewedAt,
+      reviewComment: applicationData.reviewComment
+    }
+  }
+
+  /**
+   * 隐藏身份证中间部分（用于显示）
+   * @param {string} idCard - 身份证号码
+   */
+  maskIdCard(idCard) {
+    if (!idCard || idCard.length < 8) return idCard
+    const firstFour = idCard.substring(0, 4)
+    const lastFour = idCard.substring(idCard.length - 4)
+    return `${firstFour}********${lastFour}`
+  }
+
+  /**
    * 格式化时间
    * @param {string} timeString - 时间字符串
    */
@@ -277,6 +391,37 @@ class SitterService {
     })
   }
 
+  /**
+   * 格式化审核时间（更详细）
+   * @param {string} timeString - 时间字符串
+   */
+  formatAuditTime(timeString) {
+    if (!timeString) return '--'
+    const date = new Date(timeString)
+    const now = new Date()
+    const diffMs = now - date
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) {
+      return '今天 ' + date.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })
+    } else if (diffDays === 1) {
+      return '昨天 ' + date.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })
+    } else if (diffDays < 7) {
+      return `${diffDays}天前`
+    } else {
+      return date.toLocaleDateString('zh-CN', { 
+        month: '2-digit', 
+        day: '2-digit' 
+      })
+    }
+  }
+
   // ===============================
   // 错误处理
   // ===============================
@@ -303,6 +448,12 @@ class SitterService {
       if (error.message.includes('审核')) {
         return '请先完成服务者资质审核'
       }
+      if (error.message.includes('已是审核通过的服务者')) {
+        return '您已经是认证服务者了'
+      }
+      if (error.message.includes('待审核的申请')) {
+        return '您已有待审核的申请，请耐心等待'
+      }
       return error.message
     }
     
@@ -320,6 +471,92 @@ class SitterService {
       console.error('检查服务者状态失败:', error)
       return false
     }
+  }
+
+  /**
+   * 获取审核状态详情
+   */
+  async getAuditStatusDetail() {
+    try {
+      const response = await this.getAuditStatus()
+      if (response.success) {
+        return this.formatAuditData(response.data)
+      }
+      return null
+    } catch (error) {
+      console.error('获取审核状态详情失败:', error)
+      return null
+    }
+  }
+
+  /**
+   * 获取申请记录详情
+   */
+  async getApplicationDetail() {
+    try {
+      const response = await this.getMyApplication()
+      if (response.success) {
+        return this.formatApplicationData(response.data)
+      }
+      return null
+    } catch (error) {
+      console.error('获取申请记录详情失败:', error)
+      return null
+    }
+  }
+
+  /**
+   * 验证申请数据
+   * @param {Object} applicationData - 申请数据
+   */
+  validateApplication(applicationData) {
+    const errors = []
+    
+    if (!applicationData.realName || applicationData.realName.trim().length < 2) {
+      errors.push('真实姓名至少需要2个字符')
+    }
+    
+    if (!applicationData.idCardNumber || !this.isValidIdCard(applicationData.idCardNumber)) {
+      errors.push('请输入有效的18位身份证号码')
+    }
+    
+    if (!applicationData.joinReason || applicationData.joinReason.trim().length < 10) {
+      errors.push('申请原因至少需要10个字符')
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors
+    }
+  }
+
+  /**
+   * 验证身份证号码（简单验证）
+   * @param {string} idCard - 身份证号码
+   */
+  isValidIdCard(idCard) {
+    if (!idCard || typeof idCard !== 'string') return false
+    
+    // 移除空格
+    const cleanedId = idCard.trim()
+    
+    // 检查长度（15位旧版或18位新版）
+    if (cleanedId.length !== 15 && cleanedId.length !== 18) {
+      return false
+    }
+    
+    // 简单格式检查
+    if (cleanedId.length === 18) {
+      const pattern = /^[1-9]\d{5}(19|20)\d{2}((0[1-9])|(1[0-2]))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$/
+      return pattern.test(cleanedId)
+    }
+    
+    if (cleanedId.length === 15) {
+      const pattern = /^[1-9]\d{7}((0[1-9])|(1[0-2]))(([0-2][1-9])|10|20|30|31)\d{3}$/
+      return pattern.test(cleanedId)
+    }
+    
+    return false
   }
 }
 

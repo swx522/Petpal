@@ -125,6 +125,17 @@ namespace petpal.API.Controllers
         {
             try
             {
+                // 限定为当前管理员所属社区的成员（若管理员属于某社区）
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(adminId))
+                {
+                    var adminUser = await _userService.GetUserByIdAsync(adminId);
+                    if (adminUser != null && adminUser.CommunityId.HasValue)
+                    {
+                        filters.CommunityId = adminUser.CommunityId;
+                    }
+                }
+
                 var members = await _communityService.GetCommunityMembersAsync(filters);
                 var memberDtos = members.Select(u => u.ToUserDto()).ToList();
 

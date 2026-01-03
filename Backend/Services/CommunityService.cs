@@ -110,6 +110,12 @@ namespace petpal.API.Services
                 .Include(u => u.Community)
                 .AsQueryable();
 
+            // 如果传入了 CommunityId，则只返回该社区的成员
+            if (filters.CommunityId.HasValue)
+            {
+                query = query.Where(u => u.CommunityId == filters.CommunityId.Value);
+            }
+
             if (filters.Role.HasValue)
             {
                 query = query.Where(u => u.Role == filters.Role.Value);

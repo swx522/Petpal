@@ -119,6 +119,8 @@ namespace petpal.API.Services
     {
         public UserRole? Role { get; set; }
         public bool? IsCertified { get; set; }
+        // 可选：按社区ID过滤成员（如果未设置则返回所有社区的成员）
+        public int? CommunityId { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

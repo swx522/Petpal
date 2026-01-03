@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using petpal.API.Data;
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Services
 {
@@ -224,7 +225,7 @@ namespace petpal.API.Services
         /// <summary>
         /// 获取待审核的需求列表
         /// </summary>
-        public async Task<List<MutualOrder>> GetPendingReviewsAsync(ReviewFilters filters)
+        public async Task<List<RequestDto>> GetPendingReviewsAsync(ReviewFilters filters)
         {
             var query = _context.MutualOrders
                 .Include(o => o.Owner)
@@ -235,11 +236,13 @@ namespace petpal.API.Services
                 query = query.Where(o => o.ServiceType == filters.ServiceType);
             }
 
-            return await query
+            var orders = await query
                 .OrderBy(o => o.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
                 .Take(filters.PageSize)
                 .ToListAsync();
+
+            return orders.ToRequestDtos().ToList();
         }
 
         /// <summary>

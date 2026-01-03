@@ -1,4 +1,5 @@
 using petpal.API.Models;
+using petpal.API.Models.DTOs;
 
 namespace petpal.API.Services
 {
@@ -65,7 +66,7 @@ namespace petpal.API.Services
         /// </summary>
         /// <param name="filters">筛选条件</param>
         /// <returns>待审核需求列表</returns>
-        Task<List<MutualOrder>> GetPendingReviewsAsync(ReviewFilters filters);
+        Task<List<RequestDto>> GetPendingReviewsAsync(ReviewFilters filters);
 
         /// <summary>
         /// 获取审核详情

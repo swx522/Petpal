@@ -56,5 +56,51 @@ namespace petpal.API.Models.DTOs
         {
             return users.Select(u => u.ToUserDto());
         }
+
+        /// <summary>
+        /// 将MutualOrder实体转换为RequestDto
+        /// </summary>
+        public static RequestDto ToRequestDto(this MutualOrder order)
+        {
+            return new RequestDto
+            {
+                Id = order.Id,
+                Title = order.Title,
+                PetType = order.PetType,
+                ServiceType = order.ServiceType,
+                StartTime = order.StartTime,
+                EndTime = order.EndTime,
+                Description = order.Description,
+                Status = order.Status,
+                CreatedAt = order.CreatedAt,
+                Owner = order.Owner?.ToUserSimpleDto(),
+                Longitude = order.Longitude,
+                Latitude = order.Latitude,
+                Distance = order.Distance
+            };
+        }
+
+        /// <summary>
+        /// 将User实体转换为UserSimpleDto
+        /// </summary>
+        public static UserSimpleDto ToUserSimpleDto(this User user)
+        {
+            return new UserSimpleDto
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Phone = user.Phone,
+                Role = user.Role,
+                ReputationScore = user.ReputationScore
+            };
+        }
+
+        /// <summary>
+        /// 将MutualOrder集合转换为RequestDto集合
+        /// </summary>
+        public static IEnumerable<RequestDto> ToRequestDtos(this IEnumerable<MutualOrder> orders)
+        {
+            return orders.Select(o => o.ToRequestDto());
+        }
     }
 }

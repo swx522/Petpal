@@ -591,8 +591,8 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 验证需求状态
-                if (request.Status != OrderStatus.Pending)
+                // 验证需求状态：必须已审核通过且还未被接单
+                if (request.Status != OrderStatus.Approved || request.ExecutionStatus != OrderExecutionStatus.Open)
                 {
                     return BadRequest(new ApiResponse
                     {
@@ -613,7 +613,6 @@ namespace petpal.API.Controllers
 
                 // 更新需求执行状态
                 request.ExecutionStatus = OrderExecutionStatus.Accepted;
-                request.AcceptedAt = DateTime.Now;
                 request.AcceptedAt = DateTime.Now;
 
                 await _context.SaveChangesAsync();

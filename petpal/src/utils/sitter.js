@@ -94,7 +94,8 @@ class SitterService {
    */
   async acceptRequest(requestId) {
     try {
-      const response = await http.post(`/requests/accept/${requestId}`)
+      // 使用服务者专用的API端点
+      const response = await http.post(`/sitter/requests/accept/${requestId}`)
       return response
     } catch (error) {
       console.error('接受需求失败:', error)

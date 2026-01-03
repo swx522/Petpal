@@ -152,13 +152,13 @@
               </div>
               
               <div class="feedback-card-body">
-                <div class="pet-owner-info">
-                  <div class="owner-avatar">
-                    {{ feedback.ownerName.charAt(0) }}
+                <div class="pet-user-info">
+                  <div class="user-avatar">
+                    {{ feedback.userName.charAt(0) }}
                   </div>
-                  <div class="owner-details">
-                    <h5>{{ feedback.ownerName }}</h5>
-                    <p class="owner-reputation">信誉：{{ feedback.ownerRating }}/5.0</p>
+                  <div class="user-details">
+                    <h5>{{ feedback.userName }}</h5>
+                    <p class="user-reputation">信誉：{{ feedback.userRating }}/5.0</p>
                   </div>
                 </div>
                 
@@ -248,8 +248,8 @@ const completedFeedbacks = ref([
     orderId: "OD20231215001",
     serviceType: "遛狗服务",
     petType: "dog",
-    ownerName: "张先生",
-    ownerRating: 4.8,
+    userName: "张先生",
+    userRating: 4.8,
     rating: 5,
     comment: "非常专业的遛狗服务，狗狗回来很开心！",
     location: "朝阳区三里屯",
@@ -260,8 +260,8 @@ const completedFeedbacks = ref([
     orderId: "OD20231214002",
     serviceType: "喂食照顾",
     petType: "cat",
-    ownerName: "李女士",
-    ownerRating: 4.5,
+    userName: "李女士",
+    userRating: 4.5,
     rating: 4,
     comment: "按时喂食，还帮忙清理了猫砂，很细心",
     location: "海淀区中关村",
@@ -272,8 +272,8 @@ const completedFeedbacks = ref([
     orderId: "OD20231213003",
     serviceType: "美容护理",
     petType: "dog",
-    ownerName: "王五",
-    ownerRating: 4.9,
+    userName: "王五",
+    userRating: 4.9,
     rating: 5,
     comment: "洗澡很专业，狗狗看起来很舒服，服务态度很好",
     location: "西城区金融街",
@@ -840,7 +840,7 @@ const confirmAccept = () => {
 }
 
 /* 宠物主人信息 */
-.pet-owner-info {
+.pet-user-info {
   display: flex;
   align-items: center;
   gap: 15px;
@@ -849,7 +849,7 @@ const confirmAccept = () => {
   border-bottom: 1px solid #f1f5f9;
 }
 
-.owner-avatar {
+.user-avatar {
   width: 45px;
   height: 45px;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
@@ -862,14 +862,14 @@ const confirmAccept = () => {
   font-size: 18px;
 }
 
-.owner-details h5 {
+.user-details h5 {
   font-size: 16px;
   color: #1e293b;
   margin-bottom: 4px;
   font-weight: 600;
 }
 
-.owner-reputation {
+.user-reputation {
   font-size: 13px;
   color: #64748b;
 }

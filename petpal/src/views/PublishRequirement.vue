@@ -255,19 +255,11 @@
           </div>
           <div class="detail-item">
             <span class="detail-label">服务类型：</span>
-<<<<<<< HEAD
             <span class="detail-value">{{ getServiceTypeText(publishedOrder.serviceType) }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">宠物类型：</span>
             <span class="detail-value">{{ getPetTypeText(publishedOrder.petType) }}</span>
-=======
-            <span class="detail-value">{{ formatServiceType(publishedOrder.serviceType).label }}</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">宠物类型：</span>
-            <span class="detail-value">{{ formatPetType(publishedOrder.petType).label }}</span>
->>>>>>> fac8cf5f256ccd13eeaf5661bdecaf41533b39c7
           </div>
           <div class="detail-item">
             <span class="detail-label">开始时间：</span>

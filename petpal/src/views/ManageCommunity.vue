@@ -13,7 +13,7 @@
           <div class="stat-label">社区成员</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ communityStats.petOwners || 0 }}</div>
+          <div class="stat-value">{{ communityStats.petusers || 0 }}</div>
           <div class="stat-label">宠物主人</div>
         </div>
         <div class="stat-item">
@@ -309,8 +309,8 @@
                       <div class="detail-item">
                         <span class="detail-icon">👤</span>
                         <span class="detail-label">发布者：</span>
-                        <span class="detail-value">{{ requirement.owner?.nickName || requirement.owner?.name || '匿名用户' }}</span>
-                        <span v-if="requirement.owner?.level" class="member-level">Lv.{{ requirement.owner.level }}</span>
+                        <span class="detail-value">{{ requirement.user?.nickName || requirement.user?.name || '匿名用户' }}</span>
+                        <span v-if="requirement.user?.level" class="member-level">Lv.{{ requirement.user.level }}</span>
                       </div>
                       
                       <div class="detail-item">
@@ -418,7 +418,7 @@
                       
                       <div class="detail-item">
                         <span class="detail-icon">👤</span>
-                        <span>{{ requirement.owner?.nickName || requirement.owner?.name || '匿名用户' }}</span>
+                        <span>{{ requirement.user?.nickName || requirement.user?.name || '匿名用户' }}</span>
                       </div>
                     </div>
                     
@@ -641,7 +641,7 @@ const processingRequirement = ref(null)
 // 社区统计
 const communityStats = ref({
   totalMembers: 0,
-  petOwners: 0,
+  petusers: 0,
   serviceProviders: 0,
   pendingRequests: 0
 })
@@ -737,6 +737,19 @@ watch(activeTab, (newTab) => {
 })
 
 onMounted(() => {
+  console.log('组件挂载，检查权限状态...')
+  
+  // 调试：查看当前用户信息
+  const userRole = localStorage.getItem('petpal_userRole')
+  const userId = localStorage.getItem('petpal_userId')
+  const token = localStorage.getItem('auth_token')
+  
+  console.log('用户调试信息:', {
+    userId,
+    userRole,
+    token: token ? '存在' : '不存在'
+  })
+  
   // 验证管理员权限
   verifyAdminPermission()
   loadInitialData()
@@ -765,7 +778,7 @@ const loadCommunityStats = async () => {
     if (response.success && response.data) {
       communityStats.value = {
         totalMembers: response.data.totalMembers || 0,
-        petOwners: response.data.petOwners || 0,
+        petusers: response.data.petusers || 0,
         serviceProviders: response.data.serviceProviders || 0,
         pendingRequests: response.data.pendingRequests || 0
       }
@@ -958,7 +971,7 @@ const getAvatarEmoji = (name) => {
 }
 
 const getRoleClass = (role) => {
-  return role === 'user' ? 'petOwner' : 'serviceProvider'
+  return role === 'user' ? 'petuser' : 'serviceProvider'
 }
 
 const getAuditStatusClass = (status) => {
@@ -1147,11 +1160,11 @@ const reApproveRequirement = async (requirement) => {
 }
 
 const viewPublisherProfile = (requirement) => {
-  if (requirement.owner) {
+  if (requirement.user) {
     alert(`用户信息：
-名称：${requirement.owner.nickName || requirement.owner.name}
-等级：Lv.${requirement.owner.level || 1}
-信誉分：${requirement.owner.creditScore || 100}`)
+名称：${requirement.user.nickName || requirement.user.name}
+等级：Lv.${requirement.user.level || 1}
+信誉分：${requirement.user.creditScore || 100}`)
   } else {
     alert('用户信息不可用')
   }
@@ -1169,7 +1182,7 @@ const viewRequirementDetails = async (requirement) => {
       details += `描述：${detail.description}\n`
       details += `时间：${formatTime(detail.startTime)} - ${formatTime(detail.endTime)}\n`
       details += `地点：${detail.location || '未提供地址'}\n`
-      details += `发布者：${detail.owner?.nickName || detail.owner?.name || '匿名用户'}\n`
+      details += `发布者：${detail.user?.nickName || detail.user?.name || '匿名用户'}\n`
       details += `状态：${detail.status === 'Approved' ? '已通过' : '已拒绝'}\n`
       
       if (detail.reviewer) {
@@ -2090,7 +2103,7 @@ const confirmModal = async () => {
   color: white;
 }
 
-.user-type-badge.petOwner {
+.user-type-badge.petuser {
   background: linear-gradient(135deg, #8b5cf6, #a78bfa);
 }
 

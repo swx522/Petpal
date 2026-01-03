@@ -164,7 +164,7 @@
                   required
                 >
                   <option value="" disabled selected>请选择角色</option>
-                  <option value="owner">宠物主人</option>
+                  <option value="user">宠物主人</option>
                   <option value="sitter">宠物服务者</option>
                 </select>
               </div>
@@ -349,7 +349,7 @@ const handleRegister = async () => {
       password: registerForm.password,
       phone: registerForm.phone,
       email: registerForm.email || undefined,
-      role: registerForm.role === 'owner' ? 0 : 1  // 数字类型：0-owner, 1-sitter
+      role: registerForm.role === 'user' ? 0 : 1  // 数字类型：0-user, 1-sitter
     })
 
     if (response.success) {
@@ -365,7 +365,7 @@ const handleRegister = async () => {
         }
       )
       
-      const roleText = registerForm.role === 'owner' ? '宠物主人' : '宠物服务者'
+      const roleText = registerForm.role === 'user' ? '宠物主人' : '宠物服务者'
       ElMessage.success(`注册成功！欢迎加入宠物互助平台，您已注册为${roleText}`)
       
       // 跳转到首页

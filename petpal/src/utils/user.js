@@ -196,7 +196,7 @@ async updateLocation(data) {
       username: userInfo.username || userInfo.name || '',
       email: userInfo.email || '',
       phone: userInfo.phone || '',
-      role: userInfo.role || 'owner',
+      role: userInfo.role || 'user',
       createdAt: userInfo.createdAt || new Date().toISOString(),
       reputationScore: userInfo.reputationScore || 0,
       reputationLevel: userInfo.reputationLevel || '新手',
@@ -222,7 +222,7 @@ async updateLocation(data) {
 
   // 从本地存储获取角色
   getUserRole() {
-    return localStorage.getItem('petpal_userRole') || 'owner'
+    return localStorage.getItem('petpal_userRole') || 'user'
   },
 
   // 检查是否已登录

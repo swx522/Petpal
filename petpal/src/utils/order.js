@@ -733,8 +733,8 @@ export const OrderStatus = {
 }
 
 export const EvaluationType = {
-  OWNER_TO_HELPER: 'owner_to_helper',
-  HELPER_TO_OWNER: 'helper_to_owner'
+  user_TO_HELPER: 'user_to_helper',
+  HELPER_TO_user: 'helper_to_user'
 }
 
 export const PetType = {

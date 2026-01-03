@@ -15,13 +15,13 @@
           class="nav-item" 
           :class="{
             active: activeNav === '/publish',
-            unavailable: !isLoggedIn || userRole !== 'owner'
+            unavailable: !isLoggedIn || userRole !== 'user'
           }"
-          @click="handleNavClick('/publish', 'owner')"
+          @click="handleNavClick('/publish', 'user')"
         >
           <i class="icon">📈</i> 
           <span>发布需求</span>
-          <span v-if="!isLoggedIn || userRole !== 'owner'" class="nav-lock">🔒</span>
+          <span v-if="!isLoggedIn || userRole !== 'user'" class="nav-lock">🔒</span>
         </div>
         
         <!-- 接单需求 - 仅服务者可见 -->
@@ -43,13 +43,13 @@
           class="nav-item" 
           :class="{
             active: activeNav === '/manage',
-            unavailable: !isLoggedIn || userRole !== 'moderator'
+            unavailable: !isLoggedIn || userRole !== 'admin'
           }"
-          @click="handleNavClick('/manage', 'moderator')"
+          @click="handleNavClick('/manage', 'admin')"
         >
           <i class="icon">🍱</i> 
           <span>管理社区</span>
-          <span v-if="!isLoggedIn || userRole !== 'moderator'" class="nav-lock">🔒</span>
+          <span v-if="!isLoggedIn || userRole !== 'admin'" class="nav-lock">🔒</span>
         </div>
       </nav>
 
@@ -209,9 +209,9 @@ const currentPageName = computed(() => {
 // 角色文本显示
 const roleText = computed(() => {
   const roleMap = {
-    'owner': '宠物主人',
+    'user': '宠物主人',
     'sitter': '服务者',
-    'moderator': '管理者'
+    'admin': '管理者'
   }
   return roleMap[userRole.value] || '未分配角色'
 })
@@ -229,9 +229,9 @@ const handleNavClick = (path, requiredRole) => {
   // 已登录但角色不匹配
   if (userRole.value !== requiredRole) {
     const roleNameMap = {
-      'owner': '宠物主人',
+      'user': '宠物主人',
       'sitter': '服务者',
-      'moderator': '管理者'
+      'admin': '管理者'
     }
     const requiredRoleName = roleNameMap[requiredRole] || requiredRole
     const currentRoleName = roleText.value || '未分配角色'

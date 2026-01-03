@@ -204,10 +204,10 @@ async handleResponse(response) {
     return this.request('PUT', url, data)
   }
 
-  // DELETE请求
-  delete(url) {
-    return this.request('DELETE', url)
-  }
+// DELETE请求 - 修改为支持传递数据
+delete(url, data = null) {
+  return this.request('DELETE', url, data)
+}
 
   // PATCH请求
   patch(url, data) {

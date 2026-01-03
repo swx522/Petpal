@@ -519,31 +519,40 @@ export const adminAPI = {
   /**
    * 验证管理员权限
    */
-  async verifyAdminPermission() {
-    try {
-      // 检查本地存储是否有管理员标识
-      const userRole = localStorage.getItem('petpal_userRole')
-      console.log('当前用户角色:', userRole)
-      if (userRole !== '2' && userRole !== 'moderator') {
-        return {
-          success: false,
-          message: '需要管理员权限'
-        }
-      }
-      
-      // 可选：可以调用API进一步验证
-      return {
-        success: true,
-        message: '权限验证通过'
-      }
-    } catch (error) {
-      console.error('权限验证失败:', error)
+async verifyAdminPermission() {
+  try {
+    // 检查本地存储是否有管理员标识
+    const userRole = localStorage.getItem('petpal_userRole')
+    console.log('当前用户角色:', userRole)
+    
+    // 打印更多调试信息
+    console.log('localStorage内容:', {
+      userRole: userRole,
+      auth_token: localStorage.getItem('auth_token'),
+      userId: localStorage.getItem('petpal_userId')
+    })
+    
+    // 检查是否为管理员（2）或版主（admin）
+    if (userRole !== '2' && userRole !== 'admin') {
+      console.warn('权限不足：当前角色 =', userRole, '，需要2或admin')
       return {
         success: false,
-        message: error.message || '权限验证失败'
+        message: '需要管理员权限'
       }
     }
-  },
+    
+    return {
+      success: true,
+      message: '权限验证通过'
+    }
+  } catch (error) {
+    console.error('权限验证失败:', error)
+    return {
+      success: false,
+      message: error.message || '权限验证失败'
+    }
+  }
+},
 
   /**
    * 统一错误处理

@@ -44,9 +44,14 @@ namespace petpal.API.Models.DTOs
         public string Description { get; set; }
 
         /// <summary>
-        /// 订单状态
+        /// 订单审核状态
         /// </summary>
         public OrderStatus Status { get; set; }
+
+        /// <summary>
+        /// 订单执行状态
+        /// </summary>
+        public OrderExecutionStatus ExecutionStatus { get; set; }
 
         /// <summary>
         /// 订单创建时间

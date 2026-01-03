@@ -392,9 +392,10 @@ namespace petpal.API.Controllers
                         userLat, userLng, 3.0);
                 }
 
-                // 筛选可接单状态的需求
+                // 筛选可接单状态的需求：审核通过且开放中
                 availableRequests = availableRequests
-                    .Where(o => o.Status == OrderStatus.Pending)
+                    .Where(o => o.Status == OrderStatus.Approved &&
+                               o.ExecutionStatus == OrderExecutionStatus.Open)
                     .ToList();
 
                 // 服务类型筛选
@@ -494,7 +495,9 @@ namespace petpal.API.Controllers
                 var request = await _context.MutualOrders
                     .Include(o => o.Owner)
                     .Include(o => o.Community)
-                    .FirstOrDefaultAsync(o => o.Id == id && o.Status == OrderStatus.Pending);
+                    .FirstOrDefaultAsync(o => o.Id == id &&
+                                             o.Status == OrderStatus.Approved &&
+                                             o.ExecutionStatus == OrderExecutionStatus.Open);
 
                 if (request == null)
                 {
@@ -608,8 +611,8 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 更新需求状态
-                request.Status = OrderStatus.Accepted;
+                // 更新需求执行状态
+                request.ExecutionStatus = OrderExecutionStatus.Accepted;
                 request.AcceptedAt = DateTime.Now;
                 request.AcceptedAt = DateTime.Now;
 

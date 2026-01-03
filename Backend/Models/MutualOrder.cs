@@ -16,14 +16,23 @@ namespace petpal.API.Models
     }
 
     /// <summary>
-    /// 订单状态枚举
-    /// 描述互助订单在生命周期中的各个状态
+    /// 订单审核状态枚举
+    /// 仅描述管理员审核的结果状态
     /// </summary>
     public enum OrderStatus
     {
-        Pending,    // 待审核/待接单：订单已发布，等待审核或帮助者接受
-        Approved,   // 已审核通过：管理员审核通过
-        Rejected,   // 已审核拒绝：管理员审核拒绝
+        Pending,    // 待审核：订单已发布，等待管理员审核
+        Approved,   // 已审核通过：管理员审核通过，可以接单
+        Rejected    // 已审核拒绝：管理员审核拒绝
+    }
+
+    /// <summary>
+    /// 订单执行状态枚举
+    /// 描述订单从接单到完成的状态流转
+    /// </summary>
+    public enum OrderExecutionStatus
+    {
+        Open,       // 待接单：审核通过后等待帮助者接单
         Accepted,   // 已接单：有帮助者接受了订单
         InProgress, // 进行中：服务正在执行
         Completed,  // 已完成：服务已完成，等待评价
@@ -94,10 +103,16 @@ namespace petpal.API.Models
         public string? Description { get; set; }
 
         /// <summary>
-        /// 订单状态
-        /// 默认为待接单状态
+        /// 订单审核状态
+        /// 默认为待审核状态
         /// </summary>
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
+
+        /// <summary>
+        /// 订单执行状态
+        /// 默认为待接单状态
+        /// </summary>
+        public OrderExecutionStatus ExecutionStatus { get; set; } = OrderExecutionStatus.Open;
 
         /// <summary>
         /// 服务所在社区ID

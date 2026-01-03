@@ -74,6 +74,7 @@ namespace petpal.API.Models.DTOs
                 EndTime = order.EndTime,
                 Description = order.Description,
                 Status = order.Status,
+                ExecutionStatus = order.ExecutionStatus,
                 CreatedAt = order.CreatedAt,
                 User = order.Owner?.ToUserSimpleDto(),
                 Longitude = order.Longitude,

@@ -62,7 +62,7 @@ namespace petpal.API.Services
                 TotalMembers = users.Count,
                 PetOwners = users.Count(u => u.Role == UserRole.User),
                 ServiceProviders = users.Count(u => u.Role == UserRole.Sitter),
-                Moderators = users.Count(u => u.Role == UserRole.Moderator || u.Role == UserRole.Admin)
+                Admins = users.Count(u => u.Role == UserRole.Admin)
             };
         }
 
@@ -163,7 +163,7 @@ namespace petpal.API.Services
         public async Task ChangeMemberRoleAsync(string adminUserId, string memberId, UserRole newRole)
         {
             var admin = await _context.Users.FindAsync(adminUserId);
-            if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+            if (admin == null || (admin.Role != UserRole.Admin))
             {
                 throw new UnauthorizedAccessException("无权限修改成员角色");
             }
@@ -190,7 +190,7 @@ namespace petpal.API.Services
         public async Task RemoveMemberAsync(string adminUserId, string memberId)
         {
             var admin = await _context.Users.FindAsync(adminUserId);
-            if (admin == null || admin.Role != UserRole.Admin)
+            if (admin == null || (admin.Role != UserRole.Admin))
             {
                 throw new UnauthorizedAccessException("只有管理员可以移除成员");
             }
@@ -234,7 +234,7 @@ namespace petpal.API.Services
         public async Task UpdateCommunitySettingsAsync(string adminUserId, CommunitySettings settings)
         {
             var admin = await _context.Users.FindAsync(adminUserId);
-            if (admin == null || admin.Role != UserRole.Admin)
+            if (admin == null || (admin.Role != UserRole.Admin))
             {
                 throw new UnauthorizedAccessException("只有管理员可以修改社区设置");
             }

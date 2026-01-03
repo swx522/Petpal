@@ -11,7 +11,7 @@ namespace petpal.API.Models
     {
         User,       // 普通用户
         Sitter,     // 服务提供者
-        Moderator,  // 社区管理员
+        // Moderator,  // 社区管理员 (已弃用，统一使用Admin)
         Admin       // 系统管理员
     }
 

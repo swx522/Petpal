@@ -780,7 +780,7 @@ graph TD
 #### UserRole（用户角色）
 - 0 = User（普通用户/宠物主人）
 - 1 = Sitter（服务提供者）
-- 2 = Moderator（社区管理员）
+- 2 = Moderator（社区管理员，已弃用，统一使用Admin）
 - 3 = Admin（系统管理员）
 
 #### UserStatus（用户状态）

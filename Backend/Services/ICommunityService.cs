@@ -98,7 +98,7 @@ namespace petpal.API.Services
         public int TotalMembers { get; set; }
         public int PetOwners { get; set; }
         public int ServiceProviders { get; set; }
-        public int Moderators { get; set; }
+        public int Admins { get; set; }
     }
 
     /// <summary>

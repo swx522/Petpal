@@ -726,7 +726,7 @@ namespace petpal.API.Controllers
                 }
 
                 var user = await _userService.GetUserByIdAsync(userId);
-                if (user == null || (user.Role != UserRole.Admin && user.Role != UserRole.Moderator))
+                if (user == null || (user.Role != UserRole.Admin))
                 {
                     return Forbid("需要管理员权限");
                 }
@@ -828,7 +828,7 @@ namespace petpal.API.Controllers
                 }
 
                 var user = await _userService.GetUserByIdAsync(userId);
-                if (user == null || (user.Role != UserRole.Admin && user.Role != UserRole.Moderator))
+                if (user == null || (user.Role != UserRole.Admin))
                 {
                     return Forbid("需要管理员权限");
                 }
@@ -911,7 +911,7 @@ namespace petpal.API.Controllers
                 }
 
                 var admin = await _userService.GetUserByIdAsync(adminId);
-                if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+                if (admin == null || (admin.Role != UserRole.Admin))
                 {
                     return Forbid("需要管理员权限");
                 }
@@ -956,7 +956,7 @@ namespace petpal.API.Controllers
                 }
 
                 var admin = await _userService.GetUserByIdAsync(adminId);
-                if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+                if (admin == null || (admin.Role != UserRole.Admin))
                 {
                     return Forbid("需要管理员权限");
                 }
@@ -1010,7 +1010,7 @@ namespace petpal.API.Controllers
                 }
 
                 var admin = await _userService.GetUserByIdAsync(adminId);
-                if (admin == null || (admin.Role != UserRole.Admin && admin.Role != UserRole.Moderator))
+                if (admin == null || (admin.Role != UserRole.Admin))
                 {
                     return Forbid("需要管理员权限");
                 }

@@ -13,7 +13,7 @@
           <div class="stat-label">社区成员</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">{{ communityStats.petusers || 0 }}</div>
+          <div class="stat-value">{{ communityStats.PetOwners || 0 }}</div>
           <div class="stat-label">宠物主人</div>
         </div>
         <div class="stat-item">
@@ -43,13 +43,6 @@
           @click="activeTab = 'content'"
         >
           📝 需求审核
-        </button>
-        <button 
-          class="tab-btn" 
-          :class="{ active: activeTab === 'settings' }"
-          @click="activeTab = 'settings'"
-        >
-          ⚙️ 社区设置
         </button>
       </div>
     </div>
@@ -88,7 +81,7 @@
         <div class="member-card" v-for="member in members" :key="member.id">
           <!-- 用户类型标签 -->
           <div class="user-type-badge" :class="getRoleClass(member.role)">
-            {{ member.role === 0 ? '🐾 宠物主人' : '🛠️ 服务提供者' }}
+              {{ member.role === 0 ? '🐾 宠物主人' : (member.role === 1 ? '🛠️ 服务提供者' : '管理员') }}
           </div>
 
           <div class="member-avatar">
@@ -506,77 +499,6 @@
       </div>
     </div>
 
-    <!-- 社区设置页面 -->
-    <div class="tab-content" v-if="activeTab === 'settings'">
-      <div class="settings-container">
-        <div class="settings-form">
-          <h3>社区设置</h3>
-          
-          <!-- 加载状态 -->
-          <div v-if="loadingSettings" class="loading-state">
-            <div class="loading-spinner"></div>
-            <p>正在加载社区设置...</p>
-          </div>
-
-          <div v-if="!loadingSettings">
-            <div class="setting-section">
-              <h4>基本信息</h4>
-              <div class="form-group">
-                <label>社区名称</label>
-                <input type="text" v-model="communitySettings.name" class="form-input">
-              </div>
-              <div class="form-group">
-                <label>社区描述</label>
-                <textarea v-model="communitySettings.description" rows="3" class="form-textarea"></textarea>
-              </div>
-            </div>
-
-            <div class="setting-section">
-              <h4>审核设置</h4>
-              <div class="form-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="communitySettings.requireApproval">
-                  需求发布需要审核
-                </label>
-                <p class="setting-description">开启后，所有新发布的需求都需要管理员审核才能显示</p>
-              </div>
-              <div class="form-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="communitySettings.autoFlagSensitive">
-                  自动标记敏感内容
-                </label>
-                <p class="setting-description">开启后，系统会自动检测并标记可能敏感的内容</p>
-              </div>
-              <div class="form-group">
-                <label>紧急需求审核时间（小时）</label>
-                <input type="number" v-model="communitySettings.urgentReviewTime" class="form-input" min="1" max="24">
-                <p class="setting-description">标记为紧急的需求需要在此时间内完成审核</p>
-              </div>
-            </div>
-
-            <div class="setting-section">
-              <h4>拒绝模板</h4>
-              <div class="form-group">
-                <label>预设拒绝原因（每行一个）</label>
-                <textarea v-model="communitySettings.rejectTemplates" rows="6" class="form-textarea"></textarea>
-                <p class="setting-description">审核拒绝时可选择的预设原因，每行一个</p>
-              </div>
-            </div>
-            
-            <div class="setting-actions">
-              <button class="btn-secondary" @click="resetSettings" :disabled="savingSettings">
-                恢复默认
-              </button>
-              <button class="btn-primary" @click="saveSettings" :disabled="savingSettings">
-                <span v-if="savingSettings">保存中...</span>
-                <span v-else>保存设置</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- 模态框 -->
     <div class="modal-overlay" v-if="showModal" @click="closeModal">
       <div class="modal-content" @click.stop>
@@ -641,7 +563,7 @@ const processingRequirement = ref(null)
 // 社区统计
 const communityStats = ref({
   totalMembers: 0,
-  petusers: 0,
+  PetOwners: 1,
   serviceProviders: 0,
   pendingRequests: 0
 })
@@ -775,10 +697,11 @@ const loadCommunityStats = async () => {
   try {
     loadingStats.value = true
     const response = await adminAPI.getCommunityStats()
+    console.log('社区统计数据:', response)
     if (response.success && response.data) {
       communityStats.value = {
         totalMembers: response.data.totalMembers || 0,
-        petusers: response.data.petusers || 0,
+        PetOwners: response.data.petOwners || 0,
         serviceProviders: response.data.serviceProviders || 0,
         pendingRequests: response.data.pendingRequests || 0
       }

@@ -174,6 +174,7 @@ const handleLogin = async () => {
           userId: response.data.userId
         }
       )
+      console.log('登录成功，用户信息:', response.data)
       
       ElMessage.success('登录成功！')
       

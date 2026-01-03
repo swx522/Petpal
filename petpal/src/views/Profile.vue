@@ -713,12 +713,7 @@ const loadUserData = async () => {
       // 更新角色
       if (apiData.role !== undefined) {
         console.log('🎭 原始角色值:', apiData.role)
-        const roleMap = {
-          0: 'user',
-          1: 'sitter',
-          2: 'admin'
-        }
-        userRole.value = roleMap[apiData.role] || 'user'
+        userRole.value = apiData.role
         console.log('🔄 映射后的角色:', userRole.value)
         localStorage.setItem('petpal_userRole', userRole.value)
       }

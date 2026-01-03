@@ -189,20 +189,21 @@ async updateLocation(data) {
     // 保存token和用户ID
     this.saveToken(token)
     localStorage.setItem('user_id', userId)
-    
+
     // 确保userInfo包含所有必要字段
     const fullUserInfo = {
       userId: userId,
       username: userInfo.username || userInfo.name || '',
       email: userInfo.email || '',
       phone: userInfo.phone || '',
-      role: userInfo.role || 'user',
+      role: userInfo.role || '',
       createdAt: userInfo.createdAt || new Date().toISOString(),
       reputationScore: userInfo.reputationScore || 0,
       reputationLevel: userInfo.reputationLevel || '新手',
       isRealNameCertified: userInfo.isRealNameCertified || false,
       isPetCertified: userInfo.isPetCertified || false
     }
+    const currentUser = this.getCurrentUser()
     
     // 保存完整的用户信息
     this.saveUserInfo(fullUserInfo)

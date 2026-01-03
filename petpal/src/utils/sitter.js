@@ -1,5 +1,5 @@
 // src/services/sitter.js
-import { http } from '@/utils/http'
+import { http } from '@/utils/http.js'
 
 class SitterService {
   // ===============================

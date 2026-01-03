@@ -284,7 +284,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import sitterService from '@/services/sitter'
+import sitterService from '@/utils/sitter.js'
 
 // 状态管理
 const loading = ref(true)

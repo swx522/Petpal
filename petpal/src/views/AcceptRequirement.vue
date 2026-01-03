@@ -9,13 +9,13 @@
       </div>
       <div class="header-actions">
         <div class="filter-group">
-          <select class="filter-select">
+          <select class="filter-select" v-model="selectedServiceType" @change="filterRequests">
             <option value="">全部类型</option>
             <option value="walk">遛狗服务</option>
             <option value="feed">喂食照顾</option>
             <option value="medical">就医陪伴</option>
             <option value="groom">美容护理</option>
-            <option value="else">其它</option>
+            <option value="other">其他服务</option>
           </select>
           
           <select class="filter-select">
@@ -25,30 +25,51 @@
       </div>
     </div>
 
+    <!-- 加载状态 -->
+    <div v-if="loading && !showDialog" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <!-- 错误提示 -->
+    <div v-if="errorMessage && !showDialog" class="error-container">
+      <div class="error-message">
+        <span class="error-icon">⚠️</span>
+        <p>{{ errorMessage }}</p>
+        <button class="retry-btn" @click="loadData">重试</button>
+      </div>
+    </div>
+
     <!-- 需求列表 -->
-    <div class="requirements-container">
+    <div class="requirements-container" v-if="!loading && !errorMessage">
       <!-- 需求卡片列表 -->
       <div class="requirements-list">
         <div class="requirements-grid">
-          <!-- 需求卡片 1 -->
-          <div class="requirement-card" :class="{ urgent: requirement.urgent }" v-for="requirement in requirements" :key="requirement.id">
+          <!-- 需求卡片 -->
+          <div 
+            class="requirement-card" 
+            :class="{ urgent: requirement.urgent }" 
+            v-for="requirement in requirements" 
+            :key="requirement.id"
+          >
             
             <!-- 需求头部 -->
             <div class="card-header">
               <div class="pet-info">
-                <div class="pet-avatar">{{ getPetEmoji(requirement.petType) }}</div>
+                <div class="pet-avatar">{{ requirement.petEmoji }}</div>
                 <div class="pet-details">
-                  <p class="pet-type">{{ getPetTypeName(requirement.petType) }}</p>
+                  <h3>{{ requirement.title }}</h3>
+                  <p class="pet-type">{{ requirement.petTypeName }}</p>
                 </div>
               </div>
             </div>
             
             <!-- 需求类型 -->
             <div class="requirement-type">
-              <span class="type-badge" :style="{ backgroundColor: getTypeColor(requirement.type) }">
-                {{ getTypeName(requirement.type) }}
+              <span class="type-badge" :style="{ backgroundColor: requirement.typeColor }">
+                {{ requirement.typeName }}
               </span>
-              <span class="distance">📍 {{ requirement.distance }}km</span>
+              <span class="distance">📍 {{ requirement.distance.toFixed(1) }}km</span>
             </div>
             
             <!-- 需求详情 -->
@@ -73,10 +94,42 @@
             
             <!-- 卡片底部 -->
             <div class="card-footer">
-              <button class="accept-btn" @click="showAcceptDialog(requirement)">
-                接受需求
+              <button class="accept-btn" @click="showAcceptDialog(requirement)" :disabled="accepting">
+                {{ accepting && selectedRequirement?.id === requirement.id ? '接单中...' : '接受需求' }}
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- 分页控制 -->
+        <div class="pagination-controls" v-if="pagination.totalPages > 1">
+          <button 
+            class="pagination-btn" 
+            @click="changePage(pagination.page - 1)"
+            :disabled="pagination.page <= 1"
+          >
+            上一页
+          </button>
+          
+          <span class="pagination-info">
+            第 {{ pagination.page }} 页 / 共 {{ pagination.totalPages }} 页
+          </span>
+          
+          <button 
+            class="pagination-btn" 
+            @click="changePage(pagination.page + 1)"
+            :disabled="pagination.page >= pagination.totalPages"
+          >
+            下一页
+          </button>
+        </div>
+
+        <!-- 无数据提示 -->
+        <div v-if="requirements.length === 0" class="no-data">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>暂无可用需求</h3>
+            <p>当前没有可接单的服务需求</p>
           </div>
         </div>
       </div>
@@ -88,35 +141,72 @@
       <div class="dialog-content">
         <div class="dialog-header">
           <h2>确认接受需求</h2>
-          <button class="close-btn" @click="closeDialog">×</button>
+          <button class="close-btn" @click="closeDialog" :disabled="accepting">×</button>
         </div>
         
         <div class="dialog-body">
           <div class="confirm-info">
             <div class="info-row">
+              <span class="info-label">需求标题：</span>
+              <span class="info-value">{{ selectedRequirement.title }}</span>
+            </div>
+            <div class="info-row">
               <span class="info-label">需求类型：</span>
               <span class="info-value">{{ selectedRequirement.typeName }}</span>
             </div>
             <div class="info-row">
+              <span class="info-label">宠物类型：</span>
+              <span class="info-value">{{ selectedRequirement.petTypeName }}</span>
+            </div>
+            <div class="info-row">
               <span class="info-label">服务时间：</span>
-              <span class="info-value">{{ formatTime(selectedRequirement.startTime) }}{{ formatTime(selectedRequirement.endTime) }}</span>
+              <span class="info-value">{{ formatTime(selectedRequirement.startTime) }} - {{ formatTime(selectedRequirement.endTime) }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">服务地点：</span>
               <span class="info-value">{{ selectedRequirement.location }}</span>
             </div>
+            <div class="info-row">
+              <span class="info-label">发布者：</span>
+              <span class="info-value">{{ selectedRequirement.publisher }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">距离：</span>
+              <span class="info-value">{{ selectedRequirement.distance.toFixed(1) }}km</span>
+            </div>
           </div>
           
           <div class="dialog-actions">
-            <button class="dialog-btn cancel-btn" @click="closeDialog">取消</button>
-            <button class="dialog-btn confirm-btn" @click="confirmAccept">确认接受</button>
+            <button 
+              class="dialog-btn cancel-btn" 
+              @click="closeDialog"
+              :disabled="accepting"
+            >
+              取消
+            </button>
+            <button 
+              class="dialog-btn confirm-btn" 
+              @click="confirmAccept"
+              :disabled="accepting"
+            >
+              {{ accepting ? '接单中...' : '确认接受' }}
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 已完成订单反馈模块（新增） -->
-    <div class="completed-feedback-section">
+    <!-- 操作结果提示 -->
+    <div v-if="operationResult" class="operation-result" :class="operationResult.type">
+      <div class="result-content">
+        <span class="result-icon">{{ operationResult.icon }}</span>
+        <p>{{ operationResult.message }}</p>
+        <button class="result-close" @click="operationResult = null">×</button>
+      </div>
+    </div>
+
+    <!-- 已完成订单反馈模块 -->
+    <div class="completed-feedback-section" v-if="feedbacks.length > 0">
       <div class="section-header">
         <h2>已完成订单反馈</h2>
         <p>查看您已完成服务的订单反馈</p>
@@ -124,10 +214,10 @@
 
       <div class="feedback-container">
         <!-- 反馈列表 -->
-        <div v-if="completedFeedbacks.length > 0" class="feedbacks-list">
+        <div class="feedbacks-list">
           <div class="feedbacks-grid">
             <div 
-              v-for="feedback in completedFeedbacks" 
+              v-for="feedback in feedbacks" 
               :key="feedback.id"
               class="feedback-card"
             >
@@ -142,12 +232,12 @@
                       v-for="star in 5" 
                       :key="star"
                       class="star"
-                      :class="{ filled: star <= feedback.rating }"
+                      :class="{ filled: star <= Math.round(feedback.rating) }"
                     >
                       ★
                     </span>
                   </span>
-                  <span class="rating-value">{{ feedback.rating }}分</span>
+                  <span class="rating-value">{{ feedback.rating.toFixed(1) }}分</span>
                 </div>
               </div>
               
@@ -158,7 +248,7 @@
                   </div>
                   <div class="user-details">
                     <h5>{{ feedback.userName }}</h5>
-                    <p class="user-reputation">信誉：{{ feedback.userRating }}/5.0</p>
+                    <p class="user-reputation">信誉：{{ feedback.userRating.toFixed(1) }}/5.0</p>
                   </div>
                 </div>
                 
@@ -171,8 +261,8 @@
                   <div class="pet-details-box">
                     <h6>服务宠物：</h6>
                     <div class="pet-info-row">
-                      <span class="pet-icon">{{ getPetEmoji(feedback.petType) }}</span>
-                      <span class="pet-type-label">{{ getPetTypeName(feedback.petType) }}</span>
+                      <span class="pet-icon">{{ feedback.petEmoji }}</span>
+                      <span class="pet-type-label">{{ feedback.petTypeName }}</span>
                     </div>
                   </div>
                 </div>
@@ -181,18 +271,10 @@
               <div class="feedback-card-footer">
                 <div class="service-info">
                   <span class="info-item">📍 {{ feedback.location }}</span>
+                  <span class="info-item">订单号：{{ feedback.orderId }}</span>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 无反馈数据 -->
-        <div v-else class="no-feedbacks">
-          <div class="empty-state">
-            <div class="empty-icon">📊</div>
-            <h3>暂无反馈记录</h3>
-            <p>完成服务后，用户评价会显示在这里</p>
           </div>
         </div>
       </div>
@@ -201,180 +283,215 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import sitterService from '@/services/sitter'
 
-// 需求数据
-const requirements = ref([
-  {
-    id: 1,
-    petType: "dog",
-    type: "walk",
-    typeName: "遛狗服务",
-    petTypeName: "金毛犬",
-    description: "需要帮忙遛狗1小时，多多很温顺，但力气比较大",
-    rewardPoints: 80,
-    distance: 1.2,
-    location: "朝阳区三里屯",
-    publisher: "张先生",
-    startTime: "2024-01-15T14:00",
-    endTime: "2024-01-15T16:00",
-    postTime: "2024-01-15T09:30",
-    urgent: true,
-    matchRate: 92
-  },
-  {
-    id: 2,
-    petType: "cat",
-    type: "feed",
-    typeName: "喂食照顾",
-    petTypeName: "英短猫",
-    description: "出差2天，需要帮忙喂猫和清理猫砂",
-    rewardPoints: 120,
-    distance: 2.5,
-    location: "海淀区中关村",
-    publisher: "李女士",
-    startTime: "2024-01-16T09:00",
-    endTime: "2024-01-16T11:00",
-    postTime: "2024-01-15T10:15",
-    urgent: false,
-    matchRate: 85
-  }
-])
-
-// 已完成订单反馈数据（新增）
-const completedFeedbacks = ref([
-  {
-    id: 1,
-    orderId: "OD20231215001",
-    serviceType: "遛狗服务",
-    petType: "dog",
-    userName: "张先生",
-    userRating: 4.8,
-    rating: 5,
-    comment: "非常专业的遛狗服务，狗狗回来很开心！",
-    location: "朝阳区三里屯",
-    completedTime: "2023-12-15T16:30:00",
-  },
-  {
-    id: 2,
-    orderId: "OD20231214002",
-    serviceType: "喂食照顾",
-    petType: "cat",
-    userName: "李女士",
-    userRating: 4.5,
-    rating: 4,
-    comment: "按时喂食，还帮忙清理了猫砂，很细心",
-    location: "海淀区中关村",
-    completedTime: "2023-12-16T11:00:00",
-  },
-  {
-    id: 3,
-    orderId: "OD20231213003",
-    serviceType: "美容护理",
-    petType: "dog",
-    userName: "王五",
-    userRating: 4.9,
-    rating: 5,
-    comment: "洗澡很专业，狗狗看起来很舒服，服务态度很好",
-    location: "西城区金融街",
-    completedTime: "2023-12-13T16:00:00",
-  }
-])
-
-// 状态
-const loading = ref(false)
+// 状态管理
+const loading = ref(true)
+const loadingFeedbacks = ref(true)
+const accepting = ref(false)
 const showDialog = ref(false)
+const errorMessage = ref('')
+const operationResult = ref(null)
+
+// 数据
+const requirements = ref([])
+const feedbacks = ref([])
 const selectedRequirement = ref({})
+const selectedServiceType = ref('')
 
-// 宠物表情映射
-const getPetEmoji = (petType) => {
-  const emojiMap = {
-    dog: "🐶",
-    cat: "🐱",
-    rabbit: "🐰",
-    bird: "🐦",
-    other: "🐾"
+// 分页信息
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  totalCount: 0,
+  totalPages: 1
+})
+
+// 计算属性
+const hasRequirements = computed(() => requirements.value.length > 0)
+const hasFeedbacks = computed(() => feedbacks.value.length > 0)
+
+// 生命周期
+onMounted(() => {
+  loadData()
+  loadFeedbacks()
+})
+
+// 加载数据
+const loadData = async () => {
+  try {
+    loading.value = true
+    errorMessage.value = ''
+    
+    // 检查服务者状态
+    const isApproved = await sitterService.checkSitterStatus()
+    if (!isApproved) {
+      errorMessage.value = '请先完成服务者资质审核'
+      loading.value = false
+      return
+    }
+    
+    const filters = {
+      type: selectedServiceType.value,
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize
+    }
+    
+    const response = await sitterService.getAvailableRequests(filters)
+    
+    if (response.success) {
+      requirements.value = response.data.requests.map(req => 
+        sitterService.formatRequestData(req)
+      )
+      pagination.value = {
+        page: response.data.pagination.page,
+        pageSize: response.data.pagination.pageSize,
+        totalCount: response.data.pagination.totalCount,
+        totalPages: response.data.pagination.totalPages
+      }
+    } else {
+      errorMessage.value = response.message || '加载需求列表失败'
+    }
+  } catch (error) {
+    console.error('加载数据失败:', error)
+    errorMessage.value = sitterService.handleApiError(error)
+    requirements.value = []
+  } finally {
+    loading.value = false
   }
-  return emojiMap[petType] || "🐾"
 }
 
-// 宠物类型名称
-const getPetTypeName = (petType) => {
-  const typeMap = {
-    dog: "狗狗",
-    cat: "猫咪",
-    rabbit: "兔兔",
-    bird: "鸟鸟",
-    other: "其他宠物"
+// 加载反馈数据
+const loadFeedbacks = async () => {
+  try {
+    loadingFeedbacks.value = true
+    const response = await sitterService.getFinishedOrders({
+      page: 1,
+      pageSize: 5 // 只加载最近5条反馈
+    })
+    
+    if (response.success && response.data.orders.length > 0) {
+      // 为每个订单加载详细反馈
+      const feedbackPromises = response.data.orders.slice(0, 3).map(async order => {
+        try {
+          const feedbackRes = await sitterService.getOrderFeedback(order.id)
+          if (feedbackRes.success) {
+            return sitterService.formatFeedbackData(feedbackRes.data)
+          }
+        } catch (error) {
+          console.error('加载订单反馈失败:', error)
+        }
+        return null
+      })
+      
+      const feedbackResults = await Promise.all(feedbackPromises)
+      feedbacks.value = feedbackResults.filter(fb => fb !== null)
+    }
+  } catch (error) {
+    console.error('加载反馈失败:', error)
+  } finally {
+    loadingFeedbacks.value = false
   }
-  return typeMap[petType] || "宠物"
 }
 
-// 需求类型颜色
-const getTypeColor = (type) => {
-  const colorMap = {
-    walk: "#3b82f6",    // 蓝色
-    feed: "#10b981",    // 绿色
-    medical: "#ef4444", // 红色
-    groom: "#8b5cf6"    // 紫色
-  }
-  return colorMap[type] || "#6b7280"
+// 筛选请求
+const filterRequests = () => {
+  pagination.value.page = 1 // 重置到第一页
+  loadData()
 }
 
-// 需求类型名称
-const getTypeName = (type) => {
-  const typeMap = {
-    walk: "遛狗服务",
-    feed: "喂食照顾",
-    medical: "就医陪伴",
-    groom: "美容护理"
-  }
-  return typeMap[type] || "其他服务"
-}
-
-// 格式化时间
-const formatTime = (timeString) => {
-  const date = new Date(timeString)
-  return date.toLocaleString('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// 格式化日期（新增）
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', { 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+// 切换页码
+const changePage = (page) => {
+  if (page < 1 || page > pagination.value.totalPages) return
+  pagination.value.page = page
+  loadData()
 }
 
 // 显示接受对话框
-const showAcceptDialog = (requirement) => {
-  selectedRequirement.value = {
-    ...requirement,
-    typeName: getTypeName(requirement.type),
-    petTypeName: getPetTypeName(requirement.petType)
+const showAcceptDialog = async (requirement) => {
+  try {
+    // 可以在这里计算距离
+    // const distanceRes = await sitterService.calculateDistance(requirement.id)
+    // requirement.distance = distanceRes.data?.distance || requirement.distance
+    
+    selectedRequirement.value = requirement
+    showDialog.value = true
+  } catch (error) {
+    showOperationResult('error', '计算距离失败: ' + sitterService.handleApiError(error))
   }
-  showDialog.value = true
 }
 
 // 关闭对话框
 const closeDialog = () => {
-  showDialog.value = false
-  selectedRequirement.value = {}
+  if (!accepting.value) {
+    showDialog.value = false
+    selectedRequirement.value = {}
+  }
 }
 
 // 确认接受需求
-const confirmAccept = () => {
-  console.log('接受需求:', selectedRequirement.value)
-  closeDialog()
+const confirmAccept = async () => {
+  try {
+    accepting.value = true
+    
+    const response = await sitterService.acceptRequest(selectedRequirement.value.id)
+    
+    if (response.success) {
+      showOperationResult('success', '接单成功！' + (response.message || '请按约定时间提供服务'))
+      
+      // 从列表中移除已接单的需求
+      requirements.value = requirements.value.filter(
+        req => req.id !== selectedRequirement.value.id
+      )
+      
+      // 更新分页信息
+      pagination.value.totalCount--
+      
+      // 关闭对话框
+      setTimeout(() => {
+        showDialog.value = false
+        selectedRequirement.value = {}
+      }, 1500)
+    } else {
+      showOperationResult('error', response.message || '接单失败')
+    }
+  } catch (error) {
+    console.error('接受需求失败:', error)
+    showOperationResult('error', '接单失败: ' + sitterService.handleApiError(error))
+  } finally {
+    accepting.value = false
+  }
+}
+
+// 显示操作结果
+const showOperationResult = (type, message) => {
+  const icons = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️'
+  }
+  
+  operationResult.value = {
+    type,
+    icon: icons[type] || 'ℹ️',
+    message
+  }
+  
+  // 3秒后自动关闭
+  setTimeout(() => {
+    operationResult.value = null
+  }, 3000)
+}
+
+// 格式化时间（使用服务中的方法）
+const formatTime = (timeString) => {
+  return sitterService.formatTime(timeString)
+}
+
+// 格式化日期（使用服务中的方法）
+const formatDate = (dateString) => {
+  return sitterService.formatDate(dateString)
 }
 </script>
 
@@ -382,6 +499,66 @@ const confirmAccept = () => {
 .accept-requirement {
   width: 100%;
   box-sizing: border-box;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #22c55e;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 错误容器 */
+.error-container {
+  padding: 20px;
+  margin: 20px 0;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #dc2626;
+}
+
+.error-icon {
+  font-size: 20px;
+}
+
+.retry-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #dc2626;
+  color: #dc2626;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.retry-btn:hover {
+  background: #dc2626;
+  color: white;
 }
 
 /* 页面标题 */
@@ -418,6 +595,7 @@ const confirmAccept = () => {
   font-size: 14px;
   color: #475569;
   min-width: 140px;
+  cursor: pointer;
 }
 
 .filter-select:focus {
@@ -442,6 +620,71 @@ const confirmAccept = () => {
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   gap: 25px;
   margin-bottom: 30px;
+}
+
+/* 无数据提示 */
+.no-data {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-state {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  color: #334155;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  color: #64748b;
+  font-size: 15px;
+}
+
+/* 分页控制 */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #64748b;
+  font-size: 14px;
 }
 
 /* 需求卡片 */
@@ -495,6 +738,7 @@ const confirmAccept = () => {
   color: #1e293b;
   margin-bottom: 4px;
   font-weight: 700;
+  line-height: 1.3;
 }
 
 .pet-type {
@@ -576,17 +820,19 @@ const confirmAccept = () => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  width: 100%;
 }
 
-.accept-btn:hover {
+.accept-btn:hover:not(:disabled) {
   background: #14532d;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
 }
 
-.load-more-btn:hover {
-  background: #f0fdf4;
-  border-color: #22c55e;
+.accept-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* 对话框 */
@@ -664,9 +910,14 @@ const confirmAccept = () => {
   transition: all 0.3s;
 }
 
-.close-btn:hover {
+.close-btn:hover:not(:disabled) {
   background: #f1f5f9;
   color: #64748b;
+}
+
+.close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dialog-body {
@@ -692,6 +943,7 @@ const confirmAccept = () => {
 .info-value {
   color: #1e293b;
   font-weight: 500;
+  flex: 1;
 }
 
 .dialog-actions {
@@ -709,13 +961,18 @@ const confirmAccept = () => {
   transition: all 0.3s;
 }
 
+.dialog-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .cancel-btn {
   background: white;
   color: #64748b;
   border: 1px solid #e2e8f0;
 }
 
-.cancel-btn:hover {
+.cancel-btn:hover:not(:disabled) {
   background: #f8fafc;
   border-color: #cbd5e1;
 }
@@ -726,13 +983,83 @@ const confirmAccept = () => {
   border: none;
 }
 
-.confirm-btn:hover {
+.confirm-btn:hover:not(:disabled) {
   background: #14532d;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(22, 101, 52, 0.2);
 }
 
-/* ===== 已完成订单反馈模块样式（新增）===== */
+/* 操作结果提示 */
+.operation-result {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  max-width: 400px;
+  animation: slideInRight 0.3s ease;
+}
+
+.operation-result.success {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.operation-result.error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+}
+
+.operation-result.warning {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.result-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 20px;
+  border-radius: 10px;
+}
+
+.result-icon {
+  font-size: 20px;
+}
+
+.result-content p {
+  margin: 0;
+  flex: 1;
+}
+
+.result-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.result-close:hover {
+  opacity: 1;
+}
+
+/* ===== 已完成订单反馈模块样式 ===== */
 .completed-feedback-section {
   margin-top: 60px;
   padding: 40px;
@@ -897,6 +1224,7 @@ const confirmAccept = () => {
   background: #f8fafc;
   border-radius: 8px;
   border-left: 3px solid #d1fae5;
+  min-height: 60px;
 }
 
 /* 宠物信息行 */
@@ -945,34 +1273,6 @@ const confirmAccept = () => {
   gap: 4px;
 }
 
-/* 无反馈数据 */
-.no-feedbacks {
-  text-align: center;
-  padding: 60px 40px;
-}
-
-.empty-state {
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-}
-
-.empty-state h3 {
-  font-size: 20px;
-  color: #334155;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.empty-state p {
-  color: #64748b;
-  font-size: 15px;
-}
-
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .feedbacks-grid {
@@ -1016,6 +1316,16 @@ const confirmAccept = () => {
   .completed-feedback-section {
     padding: 25px;
   }
+  
+  .info-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .info-label {
+    width: auto;
+    font-weight: 600;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1035,6 +1345,12 @@ const confirmAccept = () => {
   
   .dialog-btn {
     width: 100%;
+  }
+  
+  .operation-result {
+    left: 20px;
+    right: 20px;
+    max-width: none;
   }
 }
 </style>

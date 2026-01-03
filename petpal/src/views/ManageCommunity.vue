@@ -183,67 +183,71 @@
     <div class="tab-content" v-if="activeTab === 'content'">
       <div class="content-review">
         <!-- 审核统计和筛选 -->
-        <div class="review-header">
-          <div class="review-stats-cards">
-            <div class="review-stat-card total">
-              <div class="stat-icon">📋</div>
-              <div class="stat-info">
-                <h3>{{ pendingRequirements.length }}</h3>
-                <p>待审核需求</p>
-              </div>
-            </div>
-            <div class="review-stat-card approved">
-              <div class="stat-icon">✅</div>
-              <div class="stat-info">
-                <h3>{{ approvedRequirements.length }}</h3>
-                <p>已通过</p>
-              </div>
-            </div>
-            <div class="review-stat-card rejected">
-              <div class="stat-icon">❌</div>
-              <div class="stat-info">
-                <h3>{{ rejectedRequirements.length }}</h3>
-                <p>已拒绝</p>
-              </div>
-            </div>
-          </div>
-          
-          <div class="review-filters">
-            <div class="filter-group">
-              <button 
-                class="filter-btn" 
-                :class="{ active: reviewFilter === 'pending' }"
-                @click="setReviewFilter('pending')"
-              >
-                待审核 ({{ pendingRequirements.length }})
-              </button>
-              <button 
-                class="filter-btn" 
-                :class="{ active: reviewFilter === 'approved' }"
-                @click="setReviewFilter('approved')"
-              >
-                已通过
-              </button>
-              <button 
-                class="filter-btn" 
-                :class="{ active: reviewFilter === 'rejected' }"
-                @click="setReviewFilter('rejected')"
-              >
-                已拒绝
-              </button>
-            </div>
-            
-            <div class="filter-select-group">
-              <select v-model="typeFilter" class="filter-select" @change="filterRequirements">
-                <option value="all">所有类型</option>
-                <option value="walk">遛狗服务</option>
-                <option value="feed">喂食照顾</option>
-                <option value="medical">就医陪伴</option>
-                <option value="groom">美容护理</option>
-              </select>
-            </div>
-          </div>
-        </div>
+<div class="review-header">
+  <div class="review-stats-cards">
+    <div class="review-stat-card total">
+      <div class="stat-icon">📋</div>
+      <div class="stat-info">
+        <!-- 这里直接使用 pendingRequirements.length -->
+        <h3>{{ pendingRequirements.length }}</h3>
+        <p>待审核需求</p>
+      </div>
+    </div>
+    <div class="review-stat-card approved">
+      <div class="stat-icon">✅</div>
+      <div class="stat-info">
+        <!-- 这里直接使用 approvedRequirements.length -->
+        <h3>{{ approvedRequirements.length }}</h3>
+        <p>已通过</p>
+      </div>
+    </div>
+    <div class="review-stat-card rejected">
+      <div class="stat-icon">❌</div>
+      <div class="stat-info">
+        <!-- 这里直接使用 rejectedRequirements.length -->
+        <h3>{{ rejectedRequirements.length }}</h3>
+        <p>已拒绝</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="review-filters">
+    <div class="filter-group">
+      <button 
+        class="filter-btn" 
+        :class="{ active: reviewFilter === 'pending' }"
+        @click="setReviewFilter('pending')"
+      >
+        <!-- 这里显示待审核数量 -->
+        待审核 ({{ pendingRequirements.length }})
+      </button>
+      <button 
+        class="filter-btn" 
+        :class="{ active: reviewFilter === 'approved' }"
+        @click="setReviewFilter('approved')"
+      >
+        已通过
+      </button>
+      <button 
+        class="filter-btn" 
+        :class="{ active: reviewFilter === 'rejected' }"
+        @click="setReviewFilter('rejected')"
+      >
+        已拒绝
+      </button>
+    </div>
+    
+    <div class="filter-select-group">
+      <select v-model="typeFilter" class="filter-select" @change="filterRequirements">
+        <option value="all">所有类型</option>
+        <option value="walk">遛狗服务</option>
+        <option value="feed">喂食照顾</option>
+        <option value="medical">就医陪伴</option>
+        <option value="groom">美容护理</option>
+      </select>
+    </div>
+  </div>
+</div>
 
         <!-- 加载状态 -->
         <div v-if="loadingRequirements" class="loading-state">
@@ -787,39 +791,44 @@ const loadRequirements = async () => {
   try {
     loadingRequirements.value = true
     
-    const filters = {
-      page: requirementsPagination.value.page,
-      pageSize: requirementsPagination.value.pageSize,
-      status: reviewFilter.value,
-      serviceType: typeFilter.value === 'all' ? null : typeFilter.value
+    // 同时加载三种状态的需求
+    const loadAllStatuses = async () => {
+      const statuses = ['pending', 'approved', 'rejected']
+      const promises = statuses.map(status => 
+        adminAPI.getReviewList({
+          page: 1,
+          pageSize: 100,
+          status: status,
+          serviceType: typeFilter.value === 'all' ? null : typeFilter.value
+        })
+      )
+      
+      return await Promise.all(promises)
     }
     
-    const response = await adminAPI.getReviewList(filters)
+    const [pendingRes, approvedRes, rejectedRes] = await loadAllStatuses()
     
-    if (response.success && response.data) {
-      const data = response.data
-      const requests = data.requests || []
-      
-      // 根据筛选条件存储到不同的列表
-      if (reviewFilter.value === 'pending') {
-        pendingRequirements.value = requests
-      } else if (reviewFilter.value === 'approved') {
-        approvedRequirements.value = requests
-      } else if (reviewFilter.value === 'rejected') {
-        rejectedRequirements.value = requests
-      }
-      
-      requirementsPagination.value = {
-        page: data.page || 1,
-        pageSize: data.pageSize || 10,
-        totalCount: data.totalCount || 0,
-        totalPages: Math.ceil((data.totalCount || 0) / (data.pageSize || 10))
-      }
+    // 分别处理三种状态的需求
+    if (pendingRes.success && pendingRes.data) {
+      pendingRequirements.value = pendingRes.data.requests || []
     } else {
-      adminAPI.showError(response.message || '加载需求列表失败')
+      pendingRequirements.value = []
     }
+    
+    if (approvedRes.success && approvedRes.data) {
+      approvedRequirements.value = approvedRes.data.requests || []
+    } else {
+      approvedRequirements.value = []
+    }
+    
+    if (rejectedRes.success && rejectedRes.data) {
+      rejectedRequirements.value = rejectedRes.data.requests || []
+    } else {
+      rejectedRequirements.value = []
+    }
+    
   } catch (error) {
-    adminAPI.handleError(error, '加载需求列表')
+    console.error('加载需求失败:', error)
     pendingRequirements.value = []
     approvedRequirements.value = []
     rejectedRequirements.value = []
@@ -862,8 +871,7 @@ const filterRequirements = () => {
 
 const setReviewFilter = (filter) => {
   reviewFilter.value = filter
-  requirementsPagination.value.page = 1
-  loadRequirements()
+  // 不需要重新加载数据，因为已经全部加载了
 }
 
 const changeMembersPage = (page) => {
@@ -1004,8 +1012,21 @@ const approveRequirement = async (requirement) => {
     
     if (response.success) {
       adminAPI.showSuccess('需求审核通过')
-      loadRequirements()
-      loadCommunityStats()
+      
+      // 从待审核列表中移除
+      pendingRequirements.value = pendingRequirements.value.filter(
+        req => req.id !== requirement.id
+      )
+      
+      // 添加到已通过列表
+      approvedRequirements.value = [{
+        ...requirement,
+        status: 'Approved'
+      }, ...approvedRequirements.value]
+      
+      // 更新社区统计
+      communityStats.value.pendingRequests = pendingRequirements.value.length
+      
     } else {
       adminAPI.showError(response.message)
     }
@@ -1013,16 +1034,6 @@ const approveRequirement = async (requirement) => {
     adminAPI.handleError(error, '审核通过')
   } finally {
     processingRequirement.value = null
-  }
-}
-
-const toggleRejectionInput = (requirement) => {
-  if (showRejectionInput.value === requirement.id) {
-    showRejectionInput.value = null
-    rejectionReason.value = ''
-  } else {
-    showRejectionInput.value = requirement.id
-    rejectionReason.value = ''
   }
 }
 
@@ -1041,8 +1052,22 @@ const rejectRequirement = async (requirement) => {
       adminAPI.showSuccess('需求已拒绝')
       showRejectionInput.value = null
       rejectionReason.value = ''
-      loadRequirements()
-      loadCommunityStats()
+      
+      // 从待审核列表中移除
+      pendingRequirements.value = pendingRequirements.value.filter(
+        req => req.id !== requirement.id
+      )
+      
+      // 添加到已拒绝列表
+      rejectedRequirements.value = [{
+        ...requirement,
+        status: 'Rejected',
+        rejectionReason: rejectionReason.value
+      }, ...rejectedRequirements.value]
+      
+      // 更新社区统计
+      communityStats.value.pendingRequests = pendingRequirements.value.length
+      
     } else {
       adminAPI.showError(response.message)
     }
@@ -1050,6 +1075,16 @@ const rejectRequirement = async (requirement) => {
     adminAPI.handleError(error, '审核拒绝')
   } finally {
     processingRequirement.value = null
+  }
+}
+
+const toggleRejectionInput = (requirement) => {
+  if (showRejectionInput.value === requirement.id) {
+    showRejectionInput.value = null
+    rejectionReason.value = ''
+  } else {
+    showRejectionInput.value = requirement.id
+    rejectionReason.value = ''
   }
 }
 

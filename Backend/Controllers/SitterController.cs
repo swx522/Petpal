@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using petpal.API.Data;
 using petpal.API.Models;
 using petpal.API.Models.DTOs;
 using petpal.API.Services;
@@ -19,15 +21,18 @@ namespace petpal.API.Controllers
         private readonly IRequestService _requestService;
         private readonly IOrderService _orderService;
         private readonly IUserService _userService;
+        private readonly ApplicationDbContext _context;
 
         public SitterController(
             IRequestService requestService,
             IOrderService orderService,
-            IUserService userService)
+            IUserService userService,
+            ApplicationDbContext context)
         {
             _requestService = requestService;
             _orderService = orderService;
             _userService = userService;
+            _context = context;
         }
 
         // ===============================
@@ -78,6 +83,178 @@ namespace petpal.API.Controllers
                         appliedAt = user.CreatedAt,
                         lastAuditAt = user.AuditAt
                     }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 提交服务者资格申请
+        /// </summary>
+        [HttpPost("application")]
+        public async Task<IActionResult> SubmitSitterApplication([FromBody] SubmitSitterApplicationRequest request)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return NotFound(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户不存在"
+                    });
+                }
+
+                // 检查用户是否已经是服务者
+                if (user.Role == UserRole.Sitter && user.SitterAuditStatus == SitterAuditStatus.Approved)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "您已经是审核通过的服务者"
+                    });
+                }
+
+                // 检查是否已有待审核的申请
+                var existingApplication = await _context.SitterApplications
+                    .FirstOrDefaultAsync(a => a.UserId == userId && a.Status == SitterAuditStatus.Pending);
+
+                if (existingApplication != null)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "您已有待审核的申请，请耐心等待"
+                    });
+                }
+
+                // 验证输入数据
+                if (string.IsNullOrWhiteSpace(request.RealName))
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "真实姓名不能为空"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.IdCardNumber))
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "身份证号不能为空"
+                    });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.JoinReason))
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "加入原因不能为空"
+                    });
+                }
+
+                // 创建申请记录
+                var application = new SitterApplication
+                {
+                    UserId = userId,
+                    RealName = request.RealName.Trim(),
+                    IdCardNumber = request.IdCardNumber.Trim(),
+                    JoinReason = request.JoinReason.Trim(),
+                    Status = SitterAuditStatus.Pending
+                };
+
+                _context.SitterApplications.Add(application);
+
+                // 更新用户审核状态
+                user.SitterAuditStatus = SitterAuditStatus.Pending;
+                _context.Users.Update(user);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Message = "服务者资格申请提交成功，请等待管理员审核"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = $"申请提交失败: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取我的申请记录
+        /// </summary>
+        [HttpGet("application")]
+        public async Task<IActionResult> GetMyApplication()
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var application = await _context.SitterApplications
+                    .Where(a => a.UserId == userId)
+                    .OrderByDescending(a => a.AppliedAt)
+                    .FirstOrDefaultAsync();
+
+                if (application == null)
+                {
+                    return NotFound(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "未找到申请记录"
+                    });
+                }
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Data = new
+                    {
+                        id = application.Id,
+                        realName = application.RealName,
+                        idCardNumber = application.IdCardNumber,
+                        joinReason = application.JoinReason,
+                        status = application.Status.ToString(),
+                        appliedAt = application.AppliedAt,
+                        reviewedAt = application.ReviewedAt,
+                        reviewComment = application.ReviewComment
+                    },
+                    Message = "获取申请记录成功"
                 });
             }
             catch (Exception ex)

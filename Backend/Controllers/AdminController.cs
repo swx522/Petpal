@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using petpal.API.Data;
 using petpal.API.Models;
 using petpal.API.Services;
 using petpal.API.Models.DTOs;
@@ -19,15 +21,18 @@ namespace petpal.API.Controllers
         private readonly ICommunityService _communityService;
         private readonly IRequestService _requestService;
         private readonly IUserService _userService;
+        private readonly ApplicationDbContext _context;
 
         public AdminController(
             ICommunityService communityService,
             IRequestService requestService,
-            IUserService userService)
+            IUserService userService,
+            ApplicationDbContext context)
         {
             _communityService = communityService;
             _requestService = requestService;
             _userService = userService;
+            _context = context;
         }
 
         // 管理员个人 profile 已统一到 `api/profile`，此处相关路由已移除以避免重复实现。
@@ -556,6 +561,225 @@ namespace petpal.API.Controllers
             catch (Exception ex)
             {
                 return BadRequest(new ApiResponse { Success = false, Message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// 获取待审核的服务者申请列表
+        /// </summary>
+        [HttpGet("sitter/applications/pending")]
+        public async Task<IActionResult> GetPendingSitterApplications()
+        {
+            try
+            {
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(adminId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var admin = await _userService.GetUserByIdAsync(adminId);
+                if (admin == null || admin.Role != UserRole.Admin)
+                {
+                    return Forbid();
+                }
+
+                var applications = await _context.SitterApplications
+                    .Include(a => a.User)
+                    .Where(a => a.Status == SitterAuditStatus.Pending)
+                    .OrderBy(a => a.AppliedAt)
+                    .Select(a => new
+                    {
+                        id = a.Id,
+                        userId = a.UserId,
+                        username = a.User.Username,
+                        realName = a.RealName,
+                        idCardNumber = a.IdCardNumber,
+                        joinReason = a.JoinReason,
+                        appliedAt = a.AppliedAt
+                    })
+                    .ToListAsync();
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Data = new
+                    {
+                        applications,
+                        totalCount = applications.Count
+                    },
+                    Message = "获取待审核申请成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 审核服务者资格申请
+        /// </summary>
+        [HttpPost("sitter/applications/review")]
+        public async Task<IActionResult> ReviewSitterApplication([FromBody] ReviewSitterApplicationRequest request)
+        {
+            try
+            {
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(adminId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var admin = await _userService.GetUserByIdAsync(adminId);
+                if (admin == null || admin.Role != UserRole.Admin)
+                {
+                    return Forbid();
+                }
+
+                var application = await _context.SitterApplications
+                    .Include(a => a.User)
+                    .FirstOrDefaultAsync(a => a.Id == request.ApplicationId);
+
+                if (application == null)
+                {
+                    return NotFound(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "申请记录不存在"
+                    });
+                }
+
+                if (application.Status != SitterAuditStatus.Pending)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "该申请已被处理"
+                    });
+                }
+
+                // 更新申请状态
+                application.Status = request.Approved ? SitterAuditStatus.Approved : SitterAuditStatus.Rejected;
+                application.ReviewComment = request.ReviewComment?.Trim();
+                application.ReviewedAt = DateTime.Now;
+
+                // 更新用户状态
+                if (request.Approved)
+                {
+                    application.User.Role = UserRole.Sitter;
+                    application.User.SitterAuditStatus = SitterAuditStatus.Approved;
+                }
+                else
+                {
+                    application.User.SitterAuditStatus = SitterAuditStatus.Rejected;
+                }
+
+                _context.SitterApplications.Update(application);
+                _context.Users.Update(application.User);
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Message = request.Approved ? "申请已通过" : "申请已拒绝"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取所有服务者申请记录
+        /// </summary>
+        [HttpGet("sitter/applications")]
+        public async Task<IActionResult> GetAllSitterApplications([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var adminId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(adminId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var admin = await _userService.GetUserByIdAsync(adminId);
+                if (admin == null || admin.Role != UserRole.Admin)
+                {
+                    return Forbid();
+                }
+
+                var query = _context.SitterApplications
+                    .Include(a => a.User)
+                    .OrderByDescending(a => a.AppliedAt);
+
+                var totalCount = await query.CountAsync();
+
+                var applications = await query
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(a => new
+                    {
+                        id = a.Id,
+                        userId = a.UserId,
+                        username = a.User.Username,
+                        realName = a.RealName,
+                        idCardNumber = a.IdCardNumber,
+                        joinReason = a.JoinReason,
+                        status = a.Status.ToString(),
+                        appliedAt = a.AppliedAt,
+                        reviewedAt = a.ReviewedAt,
+                        reviewComment = a.ReviewComment
+                    })
+                    .ToListAsync();
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Data = new
+                    {
+                        applications,
+                        pagination = new
+                        {
+                            page,
+                            pageSize,
+                            totalCount,
+                            totalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                        }
+                    },
+                    Message = "获取申请记录成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
             }
         }
     }

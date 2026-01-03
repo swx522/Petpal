@@ -111,6 +111,48 @@ namespace petpal.API.Models
         public string ContentType { get; set; } = "";
     }
 
+    /// <summary>
+    /// 服务者资格申请请求
+    /// </summary>
+    public class SubmitSitterApplicationRequest
+    {
+        /// <summary>
+        /// 申请人真实姓名
+        /// </summary>
+        public string RealName { get; set; } = "";
+
+        /// <summary>
+        /// 身份证号
+        /// </summary>
+        public string IdCardNumber { get; set; } = "";
+
+        /// <summary>
+        /// 加入社区的原因
+        /// </summary>
+        public string JoinReason { get; set; } = "";
+    }
+
+    /// <summary>
+    /// 审核服务者申请请求
+    /// </summary>
+    public class ReviewSitterApplicationRequest
+    {
+        /// <summary>
+        /// 申请ID
+        /// </summary>
+        public string ApplicationId { get; set; } = "";
+
+        /// <summary>
+        /// 审核结果：true-通过，false-拒绝
+        /// </summary>
+        public bool Approved { get; set; }
+
+        /// <summary>
+        /// 审核意见
+        /// </summary>
+        public string? ReviewComment { get; set; }
+    }
+
     public class UpdateSitterProfileRequest
     {
         public string? CareIntroduction { get; set; }

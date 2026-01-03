@@ -52,6 +52,12 @@ namespace petpal.API.Data
         public DbSet<AuditMaterial> AuditMaterials { get; set; }
 
         /// <summary>
+        /// 服务者资格申请表DbSet
+        /// 提供对服务者资格申请实体的CRUD操作
+        /// </summary>
+        public DbSet<SitterApplication> SitterApplications { get; set; }
+
+        /// <summary>
         /// 社区表DbSet
         /// 提供对社区实体的CRUD操作
         /// </summary>

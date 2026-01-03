@@ -100,4 +100,71 @@ namespace petpal.API.Models
         [ForeignKey("SitterId")]
         public virtual User Sitter { get; set; }
     }
+
+    /// <summary>
+    /// 服务者资格申请实体类
+    /// 存储服务者提交的资格申请信息
+    /// </summary>
+    public class SitterApplication
+    {
+        /// <summary>
+        /// 申请唯一标识符
+        /// </summary>
+        [Key]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
+        /// <summary>
+        /// 申请人用户ID
+        /// </summary>
+        [Required]
+        public string UserId { get; set; }
+
+        /// <summary>
+        /// 申请人真实姓名
+        /// </summary>
+        [Required]
+        [MaxLength(50)]
+        public string RealName { get; set; }
+
+        /// <summary>
+        /// 身份证号
+        /// </summary>
+        [Required]
+        [MaxLength(18)]
+        public string IdCardNumber { get; set; }
+
+        /// <summary>
+        /// 加入社区的原因
+        /// </summary>
+        [Required]
+        [MaxLength(500)]
+        public string JoinReason { get; set; }
+
+        /// <summary>
+        /// 申请状态
+        /// </summary>
+        public SitterAuditStatus Status { get; set; } = SitterAuditStatus.Pending;
+
+        /// <summary>
+        /// 审核意见
+        /// </summary>
+        [MaxLength(500)]
+        public string? ReviewComment { get; set; }
+
+        /// <summary>
+        /// 申请提交时间
+        /// </summary>
+        public DateTime AppliedAt { get; set; } = DateTime.Now;
+
+        /// <summary>
+        /// 审核完成时间
+        /// </summary>
+        public DateTime? ReviewedAt { get; set; }
+
+        /// <summary>
+        /// 关联的用户
+        /// </summary>
+        [ForeignKey("UserId")]
+        public virtual User User { get; set; }
+    }
 }

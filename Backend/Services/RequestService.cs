@@ -124,7 +124,7 @@ namespace petpal.API.Services
         /// <summary>
         /// 获取可接单的需求列表
         /// </summary>
-        public async Task<List<MutualOrder>> GetAvailableRequestsAsync(string sitterId, RequestFilters filters)
+        public async Task<PagedResult<RequestDto>> GetAvailableRequestsAsync(string sitterId, RequestFilters filters)
         {
             var sitter = await _userService.GetUserByIdAsync(sitterId);
             if (sitter == null || sitter.Role != UserRole.Sitter)
@@ -132,27 +132,97 @@ namespace petpal.API.Services
                 throw new UnauthorizedAccessException("只有服务者可以查看可接单需求");
             }
 
-            var query = _context.MutualOrders
+            var baseQuery = _context.MutualOrders
                 .Include(o => o.Owner)
-                .Where(o => o.Status == OrderStatus.Pending);
+                // 只返回已审核通过且处于开放接单状态的订单
+                .Where(o => o.Status == OrderStatus.Approved &&
+                           o.ExecutionStatus == OrderExecutionStatus.Open);
 
             if (!string.IsNullOrEmpty(filters.ServiceType))
             {
-                query = query.Where(o => o.ServiceType == filters.ServiceType);
+                baseQuery = baseQuery.Where(o => o.ServiceType == filters.ServiceType);
             }
 
-            // 如果指定了最大距离，进行地理筛选
-            if (filters.MaxDistance.HasValue && sitter.Longitude.HasValue && sitter.Latitude.HasValue)
-            {
-                // 这里简化实现，实际应该计算距离
-                // 暂时返回所有符合条件的订单
-            }
+            // 获取总数
+            var totalCount = await baseQuery.CountAsync();
 
-            return await query
+            // 获取分页数据
+            var items = await baseQuery
                 .OrderByDescending(o => o.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
                 .Take(filters.PageSize)
+                .Select(o => new RequestDto
+                {
+                    Id = o.Id,
+                    Title = o.Title,
+                    PetType = o.PetType,
+                    ServiceType = o.ServiceType,
+                    StartTime = o.StartTime,
+                    EndTime = o.EndTime,
+                    Description = o.Description,
+                    Status = o.Status,
+                    ExecutionStatus = o.ExecutionStatus,
+                    CreatedAt = o.CreatedAt,
+                    Longitude = o.Longitude,
+                    Latitude = o.Latitude,
+                    Distance = o.Distance,
+                    User = o.Owner != null ? new UserSimpleDto
+                    {
+                        Id = o.Owner.Id,
+                        Username = o.Owner.Username,
+                        Name = o.Owner.Username,
+                        Phone = o.Owner.Phone,
+                        Role = o.Owner.Role,
+                        RoleId = (int)o.Owner.Role,
+                        RoleName = o.Owner.Role.ToString(),
+                        ReputationScore = o.Owner.ReputationScore
+                    } : null
+                })
                 .ToListAsync();
+
+            // 计算距离（如果有位置信息）
+            foreach (var request in items)
+            {
+                if (request.Longitude.HasValue && request.Latitude.HasValue &&
+                    sitter.Longitude.HasValue && sitter.Latitude.HasValue)
+                {
+                    try
+                    {
+                        double sitterLat = (double)sitter.Latitude.Value;
+                        double sitterLng = (double)sitter.Longitude.Value;
+                        double requestLat = (double)request.Latitude.Value;
+                        double requestLng = (double)request.Longitude.Value;
+
+                        // 验证坐标值是否有效
+                        if (_geolocationService.IsValidCoordinate(sitterLat, sitterLng) &&
+                            _geolocationService.IsValidCoordinate(requestLat, requestLng))
+                        {
+                            request.Distance = _geolocationService.CalculateDistance(
+                                sitterLat, sitterLng, requestLat, requestLng);
+                        }
+                        else
+                        {
+                            request.Distance = 0; // 无效坐标，距离设为0
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        request.Distance = 0; // 计算失败，距离设为0
+                    }
+                }
+                else
+                {
+                    request.Distance = 0; // 没有坐标信息，距离设为0
+                }
+            }
+
+            return new PagedResult<RequestDto>
+            {
+                Items = items,
+                Page = filters.Page,
+                PageSize = filters.PageSize,
+                TotalCount = totalCount
+            };
         }
 
         /// <summary>
@@ -272,6 +342,7 @@ namespace petpal.API.Services
                     EndTime = o.EndTime,
                     Description = o.Description,
                     Status = o.Status,
+                    ExecutionStatus = o.ExecutionStatus,
                     CreatedAt = o.CreatedAt,
                     Longitude = o.Longitude,
                     Latitude = o.Latitude,
@@ -283,7 +354,9 @@ namespace petpal.API.Services
                         Name = o.Owner.Username,
                         Phone = o.Owner.Phone,
                         Role = o.Owner.Role,
-                        ReputationScore = o.Owner.ReputationScore
+                        ReputationScore = o.Owner.ReputationScore,
+                        RoleName = o.Owner.Role.ToString(),
+                        RoleId = (int)o.Owner.Role
                     } : null
                 })
                 .ToListAsync();

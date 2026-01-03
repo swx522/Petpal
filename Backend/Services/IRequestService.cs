@@ -43,7 +43,7 @@ namespace petpal.API.Services
         /// <param name="sitterId">服务者ID</param>
         /// <param name="filters">筛选条件</param>
         /// <returns>需求列表</returns>
-        Task<List<MutualOrder>> GetAvailableRequestsAsync(string sitterId, RequestFilters filters);
+        Task<PagedResult<RequestDto>> GetAvailableRequestsAsync(string sitterId, RequestFilters filters);
 
         /// <summary>
         /// 获取需求的详细信息
@@ -171,6 +171,18 @@ namespace petpal.API.Services
         public double? MaxDistance { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
+    }
+
+    /// <summary>
+    /// 分页结果
+    /// </summary>
+    public class PagedResult<T>
+    {
+        public List<T> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
     }
 
     /// <summary>

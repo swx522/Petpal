@@ -64,8 +64,9 @@ class SitterService {
         page: filters.page || 1,
         pageSize: filters.pageSize || 10
       }
-      
-      const response = await http.get('/requests/available', params)
+
+      // 使用服务者专用的API端点，避免循环序列化问题
+      const response = await http.get('/sitter/requests/available', params)
       return response
     } catch (error) {
       console.error('获取可接单需求失败:', error)
@@ -211,7 +212,7 @@ class SitterService {
       description: requestData.description,
       distance: requestData.distance || 0,
       location: requestData.communityName || "未知位置",
-      publisher: requestData.owner?.user?.username || "匿名用户",
+      publisher: requestData.user?.name || requestData.user?.username || "匿名用户",
       startTime: requestData.startTime,
       endTime: requestData.endTime,
       createdAt: requestData.createdAt,

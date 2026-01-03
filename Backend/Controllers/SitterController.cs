@@ -188,16 +188,21 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                var requests = await _requestService.GetAvailableRequestsAsync(userId, filters);
+                var result = await _requestService.GetAvailableRequestsAsync(userId, filters);
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
-                        requests,
-                        filters.Page,
-                        filters.PageSize
+                        requests = result.Items,
+                        pagination = new
+                        {
+                            result.Page,
+                            result.PageSize,
+                            result.TotalCount,
+                            totalPages = result.TotalPages
+                        }
                     }
                 });
             }

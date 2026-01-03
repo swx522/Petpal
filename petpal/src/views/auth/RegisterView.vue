@@ -369,7 +369,10 @@ const handleRegister = async () => {
       ElMessage.success(`注册成功！欢迎加入宠物互助平台，您已注册为${roleText}`)
       
       // 跳转到首页
-      router.push('/')
+      router.push('/login')
+      setTimeout(() => {
+      window.location.reload()
+    }, 100) // 延迟1秒让用户看到成功消息
     } else {
       // 处理API返回的错误信息
       if (response.message.includes('用户名') || response.message.includes('Username')) {

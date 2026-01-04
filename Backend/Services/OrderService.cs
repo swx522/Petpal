@@ -43,6 +43,32 @@ namespace petpal.API.Services
         }
 
         /// <summary>
+        /// 获取服务者接的订单列表
+        /// </summary>
+        public async Task<List<MutualOrder>> GetSitterOrdersAsync(string sitterId, OrderFilters filters)
+        {
+            var query = _context.MutualOrders
+                .Include(o => o.Owner)
+                .Where(o => o.SitterId == sitterId);
+
+            if (filters.Status.HasValue)
+            {
+                query = query.Where(o => o.Status == filters.Status.Value);
+            }
+
+            if (filters.ExecutionStatus.HasValue)
+            {
+                query = query.Where(o => o.ExecutionStatus == filters.ExecutionStatus.Value);
+            }
+
+            return await query
+                .OrderByDescending(o => o.AcceptedAt ?? o.CreatedAt)
+                .Skip((filters.Page - 1) * filters.PageSize)
+                .Take(filters.PageSize)
+                .ToListAsync();
+        }
+
+        /// <summary>
         /// 获取待评价的订单列表
         /// </summary>
         public async Task<List<MutualOrder>> GetOrdersToEvaluateAsync(string userId)

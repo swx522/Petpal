@@ -16,13 +16,16 @@ namespace petpal.API.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IUserService _userService;
+        private readonly IOrderService _orderService;
 
         public OrderController(
             ApplicationDbContext context,
-            IUserService userService)
+            IUserService userService,
+            IOrderService orderService)
         {
             _context = context;
             _userService = userService;
+            _orderService = orderService;
         }
 
         // ===============================
@@ -541,6 +544,80 @@ namespace petpal.API.Controllers
                 {
                     Success = false,
                     Message = $"评价修改失败: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// 获取服务者接的订单列表
+        /// 服务者专用
+        /// </summary>
+        [HttpGet("sitter/orders")]
+        [Authorize]
+        public async Task<IActionResult> GetSitterOrders([FromQuery] OrderFilters filters)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                // 验证用户角色
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null || user.Role != UserRole.Sitter)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "只有服务者才能查看接单记录"
+                    });
+                }
+
+                var orders = await _orderService.GetSitterOrdersAsync(userId, filters);
+
+                var orderList = orders.Select(o => new
+                {
+                    id = o.Id,
+                    title = o.Title,
+                    serviceType = o.ServiceType,
+                    status = o.Status.ToString(),
+                    executionStatus = o.ExecutionStatus.ToString(),
+                    createdAt = o.CreatedAt,
+                    acceptedAt = o.AcceptedAt,
+                    completedAt = o.CompletedAt,
+                    orderNumber = $"OD{o.CreatedAt:yyyyMMdd}{o.Id.Substring(0, 4).ToUpper()}",
+                    owner = new
+                    {
+                        id = o.Owner?.Id,
+                        username = o.Owner?.Username,
+                        name = o.Owner?.Username,
+                        phone = o.Owner?.Phone
+                    }
+                });
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Data = new
+                    {
+                        orders = orderList,
+                        totalCount = orders.Count
+                    },
+                    Message = "获取接单记录成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
                 });
             }
         }

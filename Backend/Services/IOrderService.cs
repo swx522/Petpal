@@ -15,6 +15,7 @@ namespace petpal.API.Services
         /// <param name="filters">筛选条件</param>
         /// <returns>订单列表</returns>
         Task<List<MutualOrder>> GetUserOrdersAsync(string userId, OrderFilters filters);
+        Task<List<MutualOrder>> GetSitterOrdersAsync(string sitterId, OrderFilters filters);
 
         /// <summary>
         /// 获取待评价的订单列表
@@ -103,6 +104,7 @@ namespace petpal.API.Services
     public class OrderFilters
     {
         public OrderStatus? Status { get; set; }
+        public OrderExecutionStatus? ExecutionStatus { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

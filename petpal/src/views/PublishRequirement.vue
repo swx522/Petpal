@@ -314,11 +314,7 @@
             >
               <div class="review-card-header">
                 <div class="order-info">
-<<<<<<< HEAD
-                  <h4>{{ getServiceTypeText(order.serviceType) }}</h4>
-=======
-                  <h4>{{ formatServiceType(order.serviceType).label }}</h4>
->>>>>>> fac8cf5f256ccd13eeaf5661bdecaf41533b39c7
+                  <h4>{{ orderAPI.formatServiceType(order.serviceType).label }}</h4>
                   <p class="order-time">
                     完成于 {{ formatDateTime(order.completedAt) }}
                   </p>
@@ -327,13 +323,8 @@
                   </div>
                 </div>
                 <div class="pet-info">
-<<<<<<< HEAD
-                  <span class="pet-icon">{{ getPetTypeIcon(order.petType) }}</span>
-                  <span class="pet-name">{{ getPetTypeText(order.petType) }}</span>
-=======
-                  <span class="pet-icon">{{ formatPetType(order.petType).icon }}</span>
-                  <span class="pet-name">{{ formatPetType(order.petType).label }}</span>
->>>>>>> fac8cf5f256ccd13eeaf5661bdecaf41533b39c7
+                  <span class="pet-icon">{{ orderAPI.formatPetType(order.petType).icon }}</span>
+                  <span class="pet-name">{{ orderAPI.formatPetType(order.petType).label }}</span>
                 </div>
               </div>
               
@@ -583,7 +574,7 @@ const loadUserLocation = async () => {
 const loadPendingReviews = async () => {
   try {
     const response = await orderAPI.getOrdersToEvaluate()
-    
+
     if (response.success && response.data) {
       pendingReviews.value = Array.isArray(response.data) 
         ? response.data.map(order => ({
@@ -741,9 +732,9 @@ const submitReview = async (order) => {
       score: order.userRating,
       content: order.userComment || ''
     }
-    
+
     const response = await orderAPI.submitEvaluation(evaluationData)
-    
+    console.log('提交评价响应:', response)
     if (response.success) {
       // 从待评价列表中移除
       pendingReviews.value = pendingReviews.value.filter(o => o.id !== order.id)

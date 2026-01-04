@@ -77,6 +77,7 @@ namespace petpal.API.Models.DTOs
                 ExecutionStatus = order.ExecutionStatus,
                 CreatedAt = order.CreatedAt,
                 User = order.Owner?.ToUserSimpleDto(),
+                Sitter = order.Sitter?.ToUserSimpleDto(),
                 Longitude = order.Longitude,
                 Latitude = order.Latitude,
                 Distance = order.Distance

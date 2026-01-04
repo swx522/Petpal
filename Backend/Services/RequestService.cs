@@ -176,6 +176,17 @@ namespace petpal.API.Services
                         RoleId = (int)o.Owner.Role,
                         RoleName = o.Owner.Role.ToString(),
                         ReputationScore = o.Owner.ReputationScore
+                    } : null,
+                    Sitter = o.Sitter != null ? new UserSimpleDto
+                    {
+                        Id = o.Sitter.Id,
+                        Username = o.Sitter.Username,
+                        Name = o.Sitter.Username,
+                        Phone = o.Sitter.Phone,
+                        Role = o.Sitter.Role,
+                        RoleId = (int)o.Sitter.Role,
+                        RoleName = o.Sitter.Role.ToString(),
+                        ReputationScore = o.Sitter.ReputationScore
                     } : null
                 })
                 .ToListAsync();
@@ -291,10 +302,10 @@ namespace petpal.API.Services
             }
 
             // 暂时跳过进行中状态，直接设置为完成状态，便于调试评价功能
+            request.SitterId = sitterId; // 记录接单的服务者
             request.ExecutionStatus = OrderExecutionStatus.Completed;
             request.AcceptedAt = DateTime.Now;
             request.CompletedAt = DateTime.Now; // 同时设置完成时间
-            // 这里可以添加SitterId字段来记录接受者
 
             await _context.SaveChangesAsync();
 

@@ -611,7 +611,8 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 暂时跳过进行中状态，直接设置为完成状态，便于调试评价功能
+                // 设置服务者ID并更新订单状态
+                request.SitterId = userId; // 记录接单的服务者
                 request.ExecutionStatus = OrderExecutionStatus.Completed;
                 request.AcceptedAt = DateTime.Now;
                 request.CompletedAt = DateTime.Now; // 同时设置完成时间

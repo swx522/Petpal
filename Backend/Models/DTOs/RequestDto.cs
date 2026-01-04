@@ -64,6 +64,12 @@ namespace petpal.API.Models.DTOs
         public UserSimpleDto User { get; set; }
 
         /// <summary>
+        /// 服务者信息（简易版，避免循环引用）
+        /// 订单被接单后才会有此信息
+        /// </summary>
+        public UserSimpleDto? Sitter { get; set; }
+
+        /// <summary>
         /// 服务经度
         /// </summary>
         public decimal? Longitude { get; set; }

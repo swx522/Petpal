@@ -122,6 +122,13 @@ namespace petpal.API.Data
                 .HasForeignKey(o => o.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict); // 不级联删除，保持数据完整性
 
+            // 配置订单与服务者的关系
+            modelBuilder.Entity<MutualOrder>()
+                .HasOne(o => o.Sitter)
+                .WithMany(u => u.OrdersAsHelper) // 使用现有的导航属性
+                .HasForeignKey(o => o.SitterId)
+                .OnDelete(DeleteBehavior.SetNull); // 服务者删除时，订单的服务者ID设为null
+
             // 配置评价与订单和用户的关系
             modelBuilder.Entity<OrderEvaluation>()
                 .HasOne(e => e.Order)

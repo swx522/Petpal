@@ -59,6 +59,12 @@ namespace petpal.API.Models
         public string OwnerId { get; set; }
 
         /// <summary>
+        /// 服务者ID
+        /// 接受并执行订单的服务者
+        /// </summary>
+        public string? SitterId { get; set; }
+
+        /// <summary>
         /// 订单标题
         /// </summary>
         [Required]
@@ -153,6 +159,13 @@ namespace petpal.API.Models
         /// </summary>
         [ForeignKey("OwnerId")]
         public virtual User Owner { get; set; }
+
+        /// <summary>
+        /// 服务者信息
+        /// 导航属性：关联到User实体
+        /// </summary>
+        [ForeignKey("SitterId")]
+        public virtual User? Sitter { get; set; }
 
         /// <summary>
         /// 服务所在社区

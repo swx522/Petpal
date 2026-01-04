@@ -611,16 +611,17 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 更新需求执行状态
-                request.ExecutionStatus = OrderExecutionStatus.Accepted;
+                // 暂时跳过进行中状态，直接设置为完成状态，便于调试评价功能
+                request.ExecutionStatus = OrderExecutionStatus.Completed;
                 request.AcceptedAt = DateTime.Now;
+                request.CompletedAt = DateTime.Now; // 同时设置完成时间
 
                 await _context.SaveChangesAsync();
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
-                    Message = "成功接受需求，请按约定时间提供服务"
+                    Message = "成功接受并完成需求，可以进行评价了"
                 });
             }
             catch (Exception ex)

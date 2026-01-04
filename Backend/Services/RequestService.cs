@@ -290,8 +290,10 @@ namespace petpal.API.Services
                 throw new InvalidOperationException("该需求已被接受或已完成");
             }
 
-            request.ExecutionStatus = OrderExecutionStatus.Accepted;
+            // 暂时跳过进行中状态，直接设置为完成状态，便于调试评价功能
+            request.ExecutionStatus = OrderExecutionStatus.Completed;
             request.AcceptedAt = DateTime.Now;
+            request.CompletedAt = DateTime.Now; // 同时设置完成时间
             // 这里可以添加SitterId字段来记录接受者
 
             await _context.SaveChangesAsync();

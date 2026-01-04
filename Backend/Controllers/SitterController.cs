@@ -453,7 +453,7 @@ namespace petpal.API.Controllers
                 {
                     Success = true,
                     Data = result,
-                    Message = "成功接受需求，请按约定时间提供服务"
+                    Message = "成功接受并完成需求，可以进行评价了"
                 });
             }
             catch (Exception ex)

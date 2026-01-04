@@ -412,11 +412,20 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 验证用户是否有权评价这个订单
+                // 验证用户是否有权评价这个订单（只有宠物主人可以评价）
                 if (order.OwnerId != userId)
                 {
-                    // 这里应该还有服务者的验证逻辑
-                    return Forbid("您没有权限评价此订单");
+                    return Forbid("只有订单的宠物主人才能评价服务");
+                }
+
+                // 检查订单是否有服务者（已被接单）
+                if (string.IsNullOrEmpty(order.SitterId))
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "该订单还未被接单，无法评价"
+                    });
                 }
 
                 // 检查是否已评价
@@ -432,9 +441,9 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 确定评价类型
-                string evaluationType = order.OwnerId == userId ? "owner_to_helper" : "helper_to_owner";
-                string evaluatedUserId = order.OwnerId == userId ? "helper_id" : order.OwnerId; // 需要改进
+                // 根据服务类型确定评价类型
+                string evaluationType = GetEvaluationTypeByService(order.ServiceType);
+                string evaluatedUserId = order.SitterId!; // 服务者ID
 
                 // 创建评价
                 var evaluation = new OrderEvaluation
@@ -549,12 +558,12 @@ namespace petpal.API.Controllers
         }
 
         /// <summary>
-        /// 获取服务者接的订单列表
-        /// 服务者专用
+        /// 获取用户相关的所有订单（发布或接受的）
+        /// 通用接口，根据用户角色返回不同数据
         /// </summary>
-        [HttpGet("sitter/orders")]
+        [HttpGet("user/orders")]
         [Authorize]
-        public async Task<IActionResult> GetSitterOrders([FromQuery] OrderFilters filters)
+        public async Task<IActionResult> GetUserOrders([FromQuery] OrderFilters filters)
         {
             try
             {
@@ -568,18 +577,28 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 验证用户角色
                 var user = await _userService.GetUserByIdAsync(userId);
-                if (user == null || user.Role != UserRole.Sitter)
+                if (user == null)
                 {
-                    return BadRequest(new ApiResponse
+                    return NotFound(new ApiResponse
                     {
                         Success = false,
-                        Message = "只有服务者才能查看接单记录"
+                        Message = "用户不存在"
                     });
                 }
 
-                var orders = await _orderService.GetSitterOrdersAsync(userId, filters);
+                List<MutualOrder> orders;
+
+                if (user.Role == UserRole.Sitter)
+                {
+                    // 服务者：查看自己接受的订单
+                    orders = await _orderService.GetSitterOrdersAsync(userId, filters);
+                }
+                else
+                {
+                    // 宠物主人：查看自己发布的订单
+                    orders = await _orderService.GetUserOrdersAsync(userId, filters);
+                }
 
                 var orderList = orders.Select(o => new
                 {
@@ -592,13 +611,20 @@ namespace petpal.API.Controllers
                     acceptedAt = o.AcceptedAt,
                     completedAt = o.CompletedAt,
                     orderNumber = $"OD{o.CreatedAt:yyyyMMdd}{o.Id.Substring(0, 4).ToUpper()}",
-                    owner = new
+                    owner = user.Role == UserRole.Sitter ? new
                     {
                         id = o.Owner?.Id,
                         username = o.Owner?.Username,
                         name = o.Owner?.Username,
                         phone = o.Owner?.Phone
-                    }
+                    } : null,
+                    sitter = user.Role != UserRole.Sitter && o.Sitter != null ? new
+                    {
+                        id = o.Sitter.Id,
+                        username = o.Sitter.Username,
+                        name = o.Sitter.Username,
+                        phone = o.Sitter.Phone
+                    } : null
                 });
 
                 return Ok(new ApiResponse
@@ -607,9 +633,10 @@ namespace petpal.API.Controllers
                     Data = new
                     {
                         orders = orderList,
-                        totalCount = orders.Count
+                        totalCount = orders.Count,
+                        userRole = user.Role.ToString()
                     },
-                    Message = "获取接单记录成功"
+                    Message = "获取订单记录成功"
                 });
             }
             catch (Exception ex)
@@ -639,6 +666,22 @@ namespace petpal.API.Controllers
             public string EvaluationId { get; set; } = string.Empty;
             public int Score { get; set; }
             public string Content { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// 根据服务类型获取评价类型
+        /// </summary>
+        private string GetEvaluationTypeByService(string serviceType)
+        {
+            return serviceType?.ToLower() switch
+            {
+                "walking" => "walking_service",
+                "feeding" => "feeding_service",
+                "grooming" => "grooming_service",
+                "medical" => "medical_service",
+                "other" => "general_service",
+                _ => "general_service" // 默认类型
+            };
         }
     }
 }

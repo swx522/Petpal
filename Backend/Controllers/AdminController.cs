@@ -165,15 +165,15 @@ namespace petpal.API.Controllers
                     }
                 }
 
-                var members = await _communityService.GetCommunityMembersAsync(filters);
-                var memberDtos = members.Select(u => u.ToUserDto()).ToList();
+                // 获取包含统计信息的成员列表
+                var membersWithStats = await _communityService.GetCommunityMembersWithStatsAsync(filters);
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
                     Data = new
                     {
-                        members = memberDtos,
+                        members = membersWithStats,
                         filters.Page,
                         filters.PageSize
                     }

@@ -43,6 +43,13 @@ namespace petpal.API.Services
         Task<List<User>> GetCommunityMembersAsync(MemberFilters filters);
 
         /// <summary>
+        /// 获取包含统计信息的社区成员列表
+        /// </summary>
+        /// <param name="filters">筛选条件</param>
+        /// <returns>包含统计信息的成员列表</returns>
+        Task<List<object>> GetCommunityMembersWithStatsAsync(MemberFilters filters);
+
+        /// <summary>
         /// 搜索社区成员
         /// </summary>
         /// <param name="keyword">搜索关键词</param>

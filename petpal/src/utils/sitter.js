@@ -154,19 +154,27 @@ class SitterService {
    * @param {number} options.page - 页码
    * @param {number} options.pageSize - 每页数量
    */
-  async getFinishedOrders(options = {}) {
+  async getMyOrders(options = {}) {
     try {
       const params = {
         page: options.page || 1,
-        pageSize: options.pageSize || 10
+        pageSize: options.pageSize || 10,
+        status: options.status,
+        executionStatus: options.executionStatus
       }
-      
-      const response = await http.get('/sitter/orders/finished', params)
+
+      // 使用统一的订单查询接口
+      const response = await http.get('/order/user/orders', params)
       return response
     } catch (error) {
-      console.error('获取已完成订单失败:', error)
+      console.error('获取我的订单失败:', error)
       throw error
     }
+  }
+
+  // 保留原方法名以向后兼容，但调用新的接口
+  async getFinishedOrders(options = {}) {
+    return this.getMyOrders({ ...options, executionStatus: 'Completed' })
   }
 
   /**
@@ -175,7 +183,7 @@ class SitterService {
    */
   async getOrderFeedback(orderId) {
     try {
-      const response = await http.get(`/sitter/orders/feedback/${orderId}`)
+      const response = await http.get(`/orders/feedback/${orderId}`)
       return response
     } catch (error) {
       console.error('获取订单评价失败:', error)

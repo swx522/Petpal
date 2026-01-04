@@ -1,3 +1,4 @@
+using System;
 using Microsoft.EntityFrameworkCore;
 using petpal.API.Data;
 using petpal.API.Models;
@@ -180,6 +181,96 @@ namespace petpal.API.Services
                 .Take(filters.PageSize)
                 .ToListAsync();
             return users;
+        }
+
+        public async Task<List<object>> GetCommunityMembersWithStatsAsync(MemberFilters filters)
+        {
+            var query = _context.Users
+                .Include(u => u.Community)
+                .AsQueryable();
+
+            // 如果传入了 CommunityId，则只返回该社区的成员
+            if (filters.CommunityId.HasValue)
+            {
+                query = query.Where(u => u.CommunityId == filters.CommunityId.Value);
+            }
+
+            if (filters.Role.HasValue)
+            {
+                query = query.Where(u => u.Role == filters.Role.Value);
+            }
+
+            if (filters.IsCertified.HasValue)
+            {
+                // 认证字段已移除，忽略此筛选条件
+            }
+
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .Skip((filters.Page - 1) * filters.PageSize)
+                .Take(filters.PageSize)
+                .ToListAsync();
+
+            // 获取所有服务者用户的ID，用于批量查询统计信息
+            var sitterIds = users.Where(u => u.Role == UserRole.Sitter).Select(u => u.Id).ToList();
+
+            // 批量查询完成订单数量
+            var completedOrdersStats = await _context.MutualOrders
+                .Where(o => sitterIds.Contains(o.SitterId) && o.ExecutionStatus == OrderExecutionStatus.Completed)
+                .GroupBy(o => o.SitterId)
+                .Select(g => new { SitterId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SitterId, x => x.Count);
+
+            // 批量查询平均评分
+            var averageRatingStats = await _context.OrderEvaluations
+                .Where(e => sitterIds.Contains(e.EvaluatedUserId))
+                .GroupBy(e => e.EvaluatedUserId)
+                .Select(g => new { UserId = g.Key, AverageRating = Math.Round(g.Average(x => (double)x.Score), 1) })
+                .ToDictionaryAsync(x => x.UserId, x => x.AverageRating);
+
+            // 构建结果
+            var result = new List<object>();
+            foreach (var user in users)
+            {
+                var userDto = user.ToUserDto();
+
+                if (user.Role == UserRole.Sitter)
+                {
+                    // 为服务者添加统计信息
+                    var extendedDto = new
+                    {
+                        userDto.Id,
+                        userDto.Username,
+                        userDto.Phone,
+                        userDto.Email,
+                        userDto.Role,
+                        userDto.RoleId,
+                        userDto.RoleName,
+                        userDto.Status,
+                        userDto.ReputationScore,
+                        userDto.ReputationLevel,
+                        userDto.SitterAuditStatus,
+                        userDto.CareIntroduction,
+                        userDto.ServiceTypes,
+                        userDto.Community,
+                        userDto.Longitude,
+                        userDto.Latitude,
+                        userDto.CreatedAt,
+                        userDto.LastLoginAt,
+                        // 添加统计字段
+                        completedOrders = completedOrdersStats.GetValueOrDefault(user.Id, 0),
+                        averageRating = averageRatingStats.GetValueOrDefault(user.Id, 0.0)
+                    };
+                    result.Add(extendedDto);
+                }
+                else
+                {
+                    // 非服务者返回标准DTO
+                    result.Add(userDto);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

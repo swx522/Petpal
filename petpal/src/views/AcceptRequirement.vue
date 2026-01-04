@@ -873,9 +873,10 @@ const loadData = async () => {
 const loadFeedbacks = async () => {
   try {
     loadingFeedbacks.value = true
-    const response = await sitterService.getFinishedOrders({
+    const response = await sitterService.getMyOrders({
       page: 1,
-      pageSize: 5
+      pageSize: 5,
+      executionStatus: 'Completed'
     })
     
     if (response.success && response.data.orders.length > 0) {

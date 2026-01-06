@@ -164,7 +164,7 @@ class SitterService {
       }
 
       // 使用统一的订单查询接口
-      const response = await http.get('/order/user/orders', params)
+      const response = await http.get('/user/orders', params)
       return response
     } catch (error) {
       console.error('获取我的订单失败:', error)

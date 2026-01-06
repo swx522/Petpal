@@ -35,6 +35,11 @@ namespace petpal.API.Services
                 query = query.Where(o => o.Status == filters.Status.Value);
             }
 
+            if (filters.ExecutionStatus.HasValue)
+            {
+                query = query.Where(o => o.ExecutionStatus == filters.ExecutionStatus.Value);
+            }
+
             return await query
                 .OrderByDescending(o => o.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)

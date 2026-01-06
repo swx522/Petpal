@@ -53,8 +53,8 @@
           class="order-card"
         >
           <div class="order-card-header">
-            <div class="order-status" :class="getStatusClass(order.status)">
-              {{ getStatusText(order.status) }}
+            <div class="order-status" :class="getStatusClass(order)">
+              {{ getStatusText(order) }}
             </div>
             <div class="order-time">
               {{ formatDate(order.createdAt) }}
@@ -601,13 +601,43 @@ const loadMyOrders = async () => {
     
     if (response.success && response.data) {
       // 根据后端返回的数据结构调整
+      let orders = []
       if (response.data.orders && Array.isArray(response.data.orders)) {
-        myOrders.value = response.data.orders
+        orders = response.data.orders
       } else if (Array.isArray(response.data)) {
-        myOrders.value = response.data
-      } else {
-        myOrders.value = []
+        orders = response.data
       }
+
+      // 调试信息：打印订单状态分布
+      console.log('加载的订单数据:', orders)
+      console.log('订单状态分布:', orders.reduce((acc, order) => {
+        const status = order.executionStatus || order.status
+        acc[status] = (acc[status] || 0) + 1
+        return acc
+      }, {}))
+
+      // 只显示审核中、待接单、服务中、已完成的订单
+      const filteredOrders = orders.filter(order => {
+        const status = order.status
+        const executionStatus = order.executionStatus
+
+        // 审核中：待审核状态
+        if (status === 'Pending') return true
+
+        // 待接单：已审核通过但未接单
+        if (status === 'Approved' && executionStatus === 'Open') return true
+
+        // 服务中：已接单且正在进行中
+        if (executionStatus === 'Accepted' || executionStatus === 'InProgress') return true
+
+        // 已完成：服务已完成
+        if (executionStatus === 'Completed') return true
+
+        return false
+      })
+
+      console.log('过滤后的订单数量:', filteredOrders.length)
+      myOrders.value = filteredOrders
     } else {
       myOrders.value = []
     }
@@ -865,26 +895,68 @@ const viewOrderDetail = (orderId) => {
   router.push(`/orders/${orderId}`)
 }
 
-const getStatusClass = (status) => {
+const getStatusClass = (order) => {
+  const status = order.status
+  const executionStatus = order.executionStatus
+
+  // 根据业务状态判断CSS类
+  if (status === 'Pending') {
+    return 'status-pending'
+  }
+
+  if (status === 'Approved' || status === 'Rejected') {
+    if (executionStatus === 'Open') {
+      return 'status-open'
+    } else if (executionStatus === 'Accepted' || executionStatus === 'InProgress') {
+      return 'status-inprogress'
+    } else if (executionStatus === 'Completed') {
+      return 'status-completed'
+    }
+  }
+
+  // 其他状态的兜底处理
   const statusMap = {
     'Pending': 'status-pending',
-    'Accepted': 'status-accepted',
+    'Rejected': 'status-cancelled',
+    'Open': 'status-open',
+    'Accepted': 'status-inprogress',
     'InProgress': 'status-inprogress',
     'Completed': 'status-completed',
     'Cancelled': 'status-cancelled'
   }
-  return statusMap[status] || 'status-pending'
+  return statusMap[executionStatus] || statusMap[status] || 'status-pending'
 }
 
-const getStatusText = (status) => {
+const getStatusText = (order) => {
+  const status = order.status
+  const executionStatus = order.executionStatus
+
+  // 根据业务状态判断显示文本
+  if (status === 'Pending') {
+    return '审核中'
+  }
+
+  if (status === 'Approved' || status === 'Rejected') {
+    if (executionStatus === 'Open') {
+      return '待接单'
+    } else if (executionStatus === 'Accepted' || executionStatus === 'InProgress') {
+      return '服务中'
+    } else if (executionStatus === 'Completed') {
+      return '已完成'
+    }
+  }
+
+  // 其他状态的兜底处理
   const statusMap = {
-    'Pending': '待接单',
-    'Accepted': '已接单',
-    'InProgress': '进行中',
+    'Pending': '审核中',
+    'Rejected': '已拒绝',
+    'Open': '待接单',
+    'Accepted': '服务中',
+    'InProgress': '服务中',
     'Completed': '已完成',
     'Cancelled': '已取消'
   }
-  return statusMap[status] || status
+  return statusMap[executionStatus] || statusMap[status] || '未知状态'
 }
 
 const getPetTypeText = (petType) => {
@@ -1168,6 +1240,11 @@ const generateOrderNumber = (orderId, createdAt) => {
 .status-pending {
   background: #fef3c7;
   color: #92400e;
+}
+
+.status-open {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .status-accepted {

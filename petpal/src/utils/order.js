@@ -64,11 +64,15 @@ export const updateEvaluation = async (data) => {
 // 宠物主人订单管理
 export const getMyOrders = async (options = {}) => {
   try {
-    return await http.get('/order/user-orders', {
-      status: options.status,
+    const params = {
       page: options.page || 1,
       pageSize: options.pageSize || 10
-    })
+    }
+    // 只有当status存在且不为undefined时才传递
+    if (options.status !== undefined && options.status !== null) {
+      params.status = options.status
+    }
+    return await http.get('/user/orders', params)
   } catch (error) {
     console.error('获取订单列表失败:', error)
     return {
@@ -94,7 +98,7 @@ export const getOrdersToEvaluate = async () => {
 export const getFinishedOrders = async (options = {}) => {
   try {
     // 使用新的统一订单接口
-    return await http.get('/order/user/orders', {
+    return await http.get('/user/orders', {
       page: options.page || 1,
       pageSize: options.pageSize || 10,
       executionStatus: 'Completed' // 只获取已完成的订单

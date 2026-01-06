@@ -214,6 +214,18 @@ export const calculateDistance = async (requestId) => {
   }
 }
 
+export const deleteOrder = async (orderId) => {
+  try {
+    return await http.delete(`/order/${orderId}`)
+  } catch (error) {
+    console.error('删除订单失败:', error)
+    return {
+      success: false,
+      message: error.message || '删除订单失败'
+    }
+  }
+}
+
 // 管理员审核管理
 export const getReviewList = async (options = {}) => {
   try {
@@ -776,6 +788,7 @@ export const orderAPI = {
   getMyOrders,
   getOrdersToEvaluate,
   getFinishedOrders,
+  deleteOrder,
   getOrderFeedback,
   createRequest,
   setSchedule,

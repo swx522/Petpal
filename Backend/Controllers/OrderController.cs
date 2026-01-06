@@ -686,5 +686,56 @@ namespace petpal.API.Controllers
                 _ => "general_service" // 默认类型
             };
         }
+
+        // ===============================
+        // 删除订单接口
+        // ===============================
+
+        /// <summary>
+        /// 删除订单
+        /// 只有订单所有者才能删除，且只能删除审核中、待接单、已取消的订单
+        /// </summary>
+        [HttpDelete("order/{orderId}")]
+        [Authorize]
+        public async Task<IActionResult> DeleteOrder(string orderId)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var result = await _orderService.DeleteOrderAsync(userId, orderId);
+
+                if (!result)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "删除订单失败：订单不存在、权限不足或订单状态不允许删除"
+                    });
+                }
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Message = "订单删除成功"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = $"删除订单失败: {ex.Message}"
+                });
+            }
+        }
     }
 }

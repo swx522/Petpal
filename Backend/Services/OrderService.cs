@@ -327,6 +327,46 @@ namespace petpal.API.Services
 
         /// <summary>
         /// 获取当前信誉分数
+        /// <summary>
+        /// 删除订单
+        /// </summary>
+        public async Task<bool> DeleteOrderAsync(string userId, string orderId)
+        {
+            var order = await _context.MutualOrders
+                .Include(o => o.Evaluations)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order == null)
+            {
+                return false; // 订单不存在
+            }
+
+            if (order.OwnerId != userId)
+            {
+                return false; // 只有订单所有者才能删除
+            }
+
+            // 可以删除审核中、待接单、已取消、已完成的订单
+            // 不允许删除正在进行中的订单（Accepted, InProgress）
+            if (order.ExecutionStatus == OrderExecutionStatus.Accepted ||
+                order.ExecutionStatus == OrderExecutionStatus.InProgress)
+            {
+                return false; // 订单正在进行中，不能删除
+            }
+
+            // 删除相关的评价记录
+            if (order.Evaluations != null && order.Evaluations.Any())
+            {
+                _context.OrderEvaluations.RemoveRange(order.Evaluations);
+            }
+
+            // 删除订单
+            _context.MutualOrders.Remove(order);
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         /// </summary>
         private async Task<int> GetCurrentScoreAsync(string userId)
         {

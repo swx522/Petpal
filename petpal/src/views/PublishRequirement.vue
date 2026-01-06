@@ -78,6 +78,18 @@
               </div>
             </div>
           </div>
+
+          <!-- 操作按钮 -->
+          <div class="order-actions" v-if="canDeleteOrder(order)">
+            <button
+              class="delete-btn"
+              @click="confirmDeleteOrder(order)"
+              :disabled="loading.deleteOrder"
+            >
+              <span v-if="loading.deleteOrder">处理中...</span>
+              <span v-else>{{ getDeleteButtonText(order) }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -393,7 +405,8 @@ const loading = reactive({
   location: false,
   submit: false,
   evaluation: false,
-  myOrders: false
+  myOrders: false,
+  deleteOrder: false
 })
 
 // 数据
@@ -968,6 +981,75 @@ const getPetTypeText = (petType) => {
     'other': '其他'
   }
   return petTypeMap[petType] || petType
+}
+
+// 删除订单相关函数
+const canDeleteOrder = (order) => {
+  const status = order.status
+  const executionStatus = order.executionStatus
+
+  // 审核中、待接单、已取消、已完成的订单都可以删除/撤销
+  return status === 'Pending' ||
+         (status === 'Approved' && executionStatus === 'Open') ||
+         executionStatus === 'Cancelled' ||
+         executionStatus === 'Completed'
+}
+
+const getDeleteButtonText = (order) => {
+  const status = order.status
+  const executionStatus = order.executionStatus
+
+  // 已完成的订单显示"删除记录"
+  if (executionStatus === 'Completed') {
+    return '删除记录'
+  }
+
+  // 待接单的订单显示"撤销订单"
+  if (status === 'Approved' && executionStatus === 'Open') {
+    return '撤销订单'
+  }
+
+  // 其他情况显示"删除订单"
+  return '删除订单'
+}
+
+const confirmDeleteOrder = (order) => {
+  const buttonText = getDeleteButtonText(order)
+  let confirmMessage = ''
+
+  if (buttonText === '删除记录') {
+    confirmMessage = `确定要删除订单"${order.title}"的记录吗？\n\n删除后将无法查看此订单的历史记录，此操作不可撤销！`
+  } else if (buttonText === '撤销订单') {
+    confirmMessage = `确定要撤销订单"${order.title}"吗？\n\n撤销后订单将取消，其他用户将无法再接单，此操作不可撤销！`
+  } else {
+    confirmMessage = `确定要删除订单"${order.title}"吗？\n\n此操作不可撤销！`
+  }
+
+  const confirmed = confirm(confirmMessage)
+  if (confirmed) {
+    deleteOrder(order.id)
+  }
+}
+
+const deleteOrder = async (orderId) => {
+  try {
+    loading.deleteOrder = true
+
+    const response = await orderAPI.deleteOrder(orderId)
+
+    if (response.success) {
+      // 删除成功，刷新订单列表
+      await loadMyOrders()
+      alert('订单删除成功')
+    } else {
+      alert(`删除失败: ${response.message}`)
+    }
+  } catch (error) {
+    console.error('删除订单失败:', error)
+    alert('删除订单失败，请重试')
+  } finally {
+    loading.deleteOrder = false
+  }
 }
 
 const getPetTypeIcon = (petType) => {
@@ -2300,5 +2382,40 @@ const generateOrderNumber = (orderId, createdAt) => {
   .modal-actions button {
     width: 100%;
   }
+}
+
+/* 删除订单按钮样式 */
+.order-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.delete-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.delete-btn:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 </style>

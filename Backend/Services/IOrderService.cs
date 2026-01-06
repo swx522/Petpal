@@ -96,6 +96,14 @@ namespace petpal.API.Services
         /// <param name="days">天数</param>
         /// <returns>趋势数据</returns>
         Task<List<ReputationTrend>> GetReputationTrendAsync(string userId, int days = 30);
+
+        /// <summary>
+        /// 删除订单
+        /// </summary>
+        /// <param name="userId">操作者ID（必须是订单所有者）</param>
+        /// <param name="orderId">订单ID</param>
+        /// <returns>删除结果</returns>
+        Task<bool> DeleteOrderAsync(string userId, string orderId);
     }
 
     /// <summary>

@@ -23,4 +23,8 @@ export default defineConfig({
       }
     }
   },
+  define: {
+    // 定义全局常量
+    __AMAP_KEY__: JSON.stringify('3a494517a046a80814d9faf52d939ddd')
+  }
 })

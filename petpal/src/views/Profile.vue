@@ -76,6 +76,53 @@
             </div>
           </div>
         </div>
+
+        <!-- 位置信息卡片 -->
+        <div class="location-card">
+          <h4 class="card-title">
+            <span class="card-icon">📍</span> 当前位置
+          </h4>
+
+          <div class="location-info">
+            <div v-if="currentLocation" class="location-details">
+              <div class="location-item">
+                <span class="location-label">经纬度：</span>
+                <span class="location-value">{{ currentLocation.latitude.toFixed(6) }}, {{ currentLocation.longitude.toFixed(6) }}</span>
+              </div>
+              <div v-if="currentLocation.address" class="location-item">
+                <span class="location-label">地址：</span>
+                <span class="location-value">{{ currentLocation.address }}</span>
+              </div>
+              <div class="location-item">
+                <span class="location-label">更新时间：</span>
+                <span class="location-value">{{ formatLocationTime(currentLocation.timestamp) }}</span>
+              </div>
+            </div>
+
+            <div v-else class="no-location">
+              <div class="no-location-icon">📍</div>
+              <p>未获取到位置信息</p>
+            </div>
+          </div>
+
+          <div class="location-actions">
+            <button
+              @click="updateLocation"
+              class="btn-update-location"
+              :disabled="locationLoading"
+            >
+            <span v-if="locationLoading" class="btn-spinner small"></span>
+            {{ locationLoading ? '定位中...' : '📍 更新位置' }}
+            </button>
+
+            <div class="location-status">
+              <span v-if="locationStatus === 'granted'" class="status-granted">✓ 定位权限已开启</span>
+              <span v-else-if="locationStatus === 'denied'" class="status-denied">✗ 定位权限被拒绝</span>
+              <span v-else-if="locationStatus === 'prompt'" class="status-prompt">? 需要定位权限</span>
+              <span v-else class="status-unknown">? 未知权限状态</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 右侧：信息编辑区域 -->
@@ -282,9 +329,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { userAPI } from '@/utils/user.js'
+import {
+  locationService,
+  getCurrentPosition,
+  updateUserLocation,
+  checkLocationPermission
+} from '@/utils/location.js'
 
 const router = useRouter()
 
@@ -319,6 +372,12 @@ const passwordError = ref('')
 
 // 加载状态
 const loading = ref(false)
+const locationLoading = ref(false)
+
+// 位置相关状态
+const currentLocation = ref(null)
+const locationStatus = ref('unknown')
+const locationWatcher = ref(null)
 
 // 从本地存储获取角色信息
 const userRole = ref(userAPI.getUserRole())
@@ -757,6 +816,168 @@ const handleLogout = async () => {
   }
 }
 
+// ============ 位置相关函数 ============
+
+// 检查定位权限状态
+const checkLocationStatus = async () => {
+  locationStatus.value = await checkLocationPermission()
+}
+
+// 更新用户位置
+const updateLocation = async () => {
+  locationLoading.value = true
+
+  try {
+    // 检查权限
+    const permission = await locationService.requestPermission()
+    if (permission === 'denied') {
+      alert('需要定位权限才能更新位置信息，请在浏览器设置中允许定位权限')
+      locationStatus.value = 'denied'
+      return
+    }
+
+    // 获取当前位置
+    const position = await getCurrentPosition({
+      timeout: 15000,
+      enableHighAccuracy: true
+    })
+
+    // 更新到后端
+    await updateUserLocation(position.latitude, position.longitude, position.address)
+
+    // 更新本地状态
+    currentLocation.value = {
+      ...position,
+      timestamp: Date.now()
+    }
+
+    locationStatus.value = 'granted'
+
+    // 显示成功消息
+    alert('位置更新成功！您的位置信息已保存到数据库。')
+
+  } catch (error) {
+    console.error('位置更新失败:', error)
+
+    let errorMessage = '位置更新失败，请重试'
+    if (error.message.includes('超时')) {
+      errorMessage = '定位超时，请检查网络连接后重试'
+    } else if (error.message.includes('权限')) {
+      errorMessage = '需要定位权限，请允许浏览器访问您的位置'
+      locationStatus.value = 'denied'
+    } else if (error.message.includes('定位失败')) {
+      errorMessage = '无法获取您的位置，请检查GPS设置'
+    }
+
+    alert(errorMessage)
+  } finally {
+    locationLoading.value = false
+  }
+}
+
+// 启动自动定位
+const startAutoLocation = async () => {
+  try {
+    // 首先检查权限
+    await checkLocationStatus()
+
+    // 如果已经有权限，尝试获取一次位置
+    if (locationStatus.value === 'granted') {
+      // 静默获取位置（不显示加载状态）
+      try {
+        const position = await getCurrentPosition({ timeout: 10000 })
+        currentLocation.value = {
+          ...position,
+          timestamp: Date.now()
+        }
+      } catch (error) {
+        console.warn('自动获取位置失败:', error)
+      }
+    }
+
+    // 启动位置监听（每5分钟检查一次位置变化）
+    locationWatcher.value = locationService.watchPosition(
+      async (error, position) => {
+        if (error) {
+          console.warn('位置监听错误:', error)
+          return
+        }
+
+        // 检查位置是否发生显著变化（超过100米）
+        if (currentLocation.value) {
+          const distance = calculateDistance(
+            currentLocation.value.latitude,
+            currentLocation.value.longitude,
+            position.latitude,
+            position.longitude
+          )
+
+          // 如果距离超过100米，自动更新位置
+          if (distance > 100) {
+            console.log(`📍 检测到位置变化 ${distance.toFixed(0)}m，自动更新位置`)
+
+            try {
+              await updateUserLocation(position.latitude, position.longitude, position.address)
+              currentLocation.value = {
+                ...position,
+                timestamp: Date.now()
+              }
+            } catch (updateError) {
+              console.warn('自动更新位置失败:', updateError)
+            }
+          }
+        } else {
+          // 首次获取位置
+          currentLocation.value = {
+            ...position,
+            timestamp: Date.now()
+          }
+        }
+      },
+      {
+        timeout: 15000,
+        enableHighAccuracy: true
+      }
+    )
+
+  } catch (error) {
+    console.error('启动自动定位失败:', error)
+  }
+}
+
+// 停止自动定位
+const stopAutoLocation = () => {
+  if (locationWatcher.value) {
+    locationWatcher.value()
+    locationWatcher.value = null
+  }
+}
+
+// 计算两点间距离（米）
+const calculateDistance = (lat1, lng1, lat2, lng2) => {
+  const R = 6371000 // 地球半径（米）
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
+}
+
+// 格式化位置更新时间
+const formatLocationTime = (timestamp) => {
+  if (!timestamp) return '未知'
+
+  const now = Date.now()
+  const diff = now - timestamp
+
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+  return `${Math.floor(diff / 86400000)}天前`
+}
+
 // 页面加载时获取数据
 onMounted(async () => {
   console.log('🔄 Profile.vue 组件已挂载')
@@ -774,6 +995,14 @@ onMounted(async () => {
     communities: userCommunities.value,
     selectedCommunity: selectedCommunityId.value
   })
+
+  // 启动自动定位功能
+  await startAutoLocation()
+})
+
+// 在组件卸载时停止定位监听
+onUnmounted(() => {
+  stopAutoLocation()
 })
 </script>
 
@@ -1345,6 +1574,123 @@ onMounted(async () => {
   
   .community-action-btn {
     width: 100%;
+  }
+}
+
+/* 位置信息卡片样式 */
+.location-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.location-info {
+  margin-bottom: 20px;
+}
+
+.location-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.location-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.location-label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.location-value {
+  font-size: 14px;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.no-location {
+  text-align: center;
+  padding: 20px 0;
+  color: #94a3b8;
+}
+
+.no-location-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.location-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-update-location {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-update-location:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-update-location:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.location-status {
+  text-align: center;
+  font-size: 12px;
+}
+
+.status-granted {
+  color: #22c55e;
+}
+
+.status-denied {
+  color: #ef4444;
+}
+
+.status-prompt {
+  color: #f59e0b;
+}
+
+.status-unknown {
+  color: #94a3b8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .location-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-update-location {
+    padding: 10px 20px;
+    font-size: 14px;
   }
 }
 </style>

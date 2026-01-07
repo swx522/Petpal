@@ -68,5 +68,13 @@ namespace petpal.API.Services
         /// 只更新非空的字段，验证唯一性（用户名、手机号）
         /// </summary>
         Task UpdateCommonProfileAsync(string userId, string? username, string? phone, string? email);
+
+        /// <summary>
+        /// 更新用户位置信息
+        /// </summary>
+        /// <param name="userId">用户ID</param>
+        /// <param name="longitude">经度</param>
+        /// <param name="latitude">纬度</param>
+        Task UpdateLocationAsync(string userId, decimal longitude, decimal latitude);
     }
 }

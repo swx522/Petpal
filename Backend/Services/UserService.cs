@@ -64,6 +64,28 @@ namespace petpal.API.Services
             await _context.SaveChangesAsync();
         }
 
+        /// <summary>
+        /// 更新用户位置信息
+        /// </summary>
+        /// <param name="userId">用户ID</param>
+        /// <param name="longitude">经度</param>
+        /// <param name="latitude">纬度</param>
+        public async Task UpdateLocationAsync(string userId, decimal longitude, decimal latitude)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new Exception("用户不存在");
+            }
+
+            // 更新位置信息
+            user.Longitude = longitude;
+            user.Latitude = latitude;
+            user.LocationUpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+        }
+
         /// <summary>~
         /// 用户注册实现
         /// 创建新用户账户，验证输入数据唯一性

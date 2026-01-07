@@ -226,8 +226,28 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 这里需要扩展IUserService来支持位置更新
-                // 暂时返回成功
+                // 验证输入参数
+                if (request.Longitude < -180 || request.Longitude > 180)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "经度值无效"
+                    });
+                }
+
+                if (request.Latitude < -90 || request.Latitude > 90)
+                {
+                    return BadRequest(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "纬度值无效"
+                    });
+                }
+
+                // 更新用户位置信息
+                await _userService.UpdateLocationAsync(userId, request.Longitude, request.Latitude);
+
                 return Ok(new ApiResponse
                 {
                     Success = true,

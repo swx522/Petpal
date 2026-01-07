@@ -36,8 +36,8 @@ async joinCommunity(data) {
 async updateLocation(data) {
   try {
     return await http.post('/user/location', {
-      latitude: data.latitude,
-      longitude: data.longitude
+      Latitude: data.latitude,
+      Longitude: data.longitude
     })
   } catch (error) {
     console.error('更新位置失败:', error)

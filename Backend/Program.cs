@@ -41,6 +41,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
         };
+        // 支持 SignalR 在查询参数中通过 access_token 传递 token（WebSocket / ServerSentEvents）
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"].FirstOrDefault();
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // 添加Redis缓存服务
@@ -66,6 +80,9 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+// 添加 SignalR 支持（用于实时聊天）
+builder.Services.AddSignalR();
 
 // 配置Swagger API文档
 builder.Services.AddEndpointsApiExplorer();
@@ -116,6 +133,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+// 静态文件（用于聊天图片等上传资源）
+app.UseStaticFiles();
+
+// SignalR hubs
+app.MapHub<petpal.API.Hubs.ChatHub>("/hubs/chat");
 
 // 应用程序启动时执行数据库迁移
 // 确保数据库结构与代码模型同步

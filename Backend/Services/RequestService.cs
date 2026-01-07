@@ -309,6 +309,22 @@ namespace petpal.API.Services
 
             await _context.SaveChangesAsync();
 
+            // 自动为该订单创建会话（如果尚不存在）
+            var existingConv = await _context.Conversations.FirstOrDefaultAsync(c => c.OrderId == requestId);
+            if (existingConv == null)
+            {
+                var conv = new Conversation
+                {
+                    OrderId = requestId,
+                    ParticipantAId = request.OwnerId,
+                    ParticipantBId = sitterId,
+                    CreatedAt = DateTime.Now,
+                    LastMessageAt = DateTime.Now
+                };
+                _context.Conversations.Add(conv);
+                await _context.SaveChangesAsync();
+            }
+
             return request;
         }
 

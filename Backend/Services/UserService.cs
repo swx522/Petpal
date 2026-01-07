@@ -126,6 +126,36 @@ namespace petpal.API.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
+            // 创建与管理员的默认会话（如果存在管理员账号）
+            try
+            {
+                var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Admin);
+                if (admin != null)
+                {
+                    var exists = await _context.Conversations.AnyAsync(c =>
+                        (c.ParticipantAId == admin.Id && c.ParticipantBId == user.Id) ||
+                        (c.ParticipantBId == admin.Id && c.ParticipantAId == user.Id));
+                    if (!exists)
+                    {
+                        var conv = new Conversation
+                        {
+                            OrderId = null,
+                            ParticipantAId = admin.Id,
+                            ParticipantBId = user.Id,
+                            CreatedAt = DateTime.Now,
+                            LastMessageAt = null
+                        };
+                        _context.Conversations.Add(conv);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 不阻塞注册流程，但记录异常以便排查
+                Console.WriteLine("创建默认管理员会话失败: " + ex.Message);
+            }
+
             return user;
         }
 

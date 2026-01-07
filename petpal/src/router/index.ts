@@ -69,6 +69,12 @@ const router = createRouter({
         component: () => import('@/views/Profile.vue'),
         meta: { requiresAuth: true } // 需要登录
        },
+        {
+          path: '/chats',
+          name: 'Chats',
+          component: () => import('@/views/Chats.vue'),
+          meta: { requiresAuth: true }
+        },
       ]
     },
     

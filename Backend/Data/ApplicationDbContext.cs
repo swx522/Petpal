@@ -44,6 +44,8 @@ namespace petpal.API.Data
         /// 提供对订单评价实体的CRUD操作
         /// </summary>
         public DbSet<OrderEvaluation> OrderEvaluations { get; set; }
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Message> Messages { get; set; }
 
         /// <summary>
         /// 审核材料表DbSet
@@ -180,6 +182,13 @@ namespace petpal.API.Data
             // 为订单社区添加索引
             modelBuilder.Entity<MutualOrder>()
                 .HasIndex(o => o.CommunityId);
+
+            // Conversations / Messages
+            modelBuilder.Entity<Conversation>()
+                .HasIndex(c => c.OrderId);
+
+            modelBuilder.Entity<Message>()
+                .HasIndex(m => m.ConversationId);
         }
     }
 }

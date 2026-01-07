@@ -66,6 +66,18 @@
           <span>管理社区</span>
           <span v-if="!isLoggedIn || userRole !== 'Admin'" class="nav-lock">🔒</span>
         </div>
+        
+        <!-- 聊天：所有登录用户可见（显示会话列表） --> 
+        <div
+          class="nav-item"
+          :class="{ active: activeNav === '/chats', unavailable: !isLoggedIn }"
+          @click="() => { if (!isLoggedIn) { if (confirm('需要登录，是否前往登录？')) router.push('/login') } else goToChats() }"
+        >
+          <i class="icon">💬</i>
+          <span>消息</span>
+          <span v-if="unreadCount > 0" class="nav-badge">{{ unreadCount }}</span>
+          <span v-if="!isLoggedIn" class="nav-lock">🔒</span>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -169,6 +181,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { http } from '@/utils/http.js'
 import { useRouter, useRoute } from 'vue-router'
 import { userAPI } from '@/utils/user.js'
 
@@ -223,6 +236,7 @@ const currentPageName = computed(() => {
 
 // 服务者审核状态
 const isSitterApproved = ref(false)
+const unreadCount = ref(0)
 
 // 角色文本显示
 const roleText = computed(() => {
@@ -334,6 +348,7 @@ const goToSquare = () => router.push('/init')
 const goToProfile = () => {
   router.push('/profile')
 }
+const goToChats = () => router.push('/chats')
 
 // 显示联系我们对话框
 const showContactDialog = () => {
@@ -366,6 +381,17 @@ onMounted(async () => {
       isSitterApproved.value = false
     }
   }
+  // 加载会话未读数
+    try {
+      if (isLoggedIn.value) {
+        const resp = await http.get('/chat/myconversations')
+        if (resp.success) {
+          unreadCount.value = resp.data.reduce((s, c) => s + (c.unreadCount || 0), 0)
+        }
+      }
+    } catch (e) {
+      console.warn('加载会话未读数失败', e)
+    }
 })
 
 // 监听路由变化
@@ -496,6 +522,15 @@ watch(() => route.path, () => {
   margin-left: auto;
   font-size: 14px;
   color: #f59e0b;
+}
+
+.nav-badge {
+  background: #ef4444;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
 }
 
 /* 用户等级显示角色 */

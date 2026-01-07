@@ -1103,7 +1103,25 @@ const confirmCancelOrder = () => {
 // 联系客户
 const contactCustomer = (order) => {
   showOperationResult('info', `即将联系客户 ${order.customerName}...`)
-  // 实际中这里可以跳转到聊天页面或拨打语音电话
+  // 跳转到聊天会话（获取或创建会话后打开聊天页）
+  ;(async () => {
+    try {
+      const resp = await fetch(`/api/chat/conversations?orderId=${order.id}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}` }
+      })
+      const data = await resp.json()
+      if (resp.ok && data.success && data.data) {
+        const convId = data.data.id
+        // 跳转到聊天页面并自动打开会话
+        router.push({ path: '/chats', query: { convId } })
+      } else {
+        showOperationResult('error', '无法打开聊天，会话创建失败')
+      }
+    } catch (err) {
+      console.error('打开聊天失败', err)
+      showOperationResult('error', '打开聊天失败')
+    }
+  })()
 }
 
 // 查看评价

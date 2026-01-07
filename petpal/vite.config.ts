@@ -22,6 +22,17 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:5002',
         changeOrigin: true,
+      },
+      // 转发 SignalR 请求到后端（包括 websocket 协议）
+      '/hubs': {
+        target: 'http://127.0.0.1:5002',
+        changeOrigin: true,
+        ws: true,
+      },
+      // 转发静态文件请求到后端
+      '/uploads': {
+        target: 'http://127.0.0.1:5002',
+        changeOrigin: true,
       }
     }
   },

@@ -203,7 +203,7 @@ namespace petpal.API.Services
     {
         public string? ServiceType { get; set; }
         /// <summary>
-        /// 订单状态过滤，Accept values: \"Pending\", \"Approved\", \"Rejected\", \"Accepted\", \"InProgress\", \"Completed\", \"Cancelled\".
+        /// 订单状态过滤，Accept values: \"Pending\", \"Approved\", \"Rejected\", \"Accepted\", \"Completed\", \"Cancelled\".
         /// If not provided, defaults to Pending for admin review list.
         /// </summary>
         public string? Status { get; set; }

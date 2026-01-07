@@ -170,4 +170,9 @@ namespace petpal.API.Models
         public int Score { get; set; } = 5; // 1-5
         public string? Content { get; set; }
     }
+
+    public class CompleteOrderRequest
+    {
+        public string? CompletionNotes { get; set; }
+    }
 }

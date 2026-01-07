@@ -172,16 +172,16 @@
 
              <!-- 新增：切换已接受的订单 -->
           <div class="view-toggle">
-            <button 
-              class="toggle-btn" 
-              :class="{ active: !showAcceptedOrders }"
+            <button
+              class="toggle-btn"
+              :class="{ active: showAcceptedOrders }"
               @click="showAcceptedOrders = true"
             >
               可接需求
             </button>
-            <button 
-              class="toggle-btn" 
-              :class="{ active: showAcceptedOrders }"
+            <button
+              class="toggle-btn"
+              :class="{ active: !showAcceptedOrders }"
               @click="showAcceptedOrders = false"
             >
               已接受订单
@@ -301,7 +301,7 @@
       </div>
 
 <!-- 已接受订单列表 -->
-      <div class="accepted-orders-container" v-if="!loading && !errorMessage && showAcceptedOrders">
+      <div class="accepted-orders-container" v-if="!loading && !errorMessage && !showAcceptedOrders">
         <div class="orders-list">
           <div class="orders-grid">
             <!-- 已接受订单卡片 -->
@@ -635,6 +635,7 @@ import { http } from '@/utils/http.js'
 const loading = ref(true)
 const loadingFeedbacks = ref(true)
 const accepting = ref(false)
+const completingOrder = ref('')
 const showDialog = ref(false)
 const showAcceptedOrders = ref(true)
 const showCompleteDialog = ref(false)
@@ -962,13 +963,16 @@ const confirmAccept = async () => {
     
     if (response.success) {
       showOperationResult('success', '接单成功！' + (response.message || '请按约定时间提供服务'))
-      
+
       requirements.value = requirements.value.filter(
         req => req.id !== selectedRequirement.value.id
       )
-      
+
       pagination.value.totalCount--
-      
+
+      // 刷新已接受订单列表，这样用户就能在"已接受订单"标签页看到刚刚接单的订单
+      await loadData()
+
       setTimeout(() => {
         showDialog.value = false
         selectedRequirement.value = {}
@@ -1008,6 +1012,61 @@ const formatTime = (timeString) => {
 
 const formatDate = (dateString) => {
   return sitterService.formatDate(dateString)
+}
+
+const formatDateTime = (dateTimeString) => {
+  return sitterService.formatDateTime ? sitterService.formatDateTime(dateTimeString) : formatDate(dateTimeString)
+}
+
+// 订单相关变量
+const selectedOrder = ref({})
+const completionNotes = ref('')
+
+// 标记订单完成
+const markAsCompleted = async (order) => {
+  selectedOrder.value = order
+  completionNotes.value = ''
+  showCompleteDialog.value = true
+}
+
+// 关闭完成对话框
+const closeCompleteDialog = () => {
+  if (!completingOrder.value) {
+    showCompleteDialog.value = false
+    selectedOrder.value = {}
+    completionNotes.value = ''
+  }
+}
+
+// 确认完成订单
+const confirmCompleteOrder = async () => {
+  try {
+    completingOrder.value = selectedOrder.value.id
+
+    const response = await sitterService.completeOrder(selectedOrder.value.id, {
+      completionNotes: completionNotes.value
+    })
+
+    if (response.success) {
+      showOperationResult('success', '订单已标记为完成！')
+
+      // 刷新数据
+      await loadData()
+
+      setTimeout(() => {
+        showCompleteDialog.value = false
+        selectedOrder.value = {}
+        completionNotes.value = ''
+      }, 1500)
+    } else {
+      showOperationResult('error', response.message || '标记完成失败')
+    }
+  } catch (error) {
+    console.error('完成订单失败:', error)
+    showOperationResult('error', '标记完成失败: ' + sitterService.handleApiError(error))
+  } finally {
+    completingOrder.value = ''
+  }
 }
 </script>
 

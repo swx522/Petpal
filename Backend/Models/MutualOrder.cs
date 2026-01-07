@@ -33,8 +33,7 @@ namespace petpal.API.Models
     public enum OrderExecutionStatus
     {
         Open,       // 待接单：审核通过后等待帮助者接单
-        Accepted,   // 已接单：有帮助者接受了订单
-        InProgress, // 进行中：服务正在执行
+        Accepted,   // 已接单：有帮助者接受了订单，服务正在执行
         Completed,  // 已完成：服务已完成，等待评价
         Cancelled   // 已取消：订单被取消
     }

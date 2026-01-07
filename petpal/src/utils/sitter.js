@@ -190,6 +190,21 @@ class SitterService {
     }
   }
 
+  /**
+   * 完成订单
+   * @param {string} orderId - 订单ID
+   * @param {Object} data - 完成数据（可选备注等）
+   */
+  async completeOrder(orderId, data = {}) {
+    try {
+      const response = await http.post(`/sitter/orders/complete/${orderId}`, data)
+      return response
+    } catch (error) {
+      console.error('完成订单失败:', error)
+      throw error
+    }
+  }
+
   // ===============================
   // 实用工具方法
   // ===============================

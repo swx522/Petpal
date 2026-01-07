@@ -641,7 +641,7 @@ const loadMyOrders = async () => {
         if (status === 'Approved' && executionStatus === 'Open') return true
 
         // 服务中：已接单且正在进行中
-        if (executionStatus === 'Accepted' || executionStatus === 'InProgress') return true
+        if (executionStatus === 'Accepted') return true
 
         // 已完成：服务已完成
         if (executionStatus === 'Completed') return true
@@ -920,7 +920,7 @@ const getStatusClass = (order) => {
   if (status === 'Approved' || status === 'Rejected') {
     if (executionStatus === 'Open') {
       return 'status-open'
-    } else if (executionStatus === 'Accepted' || executionStatus === 'InProgress') {
+    } else if (executionStatus === 'Accepted') {
       return 'status-inprogress'
     } else if (executionStatus === 'Completed') {
       return 'status-completed'
@@ -933,7 +933,6 @@ const getStatusClass = (order) => {
     'Rejected': 'status-cancelled',
     'Open': 'status-open',
     'Accepted': 'status-inprogress',
-    'InProgress': 'status-inprogress',
     'Completed': 'status-completed',
     'Cancelled': 'status-cancelled'
   }
@@ -952,7 +951,7 @@ const getStatusText = (order) => {
   if (status === 'Approved' || status === 'Rejected') {
     if (executionStatus === 'Open') {
       return '待接单'
-    } else if (executionStatus === 'Accepted' || executionStatus === 'InProgress') {
+    } else if (executionStatus === 'Accepted') {
       return '服务中'
     } else if (executionStatus === 'Completed') {
       return '已完成'
@@ -965,7 +964,6 @@ const getStatusText = (order) => {
     'Rejected': '已拒绝',
     'Open': '待接单',
     'Accepted': '服务中',
-    'InProgress': '服务中',
     'Completed': '已完成',
     'Cancelled': '已取消'
   }

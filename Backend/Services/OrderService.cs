@@ -258,7 +258,7 @@ namespace petpal.API.Services
                 throw new UnauthorizedAccessException("无权限完成此订单");
             }
 
-            if (order.ExecutionStatus != OrderExecutionStatus.Accepted && order.ExecutionStatus != OrderExecutionStatus.InProgress)
+            if (order.ExecutionStatus != OrderExecutionStatus.Accepted)
             {
                 throw new InvalidOperationException("只有进行中的订单才能完成");
             }
@@ -349,9 +349,8 @@ namespace petpal.API.Services
             }
 
             // 可以删除审核中、待接单、已取消、已完成的订单
-            // 不允许删除正在进行中的订单（Accepted, InProgress）
-            if (order.ExecutionStatus == OrderExecutionStatus.Accepted ||
-                order.ExecutionStatus == OrderExecutionStatus.InProgress)
+            // 不允许删除正在进行中的订单（Accepted）
+            if (order.ExecutionStatus == OrderExecutionStatus.Accepted)
             {
                 return false; // 订单正在进行中，不能删除
             }

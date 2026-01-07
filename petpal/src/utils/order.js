@@ -435,7 +435,6 @@ export const formatOrderStatus = (status) => {
   const OrderStatus = {
     PENDING: 'Pending',
     ACCEPTED: 'Accepted',
-    IN_PROGRESS: 'InProgress',
     COMPLETED: 'Completed',
     CANCELLED: 'Cancelled'
   }
@@ -745,7 +744,6 @@ export const filterOrders = (orders, filters) => {
 export const OrderStatus = {
   PENDING: 'Pending',
   ACCEPTED: 'Accepted',
-  IN_PROGRESS: 'InProgress',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled'
 }

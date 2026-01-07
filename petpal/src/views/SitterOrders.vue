@@ -163,13 +163,14 @@
           
           <!-- 订单操作 -->
           <div class="order-actions">
-            <!-- 待处理订单操作 -->
-            <div v-if="order.status === 'pending'" class="action-buttons">              
-                <button 
-                class="action-btn contact-btn"
+            <!-- 进行中订单操作 -->
+            <div v-if="order.executionStatus === 'in_progress'" class="action-buttons">
+                <button
+                class="action-btn complete-btn"
                 @click="showCompleteDialog(order)"
+                :disabled="processingOrderId === order.id"
                 >
-                点击确认完成
+                {{ processingOrderId === order.id ? '处理中...' : '完成服务' }}
                 </button>
             </div>
             
@@ -476,6 +477,7 @@
 import { ref, computed, onMounted, onActivated, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { userAPI } from '@/utils/user.js'
+import sitterService from '@/utils/sitter.js'
 
 const router = useRouter()
 
@@ -609,8 +611,14 @@ const fetchOrders = async (statusFilter = null) => {
         serviceTime: order.startTime,
         startTime: order.startTime,
         endTime: order.endTime,
-        status: order.status.toLowerCase(),
-        executionStatus: order.executionStatus.toLowerCase(),
+        status: typeof order.status === 'string' ? order.status.toLowerCase() : String(order.status).toLowerCase(),
+        executionStatus: (typeof order.executionStatus === 'string')
+          ? order.executionStatus.toLowerCase()
+          : (order.executionStatus === 1 ? 'in_progress'
+            : order.executionStatus === 2 ? 'completed'
+            : order.executionStatus === 0 ? 'pending'
+            : order.executionStatus === 3 ? 'cancelled'
+            : String(order.executionStatus)),
         createdAt: order.createdAt,
         acceptedAt: order.acceptedAt,
         completedAt: order.completedAt,
@@ -997,34 +1005,34 @@ const removePhoto = (index) => {
 }
 
 // 确认完成订单
-const confirmCompleteOrder = () => {
+const confirmCompleteOrder = async () => {
   if (!canCompleteOrder.value || !selectedOrder.value) return
-  
-  processingOrderId.value = selectedOrder.value.id
-  
-  setTimeout(() => {
-    // 模拟 API 调用
-    orders.value = orders.value.map(o => 
-      o.id === selectedOrder.value.id 
-        ? { 
-            ...o, 
-            status: 'completed',
-            completionNotes: completionNotes.value,
-            completedAt: new Date().toISOString(),
-            timeline: [
-              ...(o.timeline || []).slice(0, -1),
-              { icon: '✅', title: '服务完成', time: '刚刚完成', completed: true, active: true }
-            ]
-          }
-        : o
-    )
-    
+
+  try {
+    processingOrderId.value = selectedOrder.value.id
+
+    const response = await sitterService.completeOrder(selectedOrder.value.id, {
+      completionNotes: completionNotes.value
+    })
+
+    if (response.success) {
+      showOperationResult('success', '订单已完成！等待客户确认和评价。')
+
+      // 刷新订单数据
+      await fetchOrders(activeStatus.value)
+
+      showCompleteDialogFlag.value = false
+      selectedOrder.value = null
+      completionNotes.value = ''
+    } else {
+      showOperationResult('error', response.message || '完成订单失败')
+    }
+  } catch (error) {
+    console.error('完成订单失败:', error)
+    showOperationResult('error', '完成订单失败: ' + error.message)
+  } finally {
     processingOrderId.value = null
-    showCompleteDialogFlag.value = false
-    selectedOrder.value = null
-    showOperationResult('success', '订单已完成！等待客户确认和评价。')
-    updateFilterCounts()
-  }, 1500)
+  }
 }
 
 // 显示取消订单对话框

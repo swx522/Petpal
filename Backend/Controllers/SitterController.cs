@@ -547,6 +547,43 @@ namespace petpal.API.Controllers
         }
 
         /// <summary>
+        /// 完成订单
+        /// </summary>
+        [HttpPost("orders/complete/{orderId}")]
+        public async Task<IActionResult> CompleteOrder(string orderId, [FromBody] CompleteOrderRequest request = null)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new ApiResponse
+                    {
+                        Success = false,
+                        Message = "用户未认证"
+                    });
+                }
+
+                var order = await _orderService.CompleteOrderAsync(userId, orderId);
+
+                return Ok(new ApiResponse
+                {
+                    Success = true,
+                    Message = "订单已完成",
+                    Data = order
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
         /// 查看用户对单个已完成订单的评价
         /// </summary>
         [HttpGet("orders/feedback/{orderId}")]

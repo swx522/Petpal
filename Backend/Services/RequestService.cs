@@ -301,9 +301,9 @@ namespace petpal.API.Services
                 throw new InvalidOperationException("该需求已被接受或已完成");
             }
 
-            // 暂时跳过进行中状态，直接设置为完成状态，便于调试评价功能
+            // 接单后设置为已接单状态，服务正在进行
             request.SitterId = sitterId; // 记录接单的服务者
-            request.ExecutionStatus = OrderExecutionStatus.Completed;
+            request.ExecutionStatus = OrderExecutionStatus.Accepted;
             request.AcceptedAt = DateTime.Now;
             request.CompletedAt = DateTime.Now; // 同时设置完成时间
 

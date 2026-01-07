@@ -156,12 +156,11 @@ class SitterService {
    */
   async getMyOrders(options = {}) {
     try {
-      const params = {
-        page: options.page || 1,
-        pageSize: options.pageSize || 10,
-        status: options.status,
-        executionStatus: options.executionStatus
-      }
+      const params = {}
+      if (options.page) params.page = options.page
+      if (options.pageSize) params.pageSize = options.pageSize
+      if (options.status) params.status = options.status
+      if (options.executionStatus) params.executionStatus = options.executionStatus
 
       // 使用统一的订单查询接口
       const response = await http.get('/user/orders', params)

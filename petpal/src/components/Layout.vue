@@ -38,18 +38,19 @@
           <span v-if="!isLoggedIn || userRole !== 'Sitter'" class="nav-lock">🔒</span>
         </div>
 
-        <!-- 接单需求 - 仅服务者可见 -->
-        <div 
-          class="nav-item" 
+        <!-- 订单状态 - 仅审核通过的服务者可见 -->
+        <div
+          class="nav-item"
           :class="{
             active: activeNav === '/order',
-            unavailable: !isLoggedIn || userRole !== 'Sitter'
+            unavailable: !isLoggedIn || userRole !== 'Sitter' || !isSitterApproved
           }"
           @click="handleNavClick('/order', 'Sitter')"
         >
-          <i class="icon">🦴</i> 
+          <i class="icon">🦴</i>
           <span>订单状态</span>
           <span v-if="!isLoggedIn || userRole !== 'Sitter'" class="nav-lock">🔒</span>
+          <span v-else-if="userRole === 'Sitter' && !isSitterApproved" class="nav-warning">⚠️</span>
         </div>
         
         <!-- 管理社区 - 仅管理者可见 -->
@@ -220,6 +221,9 @@ const currentPageName = computed(() => {
   return pageMap[route.path] || 'Dashboard'
 })
 
+// 服务者审核状态
+const isSitterApproved = ref(false)
+
 // 角色文本显示
 const roleText = computed(() => {
   const roleMap = {
@@ -231,7 +235,7 @@ const roleText = computed(() => {
 })
 
 // 导航点击处理
-const handleNavClick = (path, requiredRole) => {
+const handleNavClick = async (path, requiredRole) => {
   // 未登录时点击导航项
   if (!isLoggedIn.value) {
     if (confirm('该功能需要登录后才能使用，是否前往登录页面？')) {
@@ -239,7 +243,7 @@ const handleNavClick = (path, requiredRole) => {
     }
     return
   }
-  
+
   // 已登录但角色不匹配
   if (userRole.value !== requiredRole) {
     const roleNameMap = {
@@ -252,8 +256,44 @@ const handleNavClick = (path, requiredRole) => {
     alert(`当前角色"${currentRoleName}"无法访问此功能，仅限"${requiredRoleName}"使用。`)
     return
   }
-  
-  // 角色匹配，跳转到对应页面
+
+  // 对于服务者角色，检查审核状态
+  if (requiredRole === 'Sitter') {
+    try {
+      const auditResponse = await userAPI.getSitterAuditStatus()
+      if (auditResponse.success) {
+        const auditStatus = auditResponse.data.auditStatus
+
+        // 只有审核通过的服务者才能访问订单状态页面
+        if (path === '/order' && auditStatus !== 'Approved') {
+          const statusMessages = {
+            'NotApplied': '您还未申请成为服务者，请先提交服务者资质申请。',
+            'Pending': '您的服务者资质正在审核中，请耐心等待审核结果。',
+            'Resubmitted': '您的补充资料正在审核中，请耐心等待。',
+            'Rejected': '您的服务者资质申请未通过，请查看审核意见并重新提交申请。'
+          }
+
+          const message = statusMessages[auditStatus] || '您的服务者资质审核状态不允许访问此功能。'
+          alert(message)
+
+          // 如果还未申请或审核被拒，引导到接单页面进行申请
+          if (auditStatus === 'NotApplied' || auditStatus === 'Rejected') {
+            router.push('/accept')
+          }
+          return
+        }
+      } else {
+        alert('无法获取审核状态，请稍后重试。')
+        return
+      }
+    } catch (error) {
+      console.error('检查审核状态失败:', error)
+      alert('检查审核状态时发生错误，请稍后重试。')
+      return
+    }
+  }
+
+  // 角色匹配且审核通过（或无需审核），跳转到对应页面
   router.push(path)
 }
 
@@ -301,7 +341,7 @@ const showContactDialog = () => {
 }
 
 // 页面加载时检查登录状态
-onMounted(() => {
+onMounted(async () => {
   // 自动获取用户信息
   if (isLoggedIn.value && !currentUser.value) {
     // 如果有token但没有用户信息，尝试获取用户信息
@@ -312,6 +352,19 @@ onMounted(() => {
     }).catch(error => {
       console.error('获取用户信息失败:', error)
     })
+  }
+
+  // 如果用户是服务者，检查审核状态
+  if (isLoggedIn.value && userRole.value === 'Sitter') {
+    try {
+      const auditResponse = await userAPI.getSitterAuditStatus()
+      if (auditResponse.success) {
+        isSitterApproved.value = auditResponse.data.auditStatus === 'Approved'
+      }
+    } catch (error) {
+      console.error('获取服务者审核状态失败:', error)
+      isSitterApproved.value = false
+    }
   }
 })
 
@@ -437,6 +490,12 @@ watch(() => route.path, () => {
   margin-left: auto;
   font-size: 14px;
   color: #94a3b8;
+}
+
+.nav-warning {
+  margin-left: auto;
+  font-size: 14px;
+  color: #f59e0b;
 }
 
 /* 用户等级显示角色 */

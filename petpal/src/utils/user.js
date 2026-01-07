@@ -244,5 +244,41 @@ async updateLocation(data) {
       return updatedUser
     }
     return null
+  },
+
+  // 获取服务者审核状态
+  async getSitterAuditStatus() {
+    try {
+      return await http.get('/sitter/audit/status')
+    } catch (error) {
+      console.error('获取审核状态失败:', error)
+      return {
+        success: false,
+        message: error.message || '获取审核状态失败'
+      }
+    }
+  },
+
+  // 获取用户订单（根据角色返回不同订单）
+  async getUserOrders(filters = {}) {
+    try {
+      const queryParams = new URLSearchParams()
+
+      // 添加筛选参数
+      if (filters.status) queryParams.append('status', filters.status)
+      if (filters.page) queryParams.append('page', filters.page.toString())
+      if (filters.pageSize) queryParams.append('pageSize', filters.pageSize.toString())
+
+      const queryString = queryParams.toString()
+      const url = `/user/orders${queryString ? '?' + queryString : ''}`
+
+      return await http.get(url)
+    } catch (error) {
+      console.error('获取用户订单失败:', error)
+      return {
+        success: false,
+        message: error.message || '获取订单失败'
+      }
+    }
   }
 }

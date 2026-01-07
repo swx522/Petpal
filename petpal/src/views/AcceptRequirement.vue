@@ -636,9 +636,12 @@ const loading = ref(true)
 const loadingFeedbacks = ref(true)
 const accepting = ref(false)
 const showDialog = ref(false)
+const showAcceptedOrders = ref(true)
+const showCompleteDialog = ref(false)
 const errorMessage = ref('')
 const operationResult = ref(null)
 const requirements = ref([])
+const acceptedOrders = ref([])
 const feedbacks = ref([])
 const selectedRequirement = ref({})
 const selectedServiceType = ref('')
@@ -840,16 +843,17 @@ const loadData = async () => {
   try {
     loading.value = true
     errorMessage.value = ''
-    
+
+    // 加载可用的需求列表
     const filters = {
       type: selectedServiceType.value,
       page: pagination.value.page,
       pageSize: pagination.value.pageSize
     }
-    
+
     const response = await sitterService.getAvailableRequests(filters)
     if (response.success) {
-      requirements.value = response.data.requests.map(req => 
+      requirements.value = response.data.requests.map(req =>
         sitterService.formatRequestData(req)
       )
       pagination.value = {
@@ -861,10 +865,31 @@ const loadData = async () => {
     } else {
       errorMessage.value = response.message || '加载需求列表失败'
     }
+
+    // 加载已接受的订单
+    try {
+      const acceptedResponse = await sitterService.getMyOrders({
+        page: 1,
+        pageSize: 20, // 显示更多已接受的订单
+        executionStatus: 'Accepted' // 只获取已接受但未完成的订单
+      })
+
+      if (acceptedResponse.success) {
+        acceptedOrders.value = acceptedResponse.data.orders || []
+      } else {
+        console.warn('加载已接受订单失败:', acceptedResponse.message)
+        acceptedOrders.value = []
+      }
+    } catch (acceptedError) {
+      console.error('加载已接受订单异常:', acceptedError)
+      acceptedOrders.value = []
+    }
+
   } catch (error) {
     console.error('加载数据失败:', error)
     errorMessage.value = sitterService.handleApiError(error)
     requirements.value = []
+    acceptedOrders.value = []
   } finally {
     loading.value = false
   }

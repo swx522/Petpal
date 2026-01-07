@@ -28,6 +28,7 @@ namespace petpal.API.Services
         {
             var query = _context.MutualOrders
                 .Include(o => o.Owner)
+                .Include(o => o.Community)
                 .Where(o => o.OwnerId == userId);
 
             if (filters.Status.HasValue)
@@ -54,6 +55,7 @@ namespace petpal.API.Services
         {
             var query = _context.MutualOrders
                 .Include(o => o.Owner)
+                .Include(o => o.Community)
                 .Where(o => o.SitterId == sitterId);
 
             if (filters.Status.HasValue)

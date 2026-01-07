@@ -16,6 +16,8 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5173,
+    strictPort: true, // 严格使用指定端口，不自动寻找可用端口
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5002',

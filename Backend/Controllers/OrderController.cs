@@ -614,6 +614,14 @@ namespace petpal.API.Controllers
                     acceptedAt = o.AcceptedAt,
                     completedAt = o.CompletedAt,
                     orderNumber = $"OD{o.CreatedAt:yyyyMMdd}{o.Id.Substring(0, 4).ToUpper()}",
+                    community = o.Community != null ? new
+                    {
+                        id = o.Community.Id,
+                        name = o.Community.Name,
+                        description = o.Community.Description,
+                        centerLng = (o.Community.MinLng + o.Community.MaxLng) / 2,
+                        centerLat = (o.Community.MinLat + o.Community.MaxLat) / 2
+                    } : null,
                     owner = user.Role == UserRole.Sitter ? new
                     {
                         id = o.Owner?.Id,

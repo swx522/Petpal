@@ -126,6 +126,38 @@
                 </span>
                 <span class="detail-value">{{ order.requirements }}</span>
               </div>
+
+              <!-- 社区信息 -->
+              <div v-if="order.community" class="detail-item">
+                <span class="detail-label">
+                  <span class="detail-icon">🏘️</span>
+                  服务社区:
+                </span>
+                <span class="detail-value">
+                  {{ order.community.name }}
+                  <button
+                    @click="toggleMapView(order.id)"
+                    class="map-toggle-btn"
+                    :class="{ active: expandedMapOrder === order.id }"
+                  >
+                    <span class="map-icon">🗺️</span>
+                    {{ expandedMapOrder === order.id ? '收起地图' : '查看地图' }}
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <!-- 地图展开区域 -->
+            <div v-if="expandedMapOrder === order.id && order.community" class="map-container">
+              <div class="map-header">
+                <h4>{{ order.community.name }} 位置</h4>
+                <p v-if="order.community.description" class="community-description">
+                  {{ order.community.description }}
+                </p>
+              </div>
+              <div class="map-content" :id="`map-${order.id}`" :ref="`map-${order.id}`">
+                <!-- 地图将在组件挂载时初始化 -->
+              </div>
             </div>
           </div>
           
@@ -175,9 +207,14 @@
           </div>
           <h3>{{ getEmptyMessage(activeStatus) }}</h3>
           <p>{{ getEmptyDescription(activeStatus) }}</p>
-          <button v-if="activeStatus !== 'all'" class="back-to-all" @click="activeStatus = 'all'">
-            查看所有订单
-          </button>
+          <div class="empty-actions">
+            <button v-if="activeStatus === 'all'" class="go-to-accept" @click="goToAcceptOrders">
+              🦴 前往接单
+            </button>
+            <button v-if="activeStatus !== 'all'" class="back-to-all" @click="activeStatus = 'all'">
+              查看所有订单
+            </button>
+          </div>
         </div>
       </div>
       
@@ -436,65 +473,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { userAPI } from '@/utils/user.js'
 
-// 模拟数据
-const mockOrders = [
-  {
-    id: '1',
-    orderId: 'ORD20231215001',
-    title: '帮可爱的小柯基散步',
-    serviceType: '遛狗服务',
-    petName: '布丁',
-    petType: '柯基犬',
-    petEmoji: '🐕',
-    price: 60,
-    location: '朝阳区三里屯',
-    distance: '2.5',
-    serviceTime: '2023-12-15T15:00:00',
-    customerName: '张女士',
-    customerRating: '4.8',
-    requirements: '需要携带水壶，避免剧烈运动',
-    status: 'pending',
-    acceptedAt: '2023-12-14T10:30:00',
-    urgency: false,
-    timeline: [
-      { icon: '📝', title: '订单创建', time: '12-14 09:15', completed: true, active: false },
-      { icon: '👍', title: '您已接单', time: '12-14 10:30', completed: true, active: false },
-      { icon: '⏳', title: '等待开始', time: '预计 12-15 15:00', completed: false, active: true }
-    ]
-  },
-  {
-    id: '3',
-    orderId: 'ORD20231213003',
-    title: '波斯猫喂食照顾',
-    serviceType: '喂食照顾',
-    petName: '咪咪',
-    petType: '波斯猫',
-    petEmoji: '🐈',
-    price: 80,
-    location: '东城区王府井',
-    distance: '1.8',
-    serviceTime: '2023-12-13T18:00:00',
-    customerName: '王女士',
-    customerRating: '4.7',
-    requirements: '添加营养膏，清理猫砂盆',
-    status: 'completed',
-    acceptedAt: '2023-12-12T11:45:00',
-    hasFeedback: true,
-    rating: '4.5',
-    timeline: [
-      { icon: '📝', title: '订单创建', time: '12-12 10:00', completed: true, active: false },
-      { icon: '👍', title: '您已接单', time: '12-12 11:45', completed: true, active: false },
-      { icon: '🚀', title: '服务开始', time: '12-13 18:00', completed: true, active: false },
-      { icon: '✅', title: '服务完成', time: '12-13 20:30', completed: true, active: true }
-    ]
-  },
-]
+const router = useRouter()
 
-// 状态管理
+// 订单数据和状态
+const orders = ref([])
 const loading = ref(false)
-const orders = ref([...mockOrders])
+const error = ref(null)
+
+// 调试信息
+console.log('🔧 SitterOrders.vue 初始化开始')
 const activeStatus = ref('all')
 const sortBy = ref('time')
 const showCompleteDialogFlag = ref(false)
@@ -503,6 +494,10 @@ const showOrderDetail = ref(false)
 const selectedOrder = ref(null)
 const processingOrderId = ref(null)
 const operationResult = ref(null)
+
+// 地图相关状态
+const expandedMapOrder = ref(null)
+const mapInstances = ref(new Map())
 
 // 完成订单相关状态
 const completionNotes = ref('')
@@ -523,15 +518,15 @@ const cancelExplanation = ref('')
 const pagination = ref({
   page: 1,
   pageSize: 10,
-  totalItems: mockOrders.length,
+  totalItems: 0,
   totalPages: 1
 })
 
 // 筛选器
 const statusFilters = ref([
-  { id: 'all', label: '全部订单', icon: '📋', count: mockOrders.length },
-  { id: 'pending', label: '待完成', icon: '⏳', count: mockOrders.filter(o => o.status === 'pending').length },
-  { id: 'completed', label: '已完成', icon: '✅', count: mockOrders.filter(o => o.status === 'completed').length },
+  { id: 'all', label: '全部订单', icon: '📋', count: 0 },
+  { id: 'pending', label: '待完成', icon: '⏳', count: 0 },
+  { id: 'completed', label: '已完成', icon: '✅', count: 0 },
 ])
 
 // 取消原因选项
@@ -587,9 +582,270 @@ const canCompleteOrder = computed(() => {
 })
 
 // 初始化
-onMounted(() => {
-  // 更新统计数据
+// 获取服务者订单数据
+const fetchOrders = async (statusFilter = null) => {
+  loading.value = true
+  error.value = null
+
+  try {
+    const filters = {}
+    if (statusFilter && statusFilter !== 'all') {
+      filters.status = statusFilter
+    }
+
+    console.log('🔄 正在获取订单数据...', { statusFilter, filters })
+    const response = await userAPI.getUserOrders(filters)
+
+    if (response.success) {
+      // 转换后端数据格式为前端需要的格式
+      const transformedOrders = response.data.orders.map(order => ({
+        id: order.id,
+        orderId: order.orderNumber,
+        title: order.title,
+        serviceType: order.serviceType,
+        petType: order.petType,
+        petName: '宠物', // 后端数据中可能没有宠物名字，先用默认值
+        petEmoji: order.petType === 'Dog' ? '🐕' : order.petType === 'Cat' ? '🐈' : '🐾',
+        serviceTime: order.startTime,
+        startTime: order.startTime,
+        endTime: order.endTime,
+        status: order.status.toLowerCase(),
+        executionStatus: order.executionStatus.toLowerCase(),
+        createdAt: order.createdAt,
+        acceptedAt: order.acceptedAt,
+        completedAt: order.completedAt,
+        customerName: order.owner?.name || '宠物主人',
+        customerPhone: order.owner?.phone,
+        timeline: generateTimeline(order),
+        location: '位置信息待完善', // 后端暂时没有详细地址
+        requirements: order.title, // 暂时用标题作为需求描述
+        community: order.community ? {
+          id: order.community.id,
+          name: order.community.name,
+          description: order.community.description,
+          centerLng: order.community.centerLng,
+          centerLat: order.community.centerLat
+        } : null
+      }))
+
+      orders.value = transformedOrders
+      console.log('✅ 订单数据获取成功，共', transformedOrders.length, '个订单')
+
+      // 更新筛选器计数
+      updateFilterCounts()
+    } else {
+      error.value = response.message || '获取订单失败'
+      console.error('❌ 获取订单失败:', response.message)
+    }
+  } catch (err) {
+    error.value = err.message || '网络错误'
+    console.error('❌ 获取订单数据失败:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 生成订单时间线
+const generateTimeline = (order) => {
+  const timeline = []
+
+  // 订单创建
+  if (order.createdAt) {
+    timeline.push({
+      icon: '📝',
+      title: '订单创建',
+      time: formatDateTime(order.createdAt),
+      completed: true,
+      active: false
+    })
+  }
+
+  // 接单时间
+  if (order.acceptedAt) {
+    timeline.push({
+      icon: '👍',
+      title: '您已接单',
+      time: formatDateTime(order.acceptedAt),
+      completed: true,
+      active: false
+    })
+  }
+
+  // 服务开始（简化逻辑）
+  if (order.startTime && new Date(order.startTime) <= new Date()) {
+    timeline.push({
+      icon: '🚀',
+      title: '服务开始',
+      time: formatDateTime(order.startTime),
+      completed: true,
+      active: order.status.toLowerCase() === 'in_progress'
+    })
+  } else if (order.startTime) {
+    timeline.push({
+      icon: '⏳',
+      title: '等待开始',
+      time: `预计 ${formatDateTime(order.startTime)}`,
+      completed: false,
+      active: order.status.toLowerCase() === 'pending'
+    })
+  }
+
+  // 服务完成
+  if (order.completedAt) {
+    timeline.push({
+      icon: '✅',
+      title: '服务完成',
+      time: formatDateTime(order.completedAt),
+      completed: true,
+      active: order.status.toLowerCase() === 'completed'
+    })
+  }
+
+  return timeline
+}
+
+// 格式化日期时间
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return ''
+  const date = new Date(dateTime)
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${month}-${day} ${hours}:${minutes}`
+}
+
+// 前往接单页面
+const goToAcceptOrders = () => {
+  router.push('/accept')
+}
+
+// 监听状态筛选变化
+watch(activeStatus, async (newStatus) => {
+  console.log('状态筛选变化:', newStatus)
+  await fetchOrders(newStatus)
+})
+
+// 地图相关函数
+const toggleMapView = async (orderId) => {
+  if (expandedMapOrder.value === orderId) {
+    // 收起地图
+    expandedMapOrder.value = null
+    // 清理地图实例
+    const mapInstance = mapInstances.value.get(orderId)
+    if (mapInstance) {
+      mapInstance.destroy()
+      mapInstances.value.delete(orderId)
+    }
+  } else {
+    // 展开地图
+    expandedMapOrder.value = orderId
+    // 延迟初始化地图，确保DOM已渲染
+    await nextTick()
+    await initializeMap(orderId)
+  }
+}
+
+const initializeMap = async (orderId) => {
+  try {
+    const order = orders.value.find(o => o.id === orderId)
+    if (!order || !order.community) return
+
+    // 获取地图容器
+    const mapContainer = document.getElementById(`map-${orderId}`)
+    if (!mapContainer) return
+
+    // 初始化高德地图
+    const map = new window.AMap.Map(`map-${orderId}`, {
+      center: [order.community.centerLng, order.community.centerLat],
+      zoom: 15,
+      resizeEnable: true
+    })
+
+    // 添加标记
+    const marker = new window.AMap.Marker({
+      position: [order.community.centerLng, order.community.centerLat],
+      title: order.community.name
+    })
+
+    map.add(marker)
+
+    // 保存地图实例
+    mapInstances.value.set(orderId, map)
+
+    console.log(`🗺️ 地图初始化完成: ${order.community.name}`)
+  } catch (error) {
+    console.error('地图初始化失败:', error)
+  }
+}
+
+// 页面卸载时清理地图实例
+onUnmounted(() => {
+  mapInstances.value.forEach(map => {
+    map.destroy()
+  })
+  mapInstances.value.clear()
+})
+
+onMounted(async () => {
+  console.log('🔄 onMounted 执行开始')
+
+  try {
+    // 检查服务者审核状态
+    console.log('🔍 开始检查审核状态')
+    const auditResponse = await userAPI.getSitterAuditStatus()
+
+    if (auditResponse.success) {
+      const auditStatus = auditResponse.data.auditStatus
+      console.log('✅ 审核状态:', auditStatus)
+
+      // 如果审核未通过，跳转到接单页面
+      if (auditStatus !== 'Approved') {
+        const statusMessages = {
+          'NotApplied': '您还未申请成为服务者，请先提交服务者资质申请。',
+          'Pending': '您的服务者资质正在审核中，请耐心等待审核结果。',
+          'Resubmitted': '您的补充资料正在审核中，请耐心等待。',
+          'Rejected': '您的服务者资质申请未通过，请查看审核意见并重新提交申请。'
+        }
+
+        const message = statusMessages[auditStatus] || '您的服务者资质审核状态不允许访问此页面。'
+        alert(message)
+
+        // 跳转到接单页面
+        router.push('/accept')
+        return
+      }
+    } else {
+      alert('无法获取审核状态，请稍后重试。')
+      router.push('/accept')
+      return
+    }
+
+    // 审核通过，获取订单数据
+    console.log('📦 开始获取订单数据')
+    await fetchOrders()
+    updateFilterCounts()
+    console.log('✅ onMounted 执行完成')
+  } catch (error) {
+    console.error('❌ onMounted 执行失败:', error)
+    alert('页面加载失败，请刷新重试。')
+  }
+})
+
+// 页面重新激活时刷新数据（用户从其他页面返回时）
+onActivated(async () => {
+  console.log('🔄 检测到页面重新激活，正在刷新订单数据...')
+
+  // 显示一个轻量的加载提示
+  const wasLoading = loading.value
+  if (!wasLoading) {
+    loading.value = true
+  }
+
+  await fetchOrders(activeStatus.value)
   updateFilterCounts()
+
+  console.log('✅ 订单数据已更新')
 })
 
 // 更新筛选器计数
@@ -616,7 +872,7 @@ const getStatusText = (status) => {
 // 无订单提示消息
 const getEmptyMessage = (status) => {
   const messages = {
-    'all': '暂无订单记录',
+    'all': '您目前没有订单',
     'pending': '暂无待完成订单',
     'in_progress': '暂无进行中订单',
     'completed': '暂无已完成订单',
@@ -627,7 +883,7 @@ const getEmptyMessage = (status) => {
 
 const getEmptyDescription = (status) => {
   const descriptions = {
-    'all': '快去接单开启您的宠物服务之旅吧！',
+    'all': '您还没有接受任何订单，前往接单页面开始您的宠物服务吧！',
     'pending': '待完成的订单会显示在这里',
     'in_progress': '正在服务的订单会显示在这里',
     'completed': '已完成的订单会显示在这里',
@@ -647,16 +903,6 @@ const formatDate = (dateString) => {
   })
 }
 
-const formatDateTime = (dateString) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).replace(',', '')
-}
 
 // 开始订单
 const startOrder = (order) => {
@@ -1566,6 +1812,32 @@ const showOperationResult = (type, message) => {
   margin-bottom: 20px;
 }
 
+.empty-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.go-to-accept {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.go-to-accept:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
 .back-to-all {
   padding: 10px 24px;
   background: #22c55e;
@@ -2355,6 +2627,67 @@ const showOperationResult = (type, message) => {
   color: #475569;
   margin-bottom: 15px;
   font-weight: 600;
+}
+
+/* 地图相关样式 */
+.map-toggle-btn {
+  margin-left: 8px;
+  padding: 4px 8px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-toggle-btn:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  transform: translateY(-1px);
+}
+
+.map-toggle-btn.active {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.map-toggle-btn.active:hover {
+  background: linear-gradient(135deg, #b91c1c, #991b1b);
+}
+
+.map-container {
+  margin-top: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.map-header {
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.map-header h4 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.community-description {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.map-content {
+  height: 300px;
+  width: 100%;
 }
 
 /* 响应式设计 */

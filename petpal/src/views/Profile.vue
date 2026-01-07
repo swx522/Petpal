@@ -69,10 +69,6 @@
                 <span class="community-label">社区名称</span>
                 <span class="community-value">{{ currentCommunityName }}</span>
               </div>
-              <div class="community-item">
-                <span class="community-label">社区成员</span>
-                <span class="community-value">{{ currentMemberCount }}人</span>
-              </div>
               <div class="community-item" v-if="currentCommunityDescription">
                 <span class="community-label">社区描述</span>
                 <span class="community-value description">{{ currentCommunityDescription }}</span>
@@ -636,7 +632,6 @@ const findNearbyCommunity = async () => {
       const confirmJoin = confirm(
         `找到附近社区：${community.name}\n` +
         `描述：${community.description || '暂无描述'}\n` +
-        `成员数：${community.memberCount || 0}人\n\n` +
         `是否加入该社区？`
       )
       

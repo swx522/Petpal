@@ -80,7 +80,8 @@ namespace petpal.API.Models.DTOs
                 Sitter = order.Sitter?.ToUserSimpleDto(),
                 Longitude = order.Longitude,
                 Latitude = order.Latitude,
-                Distance = order.Distance
+                Distance = order.Distance,
+                CommunityName = order.Community != null ? order.Community.Name : "未知社区"
             };
         }
 

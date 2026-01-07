@@ -71,7 +71,7 @@
         <div
           class="nav-item"
           :class="{ active: activeNav === '/chats', unavailable: !isLoggedIn }"
-          @click="() => { if (!isLoggedIn) { if (confirm('需要登录，是否前往登录？')) router.push('/login') } else goToChats() }"
+          @click="handleChatsClick"
         >
           <i class="icon">💬</i>
           <span>消息</span>
@@ -250,11 +250,9 @@ const roleText = computed(() => {
 
 // 导航点击处理
 const handleNavClick = async (path, requiredRole) => {
-  // 未登录时点击导航项
+  // 未登录时点击导航项 —— 直接跳转登录，无二次确认
   if (!isLoggedIn.value) {
-    if (confirm('该功能需要登录后才能使用，是否前往登录页面？')) {
-      router.push('/login')
-    }
+    router.push('/login')
     return
   }
 
@@ -314,12 +312,11 @@ const handleNavClick = async (path, requiredRole) => {
 // 个人主页按钮点击处理
 const handleProfileClick = () => {
   if (!isLoggedIn.value) {
-    if (confirm('个人主页需要登录后才能查看，是否前往登录页面？')) {
-      router.push('/login')
-    }
+    // 直接前往登录页面（去除确认提示）
+    router.push('/login')
     return
   }
-  
+
   // 已登录，跳转到个人主页
   goToProfile()
 }
@@ -337,8 +334,16 @@ const handleUserPillClick = () => {
 
 // 显示已登录提示信息
 const showLoggedInMessage = () => {
-  if (confirm(`您已登录为：${userName.value} (${roleText.value})\n\n是否前往个人主页？`)) {
-    goToProfile()
+  // 直接前往个人主页（去除确认提示）
+  goToProfile()
+}
+
+// 点击消息导航的处理（去除确认提示）
+const handleChatsClick = () => {
+  if (!isLoggedIn.value) {
+    router.push('/login')
+  } else {
+    goToChats()
   }
 }
 

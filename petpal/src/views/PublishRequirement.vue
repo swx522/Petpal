@@ -740,12 +740,22 @@ const addMapMarker = (longitude, latitude) => {
 // API调用方法
 const loadInitialData = async () => {
   try {
+    // 先加载会影响模板渲染的数据，确保地图容器被渲染
     await Promise.all([
       loadPetTypes(),
-      loadServiceCategories(),
+      loadServiceCategories()
+    ])
+
+    // 等待DOM更新，确保地图容器可见
+    await nextTick()
+
+    // 初始化地图（在模板渲染后执行）
+    await initializeMap()
+
+    // 其他数据并行加载
+    await Promise.all([
       loadPendingReviews(),
-      loadMyOrders(), // 新增：加载我的订单
-      initializeMap() // 初始化地图
+      loadMyOrders()
     ])
   } catch (error) {
     console.error('初始化数据失败:', error)

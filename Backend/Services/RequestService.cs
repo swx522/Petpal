@@ -188,6 +188,8 @@ namespace petpal.API.Services
                         RoleName = o.Sitter.Role.ToString(),
                         ReputationScore = o.Sitter.ReputationScore
                     } : null
+                    ,
+                    CommunityName = o.Community != null ? o.Community.Name : "未知社区"
                 })
                 .ToListAsync();
 
@@ -305,7 +307,7 @@ namespace petpal.API.Services
             request.SitterId = sitterId; // 记录接单的服务者
             request.ExecutionStatus = OrderExecutionStatus.Accepted;
             request.AcceptedAt = DateTime.Now;
-            request.CompletedAt = DateTime.Now; // 同时设置完成时间
+            // 注意：CompletedAt 应在服务实际完成时设置，这里不应设置 CompletedAt
 
             await _context.SaveChangesAsync();
 

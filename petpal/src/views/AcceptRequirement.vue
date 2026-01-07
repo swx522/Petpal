@@ -455,6 +455,12 @@
                 <span class="info-value">{{ selectedRequirement.publisher }}</span>
               </div>
               <div class="info-row">
+                <span class="info-label">联系方式：</span>
+                <span class="info-value">
+                  <a :href="`tel:${selectedRequirement.publisherPhone}`">{{ selectedRequirement.publisherPhone || '无' }}</a>
+                </span>
+              </div>
+              <div class="info-row">
                 <span class="info-label">距离：</span>
                 <span class="info-value">{{ selectedRequirement.distance.toFixed(1) }}km</span>
               </div>

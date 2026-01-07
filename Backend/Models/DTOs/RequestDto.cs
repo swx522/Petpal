@@ -83,6 +83,11 @@ namespace petpal.API.Models.DTOs
         /// 与用户的距离（公里）
         /// </summary>
         public double? Distance { get; set; }
+        
+        /// <summary>
+        /// 所属社区名称（如果无法识别则为 "未知社区"）
+        /// </summary>
+        public string CommunityName { get; set; }
     }
 
     /// <summary>

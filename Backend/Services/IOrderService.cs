@@ -113,6 +113,7 @@ namespace petpal.API.Services
     {
         public OrderStatus? Status { get; set; }
         public OrderExecutionStatus? ExecutionStatus { get; set; }
+        public string? StatusFilter { get; set; } // 前端筛选状态：'pending', 'completed', 'all'
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

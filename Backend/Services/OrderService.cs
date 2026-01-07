@@ -41,6 +41,27 @@ namespace petpal.API.Services
                 query = query.Where(o => o.ExecutionStatus == filters.ExecutionStatus.Value);
             }
 
+            // 前端状态筛选
+            if (!string.IsNullOrEmpty(filters.StatusFilter))
+            {
+                switch (filters.StatusFilter.ToLower())
+                {
+                    case "pending":
+                        // 待完成：包括 Open（待接单）和 Accepted（已接单，正在进行）
+                        query = query.Where(o => o.ExecutionStatus == OrderExecutionStatus.Open ||
+                                                 o.ExecutionStatus == OrderExecutionStatus.Accepted);
+                        break;
+                    case "completed":
+                        // 已完成：Completed 状态
+                        query = query.Where(o => o.ExecutionStatus == OrderExecutionStatus.Completed);
+                        break;
+                    case "all":
+                    default:
+                        // 不添加额外筛选
+                        break;
+                }
+            }
+
             return await query
                 .OrderByDescending(o => o.CreatedAt)
                 .Skip((filters.Page - 1) * filters.PageSize)
@@ -66,6 +87,27 @@ namespace petpal.API.Services
             if (filters.ExecutionStatus.HasValue)
             {
                 query = query.Where(o => o.ExecutionStatus == filters.ExecutionStatus.Value);
+            }
+
+            // 前端状态筛选
+            if (!string.IsNullOrEmpty(filters.StatusFilter))
+            {
+                switch (filters.StatusFilter.ToLower())
+                {
+                    case "pending":
+                        // 待完成：包括 Open（待接单）和 Accepted（已接单，正在进行）
+                        query = query.Where(o => o.ExecutionStatus == OrderExecutionStatus.Open ||
+                                                 o.ExecutionStatus == OrderExecutionStatus.Accepted);
+                        break;
+                    case "completed":
+                        // 已完成：Completed 状态
+                        query = query.Where(o => o.ExecutionStatus == OrderExecutionStatus.Completed);
+                        break;
+                    case "all":
+                    default:
+                        // 不添加额外筛选
+                        break;
+                }
             }
 
             return await query
@@ -253,7 +295,7 @@ namespace petpal.API.Services
             }
 
             // 检查权限：只有订单参与者可以完成订单
-            if (order.OwnerId != userId /* && 不是服务者 */)
+            if (order.OwnerId != userId && order.SitterId != userId)
             {
                 throw new UnauthorizedAccessException("无权限完成此订单");
             }

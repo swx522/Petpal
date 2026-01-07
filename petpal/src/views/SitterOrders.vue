@@ -175,7 +175,7 @@
             </div>
             
             <!-- 已完成订单操作 -->
-            <div v-else-if="order.status === 'completed'" class="action-buttons">
+            <div v-else-if="order.executionStatus === 'completed'" class="action-buttons">
               <button 
                 v-if="!order.hasFeedback"
                 class="action-btn feedback-btn"
@@ -545,10 +545,10 @@ const stats = computed(() => {
   const allOrders = orders.value
   return {
     total: allOrders.length,
-    pending: allOrders.filter(o => o.status === 'pending').length,
-    inProgress: allOrders.filter(o => o.status === 'in_progress').length,
-    completed: allOrders.filter(o => o.status === 'completed').length,
-    cancelled: allOrders.filter(o => o.status === 'cancelled').length
+    pending: allOrders.filter(o => o.executionStatus === 'pending' || o.executionStatus === 'in_progress').length,
+    inProgress: allOrders.filter(o => o.executionStatus === 'in_progress').length,
+    completed: allOrders.filter(o => o.executionStatus === 'completed').length,
+    cancelled: allOrders.filter(o => o.executionStatus === 'cancelled').length
   }
 })
 
@@ -558,7 +558,11 @@ const filteredOrders = computed(() => {
   
   // 状态筛选
   if (activeStatus.value !== 'all') {
-    filtered = filtered.filter(order => order.status === activeStatus.value)
+    if (activeStatus.value === 'pending') {
+      filtered = filtered.filter(order => order.executionStatus === 'pending' || order.executionStatus === 'in_progress')
+    } else {
+      filtered = filtered.filter(order => order.executionStatus === activeStatus.value)
+    }
   }
   
   // 排序
@@ -613,7 +617,11 @@ const fetchOrders = async (statusFilter = null) => {
         endTime: order.endTime,
         status: typeof order.status === 'string' ? order.status.toLowerCase() : String(order.status).toLowerCase(),
         executionStatus: (typeof order.executionStatus === 'string')
-          ? order.executionStatus.toLowerCase()
+          ? (order.executionStatus.toLowerCase() === 'accepted' ? 'in_progress'
+            : order.executionStatus.toLowerCase() === 'completed' ? 'completed'
+            : order.executionStatus.toLowerCase() === 'open' ? 'pending'
+            : order.executionStatus.toLowerCase() === 'cancelled' ? 'cancelled'
+            : order.executionStatus.toLowerCase())
           : (order.executionStatus === 1 ? 'in_progress'
             : order.executionStatus === 2 ? 'completed'
             : order.executionStatus === 0 ? 'pending'
@@ -686,7 +694,7 @@ const generateTimeline = (order) => {
       title: '服务开始',
       time: formatDateTime(order.startTime),
       completed: true,
-      active: order.status.toLowerCase() === 'in_progress'
+      active: order.executionStatus === 'in_progress'
     })
   } else if (order.startTime) {
     timeline.push({
@@ -694,7 +702,7 @@ const generateTimeline = (order) => {
       title: '等待开始',
       time: `预计 ${formatDateTime(order.startTime)}`,
       completed: false,
-      active: order.status.toLowerCase() === 'pending'
+      active: order.executionStatus === 'pending'
     })
   }
 
@@ -705,7 +713,7 @@ const generateTimeline = (order) => {
       title: '服务完成',
       time: formatDateTime(order.completedAt),
       completed: true,
-      active: order.status.toLowerCase() === 'completed'
+      active: order.executionStatus === 'completed'
     })
   }
 
@@ -860,9 +868,11 @@ onActivated(async () => {
 const updateFilterCounts = () => {
   statusFilters.value = statusFilters.value.map(filter => ({
     ...filter,
-    count: filter.id === 'all' 
-      ? orders.value.length 
-      : orders.value.filter(o => o.status === filter.id).length
+    count: filter.id === 'all'
+      ? orders.value.length
+      : filter.id === 'pending'
+      ? orders.value.filter(o => o.executionStatus === 'pending' || o.executionStatus === 'in_progress').length
+      : orders.value.filter(o => o.executionStatus === filter.id).length
   }))
 }
 

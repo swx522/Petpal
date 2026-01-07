@@ -265,7 +265,7 @@ async updateLocation(data) {
       const queryParams = new URLSearchParams()
 
       // 添加筛选参数
-      if (filters.status) queryParams.append('status', filters.status)
+      if (filters.status) queryParams.append('statusFilter', filters.status)
       if (filters.page) queryParams.append('page', filters.page.toString())
       if (filters.pageSize) queryParams.append('pageSize', filters.pageSize.toString())
 

@@ -133,7 +133,10 @@ export const createRequest = async (data) => {
       serviceType: data.serviceType,
       startTime: data.startTime,
       endTime: data.endTime,
-      description: data.description
+      description: data.description,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      address: data.address
     })
   } catch (error) {
     console.error('发布需求失败:', error)

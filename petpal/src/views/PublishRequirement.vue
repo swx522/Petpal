@@ -180,6 +180,61 @@
           </div>
         </div>
 
+        <!-- 服务位置 -->
+        <div class="form-section">
+          <h4>服务位置 *</h4>
+          <div class="location-options">
+            <!-- 同步当前位置选项 -->
+            <div class="location-option"
+                 :class="{ active: publishData.locationMode === 'sync' }"
+                 @click="selectLocationMode('sync')">
+              <div class="option-icon">📍</div>
+              <div class="option-content">
+                <h5>同步当前位置</h5>
+                <p>使用您当前的位置信息</p>
+                <div v-if="publishData.locationMode === 'sync'" class="location-info">
+                  <div v-if="userLocation" class="location-address">
+                    📍 {{ userLocation.address || '位置已获取' }}
+                  </div>
+                  <div v-else class="location-loading">
+                    <span class="mini-spinner"></span>
+                    正在获取位置...
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 地图选点选项 -->
+            <div class="location-option"
+                 :class="{ active: publishData.locationMode === 'manual' }"
+                 @click="selectLocationMode('manual')">
+              <div class="option-icon">🗺️</div>
+              <div class="option-content">
+                <h5>地图选点</h5>
+                <p>在地图上选择具体位置</p>
+                <div v-if="publishData.locationMode === 'manual'" class="location-info">
+                  <div v-if="publishData.address" class="location-address">
+                    📍 {{ publishData.address }}
+                  </div>
+                  <div v-else class="location-placeholder">
+                    点击下方地图选择位置
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 地图容器 -->
+          <div v-if="publishData.locationMode === 'manual'" class="map-container">
+            <div id="location-map" class="map-element"></div>
+            <div class="map-instructions">
+              点击地图上的位置来选择服务地点
+            </div>
+          </div>
+
+          <div v-if="validationErrors.location" class="error-message">{{ validationErrors.location }}</div>
+        </div>
+
         <!-- 标题 -->
         <div class="form-section">
           <h4>需求标题 *</h4>
@@ -391,9 +446,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import AMapLoader from '@amap/amap-jsapi-loader'
 import { orderAPI } from '@/utils/order.js'
+import { locationService } from '@/utils/location.js'
 
 // 路由实例
 const router = useRouter()
@@ -422,7 +479,12 @@ const publishData = reactive({
   startTime: '',
   endTime: '',
   description: '',
-  title: ''
+  title: '',
+  // 位置信息
+  locationMode: '', // 'sync' 或 'manual'
+  latitude: null,
+  longitude: null,
+  address: ''
 })
 
 // 表单验证错误
@@ -432,7 +494,8 @@ const validationErrors = reactive({
   startTime: '',
   endTime: '',
   description: '',
-  title: ''
+  title: '',
+  location: ''
 })
 
 // 模态框和状态
@@ -444,6 +507,11 @@ const showReviewSection = ref(true)
 const showMyOrders = ref(true) // 控制是否显示我的订单
 const currentReviewOrder = ref(null)
 const publishedOrder = ref({})
+
+// 位置相关状态
+const userLocation = ref(null)
+const mapInstance = ref(null)
+const mapMarker = ref(null)
 
 // 计算属性
 const minStartTime = computed(() => {
@@ -458,12 +526,15 @@ const timeInterval = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return publishData.petType && 
-         publishData.serviceType && 
-         publishData.startTime && 
-         publishData.endTime && 
-         publishData.title.trim().length >= 3 && 
-         publishData.description.trim().length >= 10
+  return publishData.petType &&
+         publishData.serviceType &&
+         publishData.startTime &&
+         publishData.endTime &&
+         publishData.title.trim().length >= 3 &&
+         publishData.description.trim().length >= 10 &&
+         publishData.locationMode &&
+         ((publishData.locationMode === 'sync' && userLocation) ||
+          (publishData.locationMode === 'manual' && publishData.latitude && publishData.longitude))
 })
 
 // 生命周期
@@ -502,6 +573,141 @@ watch(() => publishData.description, () => {
     validationErrors.description = ''
   }
 })
+
+// =============================
+// 位置选择相关函数
+// =============================
+
+/**
+ * 选择位置模式
+ */
+const selectLocationMode = async (mode) => {
+  publishData.locationMode = mode
+  validationErrors.location = ''
+
+  if (mode === 'sync') {
+    // 同步当前位置
+    await syncCurrentLocation()
+  } else if (mode === 'manual') {
+    // 地图选点
+    await initializeMap()
+  }
+}
+
+/**
+ * 同步当前位置
+ */
+const syncCurrentLocation = async () => {
+  try {
+    userLocation.value = null
+    const position = await locationService.getCurrentPosition()
+
+    userLocation.value = {
+      latitude: position.latitude,
+      longitude: position.longitude,
+      address: position.address || '当前位置'
+    }
+
+    // 设置表单数据
+    publishData.latitude = position.latitude
+    publishData.longitude = position.longitude
+    publishData.address = position.address || '当前位置'
+
+  } catch (error) {
+    console.error('同步位置失败:', error)
+    validationErrors.location = '无法获取您的当前位置，请检查定位权限或选择地图选点'
+    publishData.locationMode = ''
+    userLocation.value = null
+  }
+}
+
+/**
+ * 初始化地图
+ */
+const initializeMap = async () => {
+  try {
+    // 确保地图容器存在
+    await nextTick()
+
+    const mapContainer = document.getElementById('location-map')
+    if (!mapContainer) {
+      console.error('地图容器不存在')
+      return
+    }
+
+    // 初始化地图
+    mapInstance.value = new AMap.Map('location-map', {
+      zoom: 15,
+      center: [116.3974, 39.9093], // 北京坐标作为默认中心
+      resizeEnable: true
+    })
+
+    // 添加点击事件
+    mapInstance.value.on('click', handleMapClick)
+
+    // 如果已经有位置，显示标记
+    if (publishData.latitude && publishData.longitude) {
+      addMapMarker(publishData.longitude, publishData.latitude)
+      mapInstance.value.setCenter([publishData.longitude, publishData.latitude])
+    }
+
+  } catch (error) {
+    console.error('地图初始化失败:', error)
+    validationErrors.location = '地图加载失败，请重试'
+  }
+}
+
+/**
+ * 处理地图点击事件
+ */
+const handleMapClick = async (e) => {
+  const { lnglat } = e
+
+  try {
+    // 逆地理编码获取地址
+    const addressInfo = await locationService.reverseGeocode(lnglat.lng, lnglat.lat)
+
+    // 更新表单数据
+    publishData.latitude = lnglat.lat
+    publishData.longitude = lnglat.lng
+    publishData.address = addressInfo.address || `经度:${lnglat.lng.toFixed(6)}, 纬度:${lnglat.lat.toFixed(6)}`
+
+    // 添加或更新标记
+    addMapMarker(lnglat.lng, lnglat.lat)
+
+    // 清除验证错误
+    validationErrors.location = ''
+
+  } catch (error) {
+    console.error('地址解析失败:', error)
+    // 即使地址解析失败，也保存坐标
+    publishData.latitude = lnglat.lat
+    publishData.longitude = lnglat.lng
+    publishData.address = `经度:${lnglat.lng.toFixed(6)}, 纬度:${lnglat.lat.toFixed(6)}`
+
+    addMapMarker(lnglat.lng, lnglat.lat)
+  }
+}
+
+/**
+ * 添加地图标记
+ */
+const addMapMarker = (longitude, latitude) => {
+  if (!mapInstance.value) return
+
+  // 移除现有标记
+  if (mapMarker.value) {
+    mapInstance.value.remove(mapMarker.value)
+  }
+
+  // 创建新标记
+  mapMarker.value = new AMap.Marker({
+    position: [longitude, latitude],
+    title: '服务位置'
+  })
+
+  mapInstance.value.add(mapMarker.value)
+}
 
 // API调用方法
 const loadInitialData = async () => {
@@ -717,7 +923,10 @@ const submitRequirement = async () => {
       serviceType: publishData.serviceType,
       startTime: publishData.startTime,
       endTime: publishData.endTime,
-      description: publishData.description.trim()
+      description: publishData.description.trim(),
+      latitude: publishData.latitude,
+      longitude: publishData.longitude,
+      address: publishData.address
     }
     
     const response = await orderAPI.createRequest(requestData)
@@ -2415,5 +2624,106 @@ const generateOrderNumber = (orderId, createdAt) => {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+/* 位置选择样式 */
+.location-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.location-option {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+
+.location-option:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.location-option.active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.option-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.option-content h5 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.option-content p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.location-info {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.location-address {
+  font-size: 14px;
+  color: #059669;
+  font-weight: 500;
+}
+
+.location-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.location-placeholder {
+  font-size: 14px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.map-container {
+  margin-top: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-element {
+  height: 300px;
+  width: 100%;
+}
+
+.map-instructions {
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .location-options {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

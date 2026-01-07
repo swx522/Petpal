@@ -200,18 +200,18 @@ namespace petpal.API.Controllers
                     });
                 }
 
-                // 获取用户位置信息
-                if (!user.Longitude.HasValue || !user.Latitude.HasValue)
+                // 验证位置信息
+                if (!request.Latitude.HasValue || !request.Longitude.HasValue)
                 {
                     return BadRequest(new ApiResponse
                     {
                         Success = false,
-                        Message = "请先设置您的位置信息"
+                        Message = "请选择服务位置"
                     });
                 }
 
-                // 根据用户位置查找社区
-                var community = await _geolocationService.FindCommunityByLocationAsync(user.Longitude.Value, user.Latitude.Value);
+                // 根据需求位置查找社区
+                var community = await _geolocationService.FindCommunityByLocationAsync(request.Longitude.Value, request.Latitude.Value);
 
                 // 创建需求（订单）
                 var order = new MutualOrder
@@ -224,8 +224,8 @@ namespace petpal.API.Controllers
                     EndTime = request.EndTime,
                     Description = request.Description,
                     CommunityId = community?.Id,
-                    Longitude = user.Longitude,
-                    Latitude = user.Latitude
+                    Longitude = request.Longitude,
+                    Latitude = request.Latitude
                 };
 
                 _context.MutualOrders.Add(order);
@@ -1104,6 +1104,9 @@ namespace petpal.API.Controllers
             public DateTime StartTime { get; set; }
             public DateTime EndTime { get; set; }
             public string Description { get; set; } = string.Empty;
+            public decimal? Latitude { get; set; }
+            public decimal? Longitude { get; set; }
+            public string Address { get; set; } = string.Empty;
         }
 
         public class SetScheduleRequest

@@ -42,27 +42,34 @@
           class="msg"
           :class="{ me: m.senderId === currentUserId }"
         >
-          <!-- 对方头像 -->
-          <div v-if="m.senderId !== currentUserId" class="msg-avatar">
-            <div class="avatar-placeholder">👤</div>
+          <!-- 列 1: 左侧头像占位 -->
+          <div class="avatar-col left">
+            <div v-if="m.senderId !== currentUserId" class="avatar-placeholder">👤</div>
           </div>
 
-          <!-- 消息内容和时间 -->
-          <div class="msg-wrapper">
-            <div class="msg-content">
+          <!-- 列 2: 左侧消息（只有对方消息会显示在这里） -->
+          <div class="msg-col left-msg">
+            <div v-if="m.senderId !== currentUserId" class="msg-content">
               <template v-if="m.messageType === 'Image'">
                 <img :src="m.mediaUrl" class="msg-image" @click="previewImage(m.mediaUrl)" />
               </template>
-              <template v-else>
-                {{ m.content }}
-              </template>
+              <template v-else>{{ m.content }}</template>
             </div>
-            <div class="msg-time">{{ formatDate(m.createdAt) }}</div>
           </div>
 
-          <!-- 自己头像 -->
-          <div v-if="m.senderId === currentUserId" class="msg-avatar">
-            <div class="avatar-placeholder">👨</div>
+          <!-- 列 3: 右侧消息（只有自己消息会显示在这里） -->
+          <div class="msg-col right-msg">
+            <div v-if="m.senderId === currentUserId" class="msg-content me">
+              <template v-if="m.messageType === 'Image'">
+                <img :src="m.mediaUrl" class="msg-image" @click="previewImage(m.mediaUrl)" />
+              </template>
+              <template v-else>{{ m.content }}</template>
+            </div>
+          </div>
+
+          <!-- 列 4: 右侧头像占位 -->
+          <div class="avatar-col right">
+            <div v-if="m.senderId === currentUserId" class="avatar-placeholder">👨</div>
           </div>
         </div>
       </div>
@@ -453,52 +460,57 @@ onMounted(async () => {
   background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
 }
 
-/* 消息样式 */
+/* 消息样式：4 列布局（avatar | left-msg | right-msg | avatar）*/
 .msg {
   margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 48px 1fr 1fr 48px;
+  column-gap: 12px;
+  align-items: start;
+  padding: 0 12px;
+  width: 100%;
+}
+
+/* 头像列（固定宽度，占位）*/
+.avatar-col {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 0 20px;
-}
-
-.msg.me {
-  flex-direction: row-reverse;
-  justify-content: flex-start;
-}
-
-.msg:not(.me) {
-  justify-content: flex-start;
-}
-
-/* 消息头像 */
-.msg-avatar {
-  flex-shrink: 0;
-}
-
-.avatar-placeholder {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-  display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  font-size: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 48px;
+  min-width: 48px;
+  padding: 0;
 }
+.avatar-col.left { padding-right: 4px; }
+.avatar-col.right { padding-left: 4px; }
 
-/* 消息内容包装器 */
-.msg-wrapper {
+/* 消息列：左侧和右侧分别独立 */
+.msg-col {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  max-width: 60%;
-  flex: 1;
 }
+.right-msg { align-items: flex-end; }
 
-.msg.me .msg-wrapper {
-  align-items: flex-end;
+/* 头像与占位样式 */
+.msg-avatar,
+.avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.msg-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.avatar-placeholder {
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  font-size: 18px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* 消息内容容器 */
@@ -546,29 +558,7 @@ onMounted(async () => {
 }
 
 /* 时间戳样式 */
-.msg-time {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 4px;
-  white-space: nowrap;
-  min-width: fit-content;
-}
-
-/* 自己的消息时间戳右对齐 */
-.msg.me .msg-time {
-  text-align: right;
-  margin-left: auto;
-  margin-right: 0;
-  padding-right: 4px;
-}
-
-/* 对方消息时间戳左对齐 */
-.msg:not(.me) .msg-time {
-  text-align: left;
-  margin-left: 0;
-  margin-right: auto;
-  padding-left: 4px;
-}
+.msg-time { display: none; }
 
 /* 聊天操作区域 */
 .chat-actions {

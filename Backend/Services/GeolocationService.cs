@@ -150,7 +150,10 @@ namespace petpal.API.Services
                 if (service.Community != null)
                 {
                     var center = service.Community.GetCenter();
-                    service.Distance = CalculateDistance(userLat, userLng, (double)center.CenterLat, (double)center.CenterLng);
+                    // CalculateDistance 返回米，MutualOrder.Distance 的注释表示单位为公里
+                    // 因此这里要转换为公里
+                    var distanceMeters = CalculateDistance(userLat, userLng, (double)center.CenterLat, (double)center.CenterLng);
+                    service.Distance = Math.Round(distanceMeters / 1000.0, 3); // 保留到千分位，前端显示时通常保留一位
                 }
                 else
                 {
@@ -192,10 +195,12 @@ namespace petpal.API.Services
                 if (service.Community != null)
                 {
                     var center = service.Community.GetCenter();
-                    var distance = CalculateDistance(userLat, userLng, (double)center.CenterLat, (double)center.CenterLng);
-                    if (distance <= radiusKm)
+                    // CalculateDistance 返回米，参数 radiusKm 是公里，需要统一单位为公里比较
+                    var distanceMeters = CalculateDistance(userLat, userLng, (double)center.CenterLat, (double)center.CenterLng);
+                    var distanceKm = distanceMeters / 1000.0;
+                    if (distanceKm <= radiusKm)
                     {
-                        service.Distance = distance;
+                        service.Distance = Math.Round(distanceKm, 3);
                         nearbyServices.Add(service);
                     }
                 }

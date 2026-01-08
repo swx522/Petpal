@@ -613,16 +613,50 @@ namespace petpal.API.Controllers
 
                 // 设置服务者ID并更新订单状态
                 request.SitterId = userId; // 记录接单的服务者
-                request.ExecutionStatus = OrderExecutionStatus.Completed;
+                request.ExecutionStatus = OrderExecutionStatus.Accepted; // 改为已接单状态
                 request.AcceptedAt = DateTime.Now;
-                request.CompletedAt = DateTime.Now; // 同时设置完成时间
+                // 注意：不设置CompletedAt，完成时间在订单完成后设置
 
+                // 保存订单状态变更
                 await _context.SaveChangesAsync();
+
+                // 自动为服务者和宠物主人创建聊天关系
+                try
+                {
+                    var conversation = await _context.Conversations
+                        .FirstOrDefaultAsync(c => c.OrderId == id);
+
+                    if (conversation == null)
+                    {
+                        // 创建新的订单相关对话
+                        conversation = new Conversation
+                        {
+                            OrderId = id,
+                            ParticipantAId = request.OwnerId,
+                            ParticipantBId = userId,
+                            CreatedAt = DateTime.Now,
+                            LastMessageAt = DateTime.Now
+                        };
+                        _context.Conversations.Add(conversation);
+                        await _context.SaveChangesAsync();
+
+                        Console.WriteLine($"为订单 {id} 自动创建了聊天关系：{request.OwnerId} <-> {userId}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"订单 {id} 的聊天关系已存在");
+                    }
+                }
+                catch (Exception chatEx)
+                {
+                    // 聊天创建失败不影响订单接受，只记录日志
+                    Console.WriteLine($"为订单 {id} 创建聊天关系失败: {chatEx.Message}");
+                }
 
                 return Ok(new ApiResponse
                 {
                     Success = true,
-                    Message = "成功接受并完成需求，可以进行评价了"
+                    Message = "成功接受需求，已为您和服务对象自动创建聊天频道，您可以开始沟通服务细节"
                 });
             }
             catch (Exception ex)
